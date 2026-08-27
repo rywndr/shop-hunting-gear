@@ -1,19 +1,33 @@
-import { Button } from "@/components/ui/button"
+import { NavBar } from "@/components/layout/nav-bar"
+import { TopBar } from "@/components/layout/top-bar"
+
+function SectionPlaceholder({ label }: { label: string }) {
+  return (
+    <section
+      aria-label={label}
+      className="flex min-h-28 items-center justify-center border-b border-border px-4 py-8 text-sm text-muted-foreground"
+    >
+      [placeholder] {label}
+    </section>
+  )
+}
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
+    <div className="flex min-h-svh flex-col">
+      <header className="bg-navbar text-navbar-foreground">
+        <TopBar />
+        <NavBar />
+      </header>
+
+      <main className="flex-1">
+        <SectionPlaceholder label="hero-carousel" />
+        <SectionPlaceholder label="product-list" />
+      </main>
+
+      <footer className="flex min-h-28 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
+        [placeholder] footer
+      </footer>
     </div>
   )
 }

@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="id"
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", roboto.variable, robotoSlabHeading.variable)}
     >
