@@ -1,4 +1,5 @@
 import { NavBar } from "@/components/layout/nav-bar"
+import { SiteFooter } from "@/components/layout/site-footer"
 import { TopBar } from "@/components/layout/top-bar"
 
 function SectionPlaceholder({ label }: { label: string }) {
@@ -25,9 +26,7 @@ export default function Page() {
         <SectionPlaceholder label="product-list" />
       </main>
 
-      <footer className="flex min-h-28 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
-        [placeholder] footer
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
