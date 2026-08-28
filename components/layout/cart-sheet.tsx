@@ -39,12 +39,14 @@ function CartSheet({ className, itemCount = 0 }: CartSheetProps) {
         }
       >
         <ShoppingCartIcon className="size-6" />
-        <Badge
-          aria-hidden
-          className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground"
-        >
-          {itemCount}
-        </Badge>
+        {itemCount > 0 && (
+          <Badge
+            aria-hidden
+            className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground"
+          >
+            {itemCount}
+          </Badge>
+        )}
       </SheetTrigger>
 
       <SheetContent side="right">
