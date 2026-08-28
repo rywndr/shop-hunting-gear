@@ -48,6 +48,14 @@ export const ACCOUNT_LINKS = [
   { label: "Daftar", href: "/daftar" },
 ] as const satisfies readonly NavLink[]
 
+export const IS_LOGGED_IN = true
+
+export const USER_LINKS = {
+  account: { label: "Akun", href: "/akun" },
+  history: { label: "History", href: "/history" },
+  logout: { label: "Keluar", href: "/keluar" },
+} as const satisfies Record<string, NavLink>
+
 export const INFO_LINKS = [
   { label: "Tentang Kami", href: "/tentang-kami" },
   { label: "Cara Pemesanan", href: "/cara-pemesanan" },

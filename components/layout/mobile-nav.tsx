@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import {
   CaretDownIcon,
+  ClockCounterClockwiseIcon,
   CrosshairIcon,
   FishIcon,
   GameControllerIcon,
@@ -29,7 +30,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { ACCOUNT_LINKS, CATEGORIES, type NavLink } from "@/lib/site-config"
+import {
+  ACCOUNT_LINKS,
+  CATEGORIES,
+  USER_LINKS,
+  type NavLink,
+} from "@/lib/site-config"
 import { cn } from "@/lib/utils"
 
 const CATEGORY_ICONS = {
@@ -38,6 +44,10 @@ const CATEGORY_ICONS = {
   "/c/spareparts": WrenchIcon,
   "/c/hobbies": GameControllerIcon,
 } satisfies Record<(typeof CATEGORIES)[number]["href"], Icon>
+
+/** Shared rhythm for every tappable row in the drawer. */
+const ROW =
+  "flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-navbar-foreground/10"
 
 function MobileNavLink({
   label,
@@ -48,14 +58,7 @@ function MobileNavLink({
 }: NavLink & { icon?: Icon; onNavigate: () => void; className?: string }) {
   return (
     <li>
-      <Link
-        href={href}
-        onNavigate={onNavigate}
-        className={cn(
-          "flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-navbar-foreground/10",
-          className
-        )}
-      >
+      <Link href={href} onNavigate={onNavigate} className={cn(ROW, className)}>
         {LinkIcon && <LinkIcon className="size-4 shrink-0" aria-hidden />}
         {label}
       </Link>
@@ -63,7 +66,13 @@ function MobileNavLink({
   )
 }
 
-function MobileNav({ className }: { className?: string }) {
+function MobileNav({
+  className,
+  isLoggedIn,
+}: {
+  className?: string
+  isLoggedIn: boolean
+}) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -105,7 +114,7 @@ function MobileNav({ className }: { className?: string }) {
           </ul>
 
           <Collapsible>
-            <CollapsibleTrigger className="group flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-navbar-foreground/10">
+            <CollapsibleTrigger className={cn(ROW, "group")}>
               <SquaresFourIcon className="size-4 shrink-0" aria-hidden />
               <span>Kategori</span>
               <CaretDownIcon
@@ -127,12 +136,25 @@ function MobileNav({ className }: { className?: string }) {
               </ul>
             </CollapsibleContent>
           </Collapsible>
+
+          {isLoggedIn && (
+            <ul>
+              <MobileNavLink
+                {...USER_LINKS.history}
+                icon={ClockCounterClockwiseIcon}
+                onNavigate={() => setOpen(false)}
+              />
+            </ul>
+          )}
         </nav>
 
         <SheetFooter className="p-0">
           <nav aria-label="Akun">
             <ul className="flex [&_a]:justify-center [&>li]:flex-1">
-              {ACCOUNT_LINKS.map((link) => (
+              {(isLoggedIn
+                ? [USER_LINKS.account, USER_LINKS.logout]
+                : ACCOUNT_LINKS
+              ).map((link) => (
                 <MobileNavLink
                   key={link.href}
                   {...link}
