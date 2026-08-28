@@ -42,8 +42,8 @@ export type Product = {
   readonly reviews: readonly Review[]
 }
 
-export function productHref(product: Pick<Product, "slug">) {
-  return `/p/${product.slug}`
+export function productHref(product: Pick<Product, "category" | "slug">) {
+  return `/c/${product.category}/p/${product.slug}`
 }
 
 export function reviewCount(product: Product) {
