@@ -1,7 +1,8 @@
-import { ImageIcon, ReceiptIcon } from "@phosphor-icons/react/ssr"
+import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
+import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { formatRupiah, formatShortDate } from "@/utils/format/intl"
@@ -14,22 +15,10 @@ import {
 } from "@/lib/orders/config"
 import { cn } from "@/lib/utils"
 
-// Placeholder
-function ItemThumbnail() {
-  return (
-    <div
-      aria-hidden
-      className="flex size-16 shrink-0 items-center justify-center bg-muted text-muted-foreground sm:size-18"
-    >
-      <ImageIcon className="size-6" />
-    </div>
-  )
-}
-
 function OrderItemRow({ item }: { item: OrderItem }) {
   return (
     <li className="flex gap-3">
-      <ItemThumbnail />
+      <ProductThumbnail className="size-16 shrink-0 sm:size-18" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="text-sm font-medium">{item.name}</p>

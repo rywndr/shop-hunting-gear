@@ -18,3 +18,27 @@ const shortDate = new Intl.DateTimeFormat("id-ID", {
 export function formatShortDate(value: string) {
   return shortDate.format(new Date(value))
 }
+
+const number = new Intl.NumberFormat("id-ID")
+
+export function formatNumber(value: number) {
+  return number.format(value)
+}
+
+const compactNumber = new Intl.NumberFormat("id-ID", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+})
+
+export function formatCompactNumber(value: number) {
+  return compactNumber.format(value)
+}
+
+const rating = new Intl.NumberFormat("id-ID", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+
+export function formatRating(value: number) {
+  return rating.format(value)
+}

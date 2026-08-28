@@ -8,16 +8,16 @@ function CategoryBar({ className }: { className?: string }) {
     <nav
       aria-label="Kategori produk"
       className={cn(
-        "hidden border-y border-navbar-border bg-navbar-accent/75 backdrop-blur-sm md:block",
+        "hidden h-category-bar border-y border-navbar-border bg-navbar-accent/75 backdrop-blur-sm md:block",
         className
       )}
     >
-      <ul className="mx-auto flex max-w-7xl items-center justify-center px-4">
+      <ul className="mx-auto flex h-full max-w-7xl items-center justify-center px-4">
         {CATEGORIES.map((category) => (
-          <li key={category.href}>
+          <li key={category.href} className="h-full">
             <Link
               href={category.href}
-              className="block px-6 py-3 text-sm font-medium tracking-wide text-navbar-accent-foreground uppercase transition-colors hover:bg-navbar-foreground/10"
+              className="flex h-full items-center px-6 text-sm font-medium tracking-wide text-navbar-accent-foreground uppercase transition-colors hover:bg-navbar-foreground/10"
             >
               {category.label}
             </Link>

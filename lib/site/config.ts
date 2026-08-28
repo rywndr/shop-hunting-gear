@@ -12,6 +12,10 @@ export type ContactLink = {
   readonly href: string
 }
 
+export type Category = NavLink & {
+  readonly slug: string
+}
+
 export const SITE = {
   name: "HUNTING-GEAR.NET",
   alternateName: "Hunting Gear",
@@ -37,11 +41,23 @@ export const SITE = {
 }
 
 export const CATEGORIES = [
-  { label: "Hunting", href: "/c/hunting" },
-  { label: "Fishing", href: "/c/fishing" },
-  { label: "Spareparts", href: "/c/spareparts" },
-  { label: "Hobbies", href: "/c/hobbies" },
-] as const satisfies readonly NavLink[]
+  { slug: "hunting", label: "Hunting", href: "/c/hunting" },
+  { slug: "fishing", label: "Fishing", href: "/c/fishing" },
+  { slug: "spareparts", label: "Spareparts", href: "/c/spareparts" },
+  { slug: "hobbies", label: "Hobbies", href: "/c/hobbies" },
+] as const satisfies readonly Category[]
+
+export type CategorySlug = (typeof CATEGORIES)[number]["slug"]
+
+export function categoryBySlug(slug: CategorySlug): Category {
+  const category = CATEGORIES.find((candidate) => candidate.slug === slug)
+
+  if (!category) {
+    throw new Error(`Kategori tidak dikenal: ${slug}`)
+  }
+
+  return category
+}
 
 export const AUTH_ROUTES = {
   signIn: "/masuk",
