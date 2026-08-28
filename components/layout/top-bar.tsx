@@ -2,7 +2,7 @@ import Link from "next/link"
 import { PhoneIcon } from "@phosphor-icons/react/ssr"
 
 import { ThemeToggle } from "@/components/layout/theme-toggle"
-import { ACCOUNT_LINKS, IS_LOGGED_IN, SITE } from "@/lib/site-config"
+import { ACCOUNT_LINKS, IS_LOGGED_IN, SITE } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 function TopBar({ className }: { className?: string }) {

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { EnvelopeSimpleIcon, PhoneIcon } from "@phosphor-icons/react/ssr"
 
 import { BrandLogo } from "@/components/layout/brand-logo"
-import { CATEGORIES, INFO_LINKS, SITE } from "@/lib/site-config"
+import { CATEGORIES, INFO_LINKS, SITE } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 function ColumnHeading({ id, children }: { id: string; children: string }) {

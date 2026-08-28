@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { IS_LOGGED_IN, USER_LINKS } from "@/lib/site-config"
+import { IS_LOGGED_IN, USER_LINKS } from "@/lib/site/config"
 
 function NavBar({ className }: { className?: string }) {
   return (
@@ -24,7 +24,6 @@ function NavBar({ className }: { className?: string }) {
         <BrandLogo className="mr-auto md:-mt-6" />
         <SearchForm className="order-last w-full md:order-none md:w-64 lg:w-72" />
         <CartSheet />
-        {/* Not modal: a modal menu locks page scroll and hides the scrollbar. */}
         {IS_LOGGED_IN && (
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger

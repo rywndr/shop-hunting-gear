@@ -12,7 +12,7 @@ import {
   CarouselPrevious,
   useCarousel,
 } from "@/components/ui/carousel"
-import { HERO_SLIDES } from "@/lib/site-config"
+import { HERO_SLIDES } from "@/lib/site/config"
 
 const arrowClassName =
   "hidden size-9 border-navbar-border bg-navbar/50 text-navbar-foreground backdrop-blur-sm hover:bg-navbar/80 hover:text-navbar-foreground md:inline-flex"

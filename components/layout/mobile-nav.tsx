@@ -35,7 +35,7 @@ import {
   CATEGORIES,
   USER_LINKS,
   type NavLink,
-} from "@/lib/site-config"
+} from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 const CATEGORY_ICONS = {
@@ -45,7 +45,6 @@ const CATEGORY_ICONS = {
   "/c/hobbies": GameControllerIcon,
 } satisfies Record<(typeof CATEGORIES)[number]["href"], Icon>
 
-/** Shared rhythm for every tappable row in the drawer. */
 const ROW =
   "flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-navbar-foreground/10"
 

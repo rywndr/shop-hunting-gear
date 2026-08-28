@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-import { CATEGORIES } from "@/lib/site-config"
+import { CATEGORIES } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 function CategoryBar({ className }: { className?: string }) {

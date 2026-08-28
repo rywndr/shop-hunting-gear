@@ -43,9 +43,29 @@ export const CATEGORIES = [
   { label: "Hobbies", href: "/c/hobbies" },
 ] as const satisfies readonly NavLink[]
 
+export const AUTH_ROUTES = {
+  signIn: "/masuk",
+  register: "/daftar",
+  forgotPassword: "/lupa-sandi",
+} as const satisfies Record<string, string>
+
+export const AUTH_SHOWCASE = {
+  image: "/auth/bottomland-2.webp",
+  alt: "Pemburu berkamuflase duduk bersandar di pohon sambil memegang busur.",
+  focus: "38% 45%",
+  title: "Perlengkapan yang menemani setiap perjalanan",
+  body: "Kamuflase, joran, sparepart, dan aksesori outdoor dalam satu toko.",
+} as const satisfies {
+  image: string
+  alt: string
+  focus: string
+  title: string
+  body: string
+}
+
 export const ACCOUNT_LINKS = [
-  { label: "Masuk", href: "/masuk" },
-  { label: "Daftar", href: "/daftar" },
+  { label: "Masuk", href: AUTH_ROUTES.signIn },
+  { label: "Daftar", href: AUTH_ROUTES.register },
 ] as const satisfies readonly NavLink[]
 
 export const IS_LOGGED_IN = true
