@@ -18,7 +18,7 @@ function SectionPlaceholder({ label }: { label: string }) {
 export default function Page() {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="relative z-20 bg-navbar text-navbar-foreground">
+      <header className="sticky top-0 z-20 bg-navbar text-navbar-foreground">
         <TopBar />
         <NavBar />
         <CategoryBar className="absolute inset-x-0 top-full" />
