@@ -4,7 +4,7 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
-import { PasswordField, TextField } from "@/components/auth/auth-field"
+import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldLabel } from "@/components/ui/field"

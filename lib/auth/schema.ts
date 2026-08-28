@@ -6,13 +6,13 @@ import { z } from "zod"
 
 export const MIN_PASSWORD_LENGTH = 8
 
-const emailField = z
+export const emailSchema = z
   .string()
   .min(1, "Email wajib diisi.")
   .pipe(z.email("Format email tidak valid."))
 
 export const signInSchema = z.object({
-  email: emailField,
+  email: emailSchema,
   password: z.string().min(1, "Kata sandi wajib diisi."),
   rememberMe: z.boolean(),
 })
@@ -22,7 +22,7 @@ export type SignInValues = z.infer<typeof signInSchema>
 export const registerSchema = z
   .object({
     name: z.string().trim().min(2, "Nama minimal 2 karakter."),
-    email: emailField,
+    email: emailSchema,
     password: z
       .string()
       .min(

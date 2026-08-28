@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
-import { PasswordField, TextField } from "@/components/auth/auth-field"
+import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
 import {
   MIN_PASSWORD_LENGTH,

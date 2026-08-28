@@ -16,13 +16,21 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IS_LOGGED_IN, USER_LINKS } from "@/lib/site/config"
 
-function NavBar({ className }: { className?: string }) {
+function NavBar({
+  className,
+  search = true,
+}: {
+  className?: string
+  search?: boolean
+}) {
   return (
     <div className={className}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 md:gap-x-4 md:pt-0 md:pb-3">
         <MobileNav isLoggedIn={IS_LOGGED_IN} className="md:hidden" />
         <BrandLogo className="mr-auto md:-mt-6" />
-        <SearchForm className="order-last w-full md:order-none md:w-64 lg:w-72" />
+        {search && (
+          <SearchForm className="order-last w-full md:order-none md:w-64 lg:w-72" />
+        )}
         <CartSheet />
         {IS_LOGGED_IN && (
           <DropdownMenu modal={false}>
