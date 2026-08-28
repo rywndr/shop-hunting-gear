@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   CaretDownIcon,
   ClockCounterClockwiseIcon,
@@ -33,17 +34,22 @@ import {
 import {
   ACCOUNT_LINKS,
   CATEGORIES,
+  CATEGORY_QUERY,
+  SEARCH_QUERY,
   USER_LINKS,
+  findCategories,
+  shopHref,
+  type CategorySlug,
   type NavLink,
 } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 const CATEGORY_ICONS = {
-  "/c/hunting": CrosshairIcon,
-  "/c/fishing": FishIcon,
-  "/c/spareparts": WrenchIcon,
-  "/c/hobbies": GameControllerIcon,
-} satisfies Record<(typeof CATEGORIES)[number]["href"], Icon>
+  hunting: CrosshairIcon,
+  fishing: FishIcon,
+  spareparts: WrenchIcon,
+  hobbies: GameControllerIcon,
+} satisfies Record<CategorySlug, Icon>
 
 const ROW =
   "flex w-full items-center gap-3 px-4 py-3 text-sm font-medium transition-colors hover:bg-navbar-foreground/10"
@@ -73,6 +79,10 @@ function MobileNav({
   isLoggedIn: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const selected = findCategories(searchParams.getAll(CATEGORY_QUERY))
+  const selectedSlugs = selected.map((category) => category.slug)
+  const search = searchParams.get(SEARCH_QUERY) ?? undefined
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -125,9 +135,17 @@ function MobileNav({
               <ul className="bg-navbar-accent/75 py-1">
                 {CATEGORIES.map((category) => (
                   <MobileNavLink
-                    key={category.href}
+                    key={category.slug}
                     {...category}
-                    icon={CATEGORY_ICONS[category.href]}
+                    href={shopHref({
+                      categories: selectedSlugs.includes(category.slug)
+                        ? selectedSlugs.filter(
+                            (slug) => slug !== category.slug
+                          )
+                        : [...selectedSlugs, category.slug],
+                      search,
+                    })}
+                    icon={CATEGORY_ICONS[category.slug]}
                     className="pl-8"
                     onNavigate={() => setOpen(false)}
                   />

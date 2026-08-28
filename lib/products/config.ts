@@ -104,6 +104,35 @@ export function productsInCategory(
   return products.filter((product) => product.category === category)
 }
 
+export function productsInCategories(
+  products: readonly Product[],
+  categories: readonly CategorySlug[]
+) {
+  if (categories.length === 0) {
+    return products
+  }
+
+  const selected = new Set(categories)
+  return products.filter((product) => selected.has(product.category))
+}
+
+export function productsMatching(
+  products: readonly Product[],
+  search: string
+) {
+  const term = search.trim().toLocaleLowerCase("id-ID")
+
+  if (!term) {
+    return products
+  }
+
+  return products.filter((product) =>
+    [product.name, ...product.description].some((value) =>
+      value.toLocaleLowerCase("id-ID").includes(term)
+    )
+  )
+}
+
 export function relatedProducts(
   products: readonly Product[],
   product: Product,

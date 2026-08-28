@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+
 import { CategoryBar } from "@/components/layout/category-bar"
 import { NavBar } from "@/components/layout/nav-bar"
 import { SiteFooter } from "@/components/layout/site-footer"
@@ -28,7 +30,11 @@ function SiteShell({ children, variant }: SiteShellProps) {
       >
         <TopBar />
         <NavBar search={browsing} />
-        {browsing && <CategoryBar className="absolute inset-x-0 top-full" />}
+        {browsing && (
+          <Suspense>
+            <CategoryBar className="absolute inset-x-0 top-full" />
+          </Suspense>
+        )}
       </header>
 
       <main className="flex-1">{children}</main>

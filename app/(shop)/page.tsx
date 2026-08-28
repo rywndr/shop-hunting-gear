@@ -1,22 +1,64 @@
 import { HeroCarousel } from "@/components/layout/hero-carousel"
+import { CategoryFilterList } from "@/components/products/category-filter-list"
 import { ProductGrid } from "@/components/products/product-grid"
 import { ProductSection } from "@/components/products/product-section"
+import {
+  productsInCategories,
+  productsMatching,
+} from "@/lib/products/config"
 import { MOCK_PRODUCTS } from "@/lib/products/mock"
+import {
+  CATEGORY_QUERY,
+  SEARCH_QUERY,
+  findCategories,
+} from "@/lib/site/config"
 
-export default function Page() {
+export default async function Page({ searchParams }: PageProps<"/">) {
+  const query = await searchParams
+  const categoryQuery = query[CATEGORY_QUERY]
+  const categories = findCategories(
+    typeof categoryQuery === "string"
+      ? [categoryQuery]
+      : categoryQuery ?? []
+  )
+  const search =
+    typeof query[SEARCH_QUERY] === "string" ? query[SEARCH_QUERY].trim() : ""
+  const categorySlugs = categories.map((category) => category.slug)
+  const categoryProducts = productsInCategories(MOCK_PRODUCTS, categorySlugs)
+  const products = productsMatching(categoryProducts, search)
+
   return (
     <>
       <HeroCarousel />
 
       <ProductSection
-        id="semua-produk"
-        title="Semua Produk"
-        description="Seluruh katalog dari empat kategori dalam satu daftar."
+        id="produk"
+        title={
+          categories.length > 0
+            ? categories.map((category) => category.label).join(" & ")
+            : "Semua Produk"
+        }
+        description={
+          search
+            ? `Hasil pencarian untuk "${search}".`
+            : categories.length > 0
+            ? "Produk dari kategori yang dipilih."
+            : "Seluruh katalog dari empat kategori dalam satu daftar."
+        }
+        action={
+          categories.length > 0 ? (
+            <CategoryFilterList
+              key={categorySlugs.join(",")}
+              categories={categories}
+              search={search}
+            />
+          ) : undefined
+        }
         className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
       >
         <ProductGrid
-          products={MOCK_PRODUCTS}
-          emptyMessage="Katalog sedang disiapkan. Hubungi kami untuk stok terbaru."
+          products={products}
+          emptyMessage="Tidak ada produk yang cocok dengan filter ini."
         />
       </ProductSection>
     </>

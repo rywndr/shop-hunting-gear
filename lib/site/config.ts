@@ -16,6 +16,30 @@ export type Category = NavLink & {
   readonly slug: string
 }
 
+export const CATEGORY_QUERY = "kategori"
+export const SEARCH_QUERY = "q"
+
+export function shopHref({
+  categories = [],
+  search,
+}: {
+  categories?: readonly string[]
+  search?: string
+} = {}) {
+  const query = new URLSearchParams()
+
+  for (const category of categories) {
+    query.append(CATEGORY_QUERY, category)
+  }
+
+  if (search) {
+    query.set(SEARCH_QUERY, search)
+  }
+
+  const value = query.toString()
+  return value ? `/?${value}` : "/"
+}
+
 export const SITE = {
   name: "HUNTING-GEAR.NET",
   alternateName: "Hunting Gear",
@@ -41,16 +65,29 @@ export const SITE = {
 }
 
 export const CATEGORIES = [
-  { slug: "hunting", label: "Hunting", href: "/c/hunting" },
-  { slug: "fishing", label: "Fishing", href: "/c/fishing" },
-  { slug: "spareparts", label: "Spareparts", href: "/c/spareparts" },
-  { slug: "hobbies", label: "Hobbies", href: "/c/hobbies" },
+  { slug: "hunting", label: "Hunting", href: shopHref({ categories: ["hunting"] }) },
+  { slug: "fishing", label: "Fishing", href: shopHref({ categories: ["fishing"] }) },
+  {
+    slug: "spareparts",
+    label: "Spareparts",
+    href: shopHref({ categories: ["spareparts"] }),
+  },
+  { slug: "hobbies", label: "Hobbies", href: shopHref({ categories: ["hobbies"] }) },
 ] as const satisfies readonly Category[]
 
 export type CategorySlug = (typeof CATEGORIES)[number]["slug"]
 
+export function findCategory(slug: string | undefined) {
+  return CATEGORIES.find((category) => category.slug === slug)
+}
+
+export function findCategories(slugs: readonly string[]) {
+  const selected = new Set(slugs)
+  return CATEGORIES.filter((category) => selected.has(category.slug))
+}
+
 export function categoryBySlug(slug: CategorySlug): Category {
-  const category = CATEGORIES.find((candidate) => candidate.slug === slug)
+  const category = findCategory(slug)
 
   if (!category) {
     throw new Error(`Kategori tidak dikenal: ${slug}`)
@@ -117,7 +154,7 @@ export const HERO_SLIDES = [
     eyebrow: "Hunting",
     title: "Berangkat sebelum fajar",
     body: "Kamuflase, tas, dan perlengkapan berburu.",
-    cta: { label: "Belanja Sekarang", href: "/c/hunting" },
+    cta: { label: "Belanja Sekarang", href: shopHref({ categories: ["hunting"] }) },
   },
   {
     image: "/carousel/breakupinfinity-2.webp",
@@ -126,7 +163,7 @@ export const HERO_SLIDES = [
     eyebrow: "Fishing",
     title: "Air tenang, alat siap",
     body: "Joran, reel, dan aksesoris untuk seharian di air.",
-    cta: { label: "Mulai Belanja", href: "/c/fishing" },
+    cta: { label: "Mulai Belanja", href: shopHref({ categories: ["fishing"] }) },
   },
   {
     image: "/carousel/brush-16.webp",
@@ -135,6 +172,6 @@ export const HERO_SLIDES = [
     eyebrow: "Hobbies",
     title: "Bermalam di alam",
     body: "Aksesori dan perlengkapan penunjang untuk aktivitas outdoor",
-    cta: { label: "Lihat Produk", href: "/c/hobbies" },
+    cta: { label: "Lihat Produk", href: shopHref({ categories: ["hobbies"] }) },
   },
 ] as const satisfies readonly HeroSlide[]

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import Link from "next/link"
 import { UserCircleIcon } from "@phosphor-icons/react/ssr"
 
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IS_LOGGED_IN, USER_LINKS } from "@/lib/site/config"
 
+const SEARCH_CLASS = "order-last w-full md:order-none md:w-64 lg:w-72"
+
 function NavBar({
   className,
   search = true,
@@ -26,10 +29,16 @@ function NavBar({
   return (
     <div className={className}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 md:gap-x-4 md:pt-0 md:pb-3">
-        <MobileNav isLoggedIn={IS_LOGGED_IN} className="md:hidden" />
+        <Suspense fallback={<div aria-hidden className="size-10 md:hidden" />}>
+          <MobileNav isLoggedIn={IS_LOGGED_IN} className="md:hidden" />
+        </Suspense>
         <BrandLogo className="mr-auto md:-mt-6" />
         {search && (
-          <SearchForm className="order-last w-full md:order-none md:w-64 lg:w-72" />
+          <Suspense
+            fallback={<div aria-hidden className={`h-10 ${SEARCH_CLASS}`} />}
+          >
+            <SearchForm className={SEARCH_CLASS} />
+          </Suspense>
         )}
         <CartSheet />
         {IS_LOGGED_IN && (
