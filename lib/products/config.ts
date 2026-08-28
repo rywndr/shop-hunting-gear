@@ -42,7 +42,7 @@ export type Product = {
   readonly reviews: readonly Review[]
 }
 
-export function productHref(product: Product) {
+export function productHref(product: Pick<Product, "slug">) {
   return `/p/${product.slug}`
 }
 
@@ -76,7 +76,9 @@ export type ProductDiscount = {
   readonly percent: number
 }
 
-export function productDiscount(product: Product): ProductDiscount | null {
+export function productDiscount(
+  product: Pick<Product, "compareAtPrice" | "price">
+): ProductDiscount | null {
   const { compareAtPrice, price } = product
 
   if (compareAtPrice === null || compareAtPrice <= price) {

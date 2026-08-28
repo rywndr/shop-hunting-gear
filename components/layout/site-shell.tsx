@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 
+import { CartProvider } from "@/components/cart/cart-provider"
 import { CategoryBar } from "@/components/layout/category-bar"
 import { NavBar } from "@/components/layout/nav-bar"
 import { SiteFooter } from "@/components/layout/site-footer"
@@ -21,7 +22,8 @@ function SiteShell({ children, variant }: SiteShellProps) {
   const browsing = variant === "shop"
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <CartProvider>
+      <div className="flex min-h-svh flex-col">
       <header
         className={cn(
           "bg-navbar text-navbar-foreground",
@@ -40,7 +42,8 @@ function SiteShell({ children, variant }: SiteShellProps) {
       <main className="flex-1">{children}</main>
 
       <SiteFooter />
-    </div>
+      </div>
+    </CartProvider>
   )
 }
 

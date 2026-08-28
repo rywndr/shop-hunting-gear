@@ -1,15 +1,18 @@
 "use client"
 
 import { useId, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Radio } from "@base-ui/react/radio"
 import { RadioGroup } from "@base-ui/react/radio-group"
-import { LightningIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react"
+import { MinusIcon, PlusIcon } from "@phosphor-icons/react"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { useCart } from "@/components/cart/cart-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { isInStock, type Product } from "@/lib/products/config"
+import { AUTH_ROUTES, IS_LOGGED_IN } from "@/lib/site/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
 import { cn } from "@/lib/utils"
 
@@ -122,6 +125,8 @@ function ProductPurchase({
   product: Product
   className?: string
 }) {
+  const router = useRouter()
+  const { addItem } = useCart()
   const [selection, setSelection] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       product.variants.map((variant) => [variant.label, variant.options[0]])
@@ -130,6 +135,34 @@ function ProductPurchase({
   const [quantity, setQuantity] = useState(1)
 
   const available = isInStock(product)
+
+  function requireAccount() {
+    if (IS_LOGGED_IN) {
+      return true
+    }
+
+    router.push(AUTH_ROUTES.signIn)
+    return false
+  }
+
+  function handleAddToCart() {
+    if (!requireAccount()) {
+      return
+    }
+
+    addItem({
+      product,
+      quantity,
+      variants: product.variants.map((variant) => ({
+        label: variant.label,
+        value: selection[variant.label] ?? variant.options[0],
+      })),
+    })
+  }
+
+  function handleBuyNow() {
+    requireAccount()
+  }
 
   return (
     <Card size="sm" className={cn(FLAT_CARD, className)}>
@@ -173,6 +206,7 @@ function ProductPurchase({
             type="button"
             variant="outline"
             disabled={!available}
+            onClick={handleAddToCart}
             className="h-11 flex-1 font-bold tracking-wide uppercase"
           >
             Masukkan Keranjang
@@ -180,6 +214,7 @@ function ProductPurchase({
           <Button
             type="button"
             disabled={!available}
+            onClick={handleBuyNow}
             className="h-11 flex-1 font-bold tracking-wide uppercase"
           >
             Beli Langsung

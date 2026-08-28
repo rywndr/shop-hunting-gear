@@ -9,7 +9,7 @@ const PRICE_SIZES = {
 } as const
 
 type ProductPriceProps = {
-  product: Product
+  product: Pick<Product, "compareAtPrice" | "price">
   size?: keyof typeof PRICE_SIZES
   className?: string
 }

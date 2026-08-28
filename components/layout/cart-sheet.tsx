@@ -1,12 +1,20 @@
 "use client"
 
-import { ShoppingCartIcon } from "@phosphor-icons/react"
+import Link from "next/link"
+import {
+  MinusIcon,
+  PlusIcon,
+  ShoppingCartIcon,
+  TrashIcon,
+} from "@phosphor-icons/react"
 
+import { useCart } from "@/components/cart/cart-provider"
+import { ProductPrice } from "@/components/products/product-price"
+import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -14,17 +22,27 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { cartSubtotal } from "@/lib/cart/config"
+import { productHref } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
+import { formatNumber, formatRupiah } from "@/utils/format/intl"
 
 type CartSheetProps = {
   className?: string
-  itemCount?: number
 }
 
-// Hardcode count [placeholder]
-function CartSheet({ className, itemCount = 0 }: CartSheetProps) {
+function CartSheet({ className }: CartSheetProps) {
+  const {
+    items,
+    itemCount,
+    open,
+    removeItem,
+    setItemQuantity,
+    setOpen,
+  } = useCart()
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
           <Button
@@ -57,16 +75,129 @@ function CartSheet({ className, itemCount = 0 }: CartSheetProps) {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <ShoppingCartIcon
-            className="size-10 text-muted-foreground"
-            aria-hidden
-          />
-          <p className="text-sm text-muted-foreground">
-            Keranjang kamu masih kosong.
-          </p>
-        </div>
-
+        {items.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <ShoppingCartIcon
+              className="size-10 text-muted-foreground"
+              aria-hidden
+            />
+            <p className="text-sm text-muted-foreground">
+              Keranjang kamu masih kosong.
+            </p>
+          </div>
+        ) : (
+          <>
+            <ul className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6">
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex gap-3 border-b border-border pb-4"
+                >
+                  <Link
+                    href={productHref(item.product)}
+                    aria-label={`Lihat ${item.product.name}`}
+                    className="shrink-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+                    onClick={() => setOpen(false)}
+                  >
+                    <ProductThumbnail
+                      label={`Gambar ${item.product.name}`}
+                      className="size-16"
+                    />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={productHref(item.product)}
+                      className="font-medium underline-offset-4 hover:text-primary hover:underline"
+                      onClick={() => setOpen(false)}
+                    >
+                      {item.product.name}
+                    </Link>
+                    {item.variants.length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.variants
+                          .map(({ label, value }) => `${label}: ${value}`)
+                          .join(", ")}
+                      </p>
+                    )}
+                    <ProductPrice product={item.product} className="mt-2" />
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center border border-border">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Kurangi jumlah ${item.product.name}`}
+                          disabled={item.quantity <= 1}
+                          onClick={() =>
+                            setItemQuantity({
+                              itemId: item.id,
+                              quantity: item.quantity - 1,
+                            })
+                          }
+                        >
+                          <MinusIcon />
+                        </Button>
+                        <span
+                          aria-label={`${formatNumber(item.quantity)} barang`}
+                          className="min-w-8 text-center text-sm tabular-nums"
+                        >
+                          {formatNumber(item.quantity)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Tambah jumlah ${item.product.name}`}
+                          disabled={item.quantity >= item.product.stock}
+                          onClick={() =>
+                            setItemQuantity({
+                              itemId: item.id,
+                              quantity: item.quantity + 1,
+                            })
+                          }
+                        >
+                          <PlusIcon />
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Hapus ${item.product.name} dari keranjang`}
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => removeItem(item.id)}
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </div>
+                    <div className="mt-3 flex justify-between gap-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Total barang
+                      </span>
+                      <span className="font-medium tabular-nums">
+                        {formatRupiah(item.product.price * item.quantity)}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <SheetFooter className="border-t border-border">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-heading text-lg font-bold tabular-nums">
+                  {formatRupiah(cartSubtotal(items))}
+                </span>
+              </div>
+              <Button
+                type="button"
+                className="h-10 font-bold tracking-wide uppercase"
+              >
+                Checkout
+              </Button>
+            </SheetFooter>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   )
