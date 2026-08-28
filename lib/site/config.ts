@@ -139,7 +139,10 @@ export const INFO_LINKS = [
 export type HeroSlide = {
   readonly image: string
   readonly alt: string
-  readonly focus: string
+  readonly focus: {
+    readonly mobile: string
+    readonly desktop: string
+  }
   readonly eyebrow: string
   readonly title: string
   readonly body: string
@@ -150,7 +153,7 @@ export const HERO_SLIDES = [
   {
     image: "/carousel/shadowgrassblades-15.webp",
     alt: "Dua pemburu berdiri di rawa saat matahari terbit.",
-    focus: "72% 40%",
+    focus: { mobile: "72% 40%", desktop: "72% 30%" },
     eyebrow: "Hunting",
     title: "Berangkat sebelum fajar",
     body: "Kamuflase, tas, dan perlengkapan berburu.",
@@ -159,7 +162,7 @@ export const HERO_SLIDES = [
   {
     image: "/carousel/breakupinfinity-2.webp",
     alt: "Dua orang mendayung perahu aluminium di danau yang tenang.",
-    focus: "62% 45%",
+    focus: { mobile: "62% 45%", desktop: "62% 45%" },
     eyebrow: "Fishing",
     title: "Air tenang, alat siap",
     body: "Joran, reel, dan aksesoris untuk seharian di air.",
@@ -168,7 +171,7 @@ export const HERO_SLIDES = [
   {
     image: "/carousel/brush-16.webp",
     alt: "Pemburu duduk di depan tenda dan api unggun dengan latar gunung bersalju.",
-    focus: "58% 50%",
+    focus: { mobile: "38% 50%", desktop: "58% 50%" },
     eyebrow: "Hobbies",
     title: "Bermalam di alam",
     body: "Aksesori dan perlengkapan penunjang untuk aktivitas outdoor",

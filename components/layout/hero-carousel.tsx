@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -12,10 +13,22 @@ import {
   CarouselPrevious,
   useCarousel,
 } from "@/components/ui/carousel"
-import { HERO_SLIDES } from "@/lib/site/config"
+import { HERO_SLIDES, type HeroSlide } from "@/lib/site/config"
 
 const arrowClassName =
   "hidden size-9 border-navbar-border bg-navbar/50 text-navbar-foreground backdrop-blur-sm hover:bg-navbar/80 hover:text-navbar-foreground md:inline-flex"
+
+type HeroImageStyle = CSSProperties & {
+  "--hero-focus-mobile": string
+  "--hero-focus-desktop": string
+}
+
+function heroImageStyle(focus: HeroSlide["focus"]): HeroImageStyle {
+  return {
+    "--hero-focus-mobile": focus.mobile,
+    "--hero-focus-desktop": focus.desktop,
+  }
+}
 
 function HeroDots() {
   const { api, selectedIndex } = useCarousel()
@@ -52,8 +65,8 @@ function HeroCarousel({ className }: { className?: string }) {
                 sizes="100vw"
                 loading={index === 0 ? "eager" : "lazy"}
                 fetchPriority={index === 0 ? "high" : "auto"}
-                style={{ objectPosition: slide.focus }}
-                className="object-cover"
+                style={heroImageStyle(slide.focus)}
+                className="object-cover [object-position:var(--hero-focus-mobile)] md:[object-position:var(--hero-focus-desktop)]"
               />
 
               <div className="absolute inset-0 bg-linear-to-t from-navbar/95 via-navbar/40 via-60% to-navbar/10 md:bg-linear-to-r md:via-50%" />
