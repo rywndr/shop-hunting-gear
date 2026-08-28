@@ -30,7 +30,7 @@ function ProductCard({ product }: { product: Product }) {
           {product.name}
         </h3>
 
-        <ProductPrice product={product} />
+        <ProductPrice product={product} className="min-h-12 justify-end" />
 
         <p className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-xs text-muted-foreground">
           {reviews > 0 && (
