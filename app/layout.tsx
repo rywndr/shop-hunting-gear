@@ -1,6 +1,7 @@
 import { Geist_Mono, Roboto, Roboto_Slab } from "next/font/google"
 
 import "./globals.css"
+import { CartProvider } from "@/components/cart/cart-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 
@@ -34,7 +35,9 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <CartProvider>{children}</CartProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

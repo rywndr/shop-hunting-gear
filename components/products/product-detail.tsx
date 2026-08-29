@@ -88,48 +88,44 @@ type ProductDetailProps = {
 
 function ProductDetail({ product, related }: ProductDetailProps) {
   return (
-    <>
-      <div aria-hidden className="hidden md:block md:h-category-bar" />
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 md:pb-12">
+      <Breadcrumb product={product} />
 
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 md:pb-12">
-        <Breadcrumb product={product} />
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-10">
+        <ProductGallery images={product.images} name={product.name} />
 
-        <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-10">
-          <ProductGallery images={product.images} name={product.name} />
-
-          <div className="flex flex-col gap-5">
-            <ProductHeadline product={product} />
-            <ProductPrice product={product} size="lg" />
-            <ProductPurchase product={product} />
-          </div>
-        </div>
-
-        <div className="mt-10 flex flex-col gap-10 md:mt-12 md:gap-12">
-          <ProductSection id="deskripsi" title="Deskripsi Produk">
-            <div className="flex max-w-3xl flex-col gap-3 text-sm/relaxed text-pretty">
-              {product.description.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-          </ProductSection>
-
-          <ReviewSection product={product} />
-
-          {related.length > 0 && (
-            <ProductSection
-              id="produk-terkait"
-              title="Produk Terkait"
-              description="Perlengkapan lain dari kategori yang sama."
-            >
-              <ProductGrid
-                products={related}
-                emptyMessage="Produk lain akan segera tersedia."
-              />
-            </ProductSection>
-          )}
+        <div className="flex flex-col gap-5">
+          <ProductHeadline product={product} />
+          <ProductPrice product={product} size="lg" />
+          <ProductPurchase product={product} />
         </div>
       </div>
-    </>
+
+      <div className="mt-10 flex flex-col gap-10 md:mt-12 md:gap-12">
+        <ProductSection id="deskripsi" title="Deskripsi Produk">
+          <div className="flex max-w-3xl flex-col gap-3 text-sm/relaxed text-pretty">
+            {product.description.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </ProductSection>
+
+        <ReviewSection product={product} />
+
+        {related.length > 0 && (
+          <ProductSection
+            id="produk-terkait"
+            title="Produk Terkait"
+            description="Perlengkapan lain dari kategori yang sama."
+          >
+            <ProductGrid
+              products={related}
+              emptyMessage="Produk lain akan segera tersedia."
+            />
+          </ProductSection>
+        )}
+      </div>
+    </div>
   )
 }
 
