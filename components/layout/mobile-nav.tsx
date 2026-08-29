@@ -4,14 +4,11 @@ import { useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import {
-  CaretDownIcon,
-  ClockCounterClockwiseIcon,
   CrosshairIcon,
   FishIcon,
   GameControllerIcon,
   HouseIcon,
   ListIcon,
-  SquaresFourIcon,
   WrenchIcon,
   type Icon,
 } from "@phosphor-icons/react"
@@ -19,24 +16,16 @@ import {
 import { BrandLogo } from "@/components/layout/brand-logo"
 import { Button } from "@/components/ui/button"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
   Sheet,
   SheetContent,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
 import {
-  ACCOUNT_LINKS,
   CATEGORIES,
   CATEGORY_QUERY,
   SEARCH_QUERY,
-  USER_LINKS,
   findCategories,
   shopHref,
   type CategorySlug,
@@ -58,31 +47,35 @@ function MobileNavLink({
   label,
   href,
   icon: LinkIcon,
+  current,
   onNavigate,
-  className,
-}: NavLink & { icon?: Icon; onNavigate: () => void; className?: string }) {
+}: NavLink & {
+  icon: Icon
+  current?: boolean
+  onNavigate: () => void
+}) {
   return (
     <li>
-      <Link href={href} onNavigate={onNavigate} className={cn(ROW, className)}>
-        {LinkIcon && <LinkIcon className="size-4 shrink-0" aria-hidden />}
+      <Link
+        href={href}
+        aria-current={current}
+        onNavigate={onNavigate}
+        className={cn(ROW, "aria-[current=true]:bg-navbar-foreground/10")}
+      >
+        <LinkIcon className="size-4 shrink-0" aria-hidden />
         {label}
       </Link>
     </li>
   )
 }
 
-function MobileNav({
-  className,
-  isLoggedIn,
-}: {
-  className?: string
-  isLoggedIn: boolean
-}) {
+function MobileNav({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
   const searchParams = useSearchParams()
   const selected = findCategories(searchParams.getAll(CATEGORY_QUERY))
   const selectedSlugs = selected.map((category) => category.slug)
   const search = searchParams.get(SEARCH_QUERY) ?? undefined
+  const close = () => setOpen(false)
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -118,67 +111,26 @@ function MobileNav({
               label="Beranda"
               href="/"
               icon={HouseIcon}
-              onNavigate={() => setOpen(false)}
+              onNavigate={close}
             />
-          </ul>
 
-          <Collapsible>
-            <CollapsibleTrigger className={cn(ROW, "group")}>
-              <SquaresFourIcon className="size-4 shrink-0" aria-hidden />
-              <span>Kategori</span>
-              <CaretDownIcon
-                className="ml-auto size-4 text-navbar-foreground/70 transition-transform group-data-panel-open:rotate-180"
-                aria-hidden
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ul className="bg-navbar-accent/75 py-1">
-                {CATEGORIES.map((category) => (
-                  <MobileNavLink
-                    key={category.slug}
-                    {...category}
-                    href={shopHref({
-                      categories: selectedSlugs.includes(category.slug)
-                        ? selectedSlugs.filter((slug) => slug !== category.slug)
-                        : [...selectedSlugs, category.slug],
-                      search,
-                    })}
-                    icon={CATEGORY_ICONS[category.slug]}
-                    className="pl-8"
-                    onNavigate={() => setOpen(false)}
-                  />
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-
-          {isLoggedIn && (
-            <ul>
+            {CATEGORIES.map((category) => (
               <MobileNavLink
-                {...USER_LINKS.history}
-                icon={ClockCounterClockwiseIcon}
-                onNavigate={() => setOpen(false)}
+                key={category.slug}
+                {...category}
+                href={shopHref({
+                  categories: selectedSlugs.includes(category.slug)
+                    ? selectedSlugs.filter((slug) => slug !== category.slug)
+                    : [...selectedSlugs, category.slug],
+                  search,
+                })}
+                icon={CATEGORY_ICONS[category.slug]}
+                current={selectedSlugs.includes(category.slug)}
+                onNavigate={close}
               />
-            </ul>
-          )}
+            ))}
+          </ul>
         </nav>
-
-        <SheetFooter className="p-0">
-          <nav aria-label="Akun">
-            <ul className="flex [&_a]:justify-center [&>li]:flex-1">
-              {(isLoggedIn
-                ? [USER_LINKS.account, USER_LINKS.logout]
-                : ACCOUNT_LINKS
-              ).map((link) => (
-                <MobileNavLink
-                  key={link.href}
-                  {...link}
-                  onNavigate={() => setOpen(false)}
-                />
-              ))}
-            </ul>
-          </nav>
-        </SheetFooter>
       </SheetContent>
     </Sheet>
   )

@@ -21,7 +21,7 @@ function NavBar({
     <div className={className}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 md:gap-x-4 md:pt-0 md:pb-3">
         <Suspense fallback={<div aria-hidden className="size-10 md:hidden" />}>
-          <MobileNav isLoggedIn={IS_LOGGED_IN} className="md:hidden" />
+          <MobileNav className="md:hidden" />
         </Suspense>
         <BrandLogo className="mr-auto md:-mt-6" />
         {search && (
