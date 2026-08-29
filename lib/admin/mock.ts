@@ -9,7 +9,8 @@ import type {
   Transaction,
   TransactionLifecycle,
 } from "@/lib/admin/finance"
-import type { OrderItem } from "@/lib/orders/config"
+import type { SalesOrder } from "@/lib/admin/orders"
+import type { OrderItem, OrderStatus } from "@/lib/orders/config"
 import type { Product } from "@/lib/products/config"
 import { MOCK_PRODUCTS } from "@/lib/products/mock"
 
@@ -297,6 +298,219 @@ export const MOCK_TRANSACTIONS: readonly Transaction[] =
       }
     }
   )
+
+type SalesOrderEntry = {
+  readonly daysBack: number
+  readonly status: OrderStatus
+  readonly buyer: string
+  readonly courier: string
+  readonly shipping: number
+  readonly items: readonly [ItemEntry, ...ItemEntry[]]
+}
+
+const SALES_ORDER_ENTRIES = [
+  {
+    daysBack: 0,
+    status: "unpaid",
+    buyer: "Rizky Pratama",
+    courier: "JNE Reguler",
+    shipping: 24_000,
+    items: [["jaket", "L / Bottomland", 1]],
+  },
+  {
+    daysBack: 0,
+    status: "unpaid",
+    buyer: "Dwi Lestari",
+    courier: "SiCepat BEST",
+    shipping: 32_000,
+    items: [
+      ["reel", "4000", 1],
+      ["kotak", "6 sekat", 1],
+    ],
+  },
+  {
+    daysBack: 1,
+    status: "unpaid",
+    buyer: "Bagas Nugroho",
+    courier: "J&T Express",
+    shipping: 22_000,
+    items: [["lampu", "Hitam", 2]],
+  },
+  {
+    daysBack: 1,
+    status: "processing",
+    buyer: "Siti Rahayu",
+    courier: "JNE YES",
+    shipping: 41_000,
+    items: [["tenda", "2 orang / Olive", 1]],
+  },
+  {
+    daysBack: 1,
+    status: "processing",
+    buyer: "Andi Saputra",
+    courier: "AnterAja Reguler",
+    shipping: 26_000,
+    items: [["tas", "Kamuflase", 1]],
+  },
+  {
+    daysBack: 2,
+    status: "unpaid",
+    buyer: "Yoga Firmansyah",
+    courier: "JNE Reguler",
+    shipping: 24_000,
+    items: [["per", "Medium", 2]],
+  },
+  {
+    daysBack: 2,
+    status: "processing",
+    buyer: "Nurul Hidayah",
+    courier: "SiCepat REG",
+    shipping: 28_000,
+    items: [
+      ["joran", "210 cm / Medium", 1],
+      ["kotak", "12 sekat", 1],
+    ],
+  },
+  {
+    daysBack: 2,
+    status: "processing",
+    buyer: "Fajar Ramadhan",
+    courier: "J&T Express",
+    shipping: 30_000,
+    items: [["teropong", "Standar", 1]],
+  },
+  {
+    daysBack: 3,
+    status: "processing",
+    buyer: "Intan Maharani",
+    courier: "JNE Reguler",
+    shipping: 24_000,
+    items: [["sarung", "M / Hitam", 3]],
+  },
+  {
+    daysBack: 3,
+    status: "shipped",
+    buyer: "Hendra Wijaya",
+    courier: "JNE YES",
+    shipping: 35_000,
+    items: [
+      ["piston", "5.5 mm", 2],
+      ["per", "Medium", 1],
+    ],
+  },
+  {
+    daysBack: 4,
+    status: "shipped",
+    buyer: "Putri Anggraini",
+    courier: "AnterAja Reguler",
+    shipping: 22_000,
+    items: [["matras", "190 x 60 cm", 2]],
+  },
+  {
+    daysBack: 5,
+    status: "shipped",
+    buyer: "Rangga Saputra",
+    courier: "SiCepat BEST",
+    shipping: 26_000,
+    items: [["jaket", "XL / Timber", 1]],
+  },
+  {
+    daysBack: 6,
+    status: "cancelled",
+    buyer: "Wahyu Kurniawan",
+    courier: "J&T Express",
+    shipping: 24_000,
+    items: [["kotak", "6 sekat", 1]],
+  },
+  {
+    daysBack: 8,
+    status: "completed",
+    buyer: "Melati Sari",
+    courier: "JNE Reguler",
+    shipping: 28_000,
+    items: [
+      ["lampu", "Hitam", 1],
+      ["matras", "190 x 60 cm", 1],
+    ],
+  },
+  {
+    daysBack: 11,
+    status: "completed",
+    buyer: "Bayu Setiawan",
+    courier: "SiCepat BEST",
+    shipping: 34_000,
+    items: [["tenda", "2 orang / Olive", 1]],
+  },
+  {
+    daysBack: 14,
+    status: "cancelled",
+    buyer: "Dimas Aditya",
+    courier: "JNE Reguler",
+    shipping: 22_000,
+    items: [["piston", "4.5 mm", 1]],
+  },
+  {
+    daysBack: 18,
+    status: "completed",
+    buyer: "Ayu Puspita",
+    courier: "J&T Express",
+    shipping: 30_000,
+    items: [["joran", "180 cm / Light", 1]],
+  },
+  {
+    daysBack: 23,
+    status: "completed",
+    buyer: "Galih Prakoso",
+    courier: "JNE YES",
+    shipping: 38_000,
+    items: [
+      ["teropong", "Plus tripod mini", 1],
+      ["tas", "Coyote", 1],
+    ],
+  },
+] as const satisfies readonly SalesOrderEntry[]
+
+const FIRST_ORDER_INVOICE = 212
+const PLACED_TIME = "10:12:00+07:00"
+const FIRST_TRACKING = 8_204_915_037
+
+/** Only a shipment that left the shop has a number to track. */
+function trackingNumber(
+  courier: string,
+  status: OrderStatus,
+  index: number
+): string | null {
+  if (status !== "shipped" && status !== "completed") {
+    return null
+  }
+
+  const prefix = courier
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, 3)
+
+  return `${prefix}${FIRST_TRACKING + index * 613}`
+}
+
+export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
+  ({ daysBack, status, buyer, courier, shipping, items }, index) => {
+    const date = dayBefore(daysBack)
+    const invoice = String(FIRST_ORDER_INVOICE - index).padStart(4, "0")
+
+    return {
+      buyer,
+      order: {
+        id: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
+        status,
+        placedAt: `${date}T${PLACED_TIME}`,
+        courier,
+        shipping,
+        tracking: trackingNumber(courier, status, index),
+        items: items.map(toItem),
+      },
+    }
+  }
+)
 
 type ProductSlug = (typeof MOCK_PRODUCTS)[number]["slug"]
 const FIRST_PRODUCT_ID = BigInt("1737264385472693352")

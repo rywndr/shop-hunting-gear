@@ -72,6 +72,8 @@ export const ADMIN_MENU_LINKS = [
   USER_LINKS.logout,
 ] as const satisfies readonly NavLink[]
 
+export const ALL_FILTER = "all"
+
 export const LOW_STOCK_THRESHOLD = 15
 
 export type SalesMetric = {

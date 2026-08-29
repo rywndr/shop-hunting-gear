@@ -1,3 +1,4 @@
+import { ALL_FILTER } from "@/lib/admin/config"
 import type { OrderStatusMeta } from "@/lib/orders/config"
 import type { Product } from "@/lib/products/config"
 import { categoryBySlug, type CategorySlug } from "@/lib/site/config"
@@ -77,8 +78,6 @@ export function listingVariantNames(listing: Listing): readonly string[] {
     [""]
   )
 }
-
-export const ALL_FILTER = "all"
 
 export type ListingStateFilter = typeof ALL_FILTER | ListingState
 export type ListingCategoryFilter = typeof ALL_FILTER | CategorySlug

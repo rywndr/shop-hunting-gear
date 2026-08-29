@@ -30,7 +30,6 @@ import {
 import { usePagination } from "@/hooks/use-pagination"
 import { useSelection } from "@/hooks/use-selection"
 import {
-  ALL_FILTER,
   listingFilterFromTab,
   listingTab,
   queryListings,
@@ -40,6 +39,7 @@ import {
   type ListingSortColumn,
   type ListingStateFilter,
 } from "@/lib/admin/catalog"
+import { ALL_FILTER } from "@/lib/admin/config"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_PAGE_SIZE = 10

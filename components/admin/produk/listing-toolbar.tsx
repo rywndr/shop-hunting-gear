@@ -1,9 +1,6 @@
 "use client"
 
-import { useId } from "react"
-import { MagnifyingGlassIcon } from "@phosphor-icons/react"
-
-import { Input } from "@/components/ui/input"
+import { SearchField } from "@/components/admin/search-field"
 import {
   Select,
   SelectContent,
@@ -12,7 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  ALL_FILTER,
   listingCategoryFilterLabel,
   listingSortKey,
   listingSortLabel,
@@ -21,6 +17,7 @@ import {
   type ListingCategoryFilter,
   type ListingSort,
 } from "@/lib/admin/catalog"
+import { ALL_FILTER } from "@/lib/admin/config"
 import { CATEGORIES } from "@/lib/site/config"
 
 const SORT_PLACEHOLDER = "Urutkan"
@@ -112,28 +109,14 @@ function ListingToolbar({
   sort: ListingSort | null
   onSortChange: (sort: ListingSort) => void
 }) {
-  const searchId = useId()
-
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div role="search" className="relative sm:w-56">
-        <label htmlFor={searchId} className="sr-only">
-          Cari produk
-        </label>
-        <Input
-          id={searchId}
-          type="search"
-          autoComplete="off"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Cari produk"
-          className="pl-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
-        />
-        <MagnifyingGlassIcon
-          className="pointer-events-none absolute inset-y-0 left-2.5 my-auto size-4 text-muted-foreground"
-          aria-hidden
-        />
-      </div>
+      <SearchField
+        label="Cari produk"
+        value={search}
+        onValueChange={onSearchChange}
+        className="sm:w-56"
+      />
 
       <div className="flex flex-1 items-center gap-2">
         <CategoryFilter
