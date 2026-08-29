@@ -71,4 +71,40 @@ function AdminCardLink({
   )
 }
 
-export { AdminCard, AdminCardLink }
+const TABLE_EDGE = "first:pl-(--card-spacing) last:pr-(--card-spacing)"
+
+type AdminMetric = {
+  readonly label: string
+  readonly meta?: React.ReactNode
+  readonly value: string
+  readonly footnote?: React.ReactNode
+}
+
+function AdminMetricGrid({ metrics }: { metrics: readonly AdminMetric[] }) {
+  return (
+    <dl className="grid divide-y divide-border sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0">
+      {metrics.map((metric) => (
+        <div
+          key={metric.label}
+          className="px-(--card-spacing) py-3 first:pt-0 last:pb-0 sm:py-0"
+        >
+          <dt className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+            <span className="font-medium tracking-wide uppercase">
+              {metric.label}
+            </span>
+            {metric.meta}
+          </dt>
+          <dd className="mt-1.5">
+            <span className="block font-heading text-xl font-bold tabular-nums sm:text-2xl">
+              {metric.value}
+            </span>
+            {metric.footnote}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+export { AdminCard, AdminCardLink, AdminMetricGrid, TABLE_EDGE }
+export type { AdminMetric }

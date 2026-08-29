@@ -5,7 +5,7 @@ import {
 } from "@phosphor-icons/react/ssr"
 import type { Icon } from "@phosphor-icons/react"
 
-import { AdminCard } from "@/components/admin/admin-card"
+import { AdminCard, AdminMetricGrid } from "@/components/admin/admin-card"
 import {
   metricTrend,
   type MetricTrend,
@@ -54,29 +54,18 @@ function MetricChange({ metric }: { metric: SalesMetric }) {
 function SalesSummary({ metrics }: { metrics: readonly SalesMetric[] }) {
   return (
     <AdminCard title="Ringkasan Penjualan" contentClassName="px-0">
-      <dl className="grid divide-y divide-border sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="px-(--card-spacing) py-3 first:pt-0 last:pb-0 sm:py-0"
-          >
-            <dt className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
-              <span className="font-medium tracking-wide uppercase">
-                {metric.label}
-              </span>
-              <span className="tabular-nums">
-                {formatNumber(metric.orderCount)} pesanan
-              </span>
-            </dt>
-            <dd className="mt-1.5">
-              <span className="block font-heading text-xl font-bold tabular-nums sm:text-2xl">
-                {formatRupiah(metric.amount)}
-              </span>
-              <MetricChange metric={metric} />
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <AdminMetricGrid
+        metrics={metrics.map((metric) => ({
+          label: metric.label,
+          meta: (
+            <span className="tabular-nums">
+              {formatNumber(metric.orderCount)} pesanan
+            </span>
+          ),
+          value: formatRupiah(metric.amount),
+          footnote: <MetricChange metric={metric} />,
+        }))}
+      />
     </AdminCard>
   )
 }

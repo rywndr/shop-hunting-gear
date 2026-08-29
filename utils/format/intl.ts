@@ -8,6 +8,17 @@ export function formatRupiah(value: number) {
   return rupiah.format(value)
 }
 
+const signedRupiah = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+  signDisplay: "always",
+})
+
+export function formatSignedRupiah(value: number) {
+  return signedRupiah.format(value)
+}
+
 const shortDate = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",
   month: "short",

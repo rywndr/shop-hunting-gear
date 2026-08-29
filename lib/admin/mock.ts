@@ -3,6 +3,12 @@ import {
   type DailySales,
   type SalesMetric,
 } from "@/lib/admin/config"
+import type {
+  PaymentMethod,
+  PayoutState,
+  Transaction,
+} from "@/lib/admin/finance"
+import type { OrderItem } from "@/lib/orders/config"
 
 type DailyEntry = readonly [amount: number, orderCount: number]
 
@@ -93,3 +99,162 @@ export const MOCK_SALES_METRICS: readonly SalesMetric[] = [
 ].map(({ label, days }) =>
   trailingMetric({ series: MOCK_DAILY_SALES, label, days })
 )
+
+const CATALOG = {
+  jaket: { name: "Jaket Kamuflase Bottomland Tahan Angin", price: 685_000 },
+  sarung: { name: "Sarung Tangan Taktis Anti Slip", price: 145_000 },
+  tas: { name: "Tas Punggung Hunting 45L Rangka Internal", price: 520_000 },
+  teropong: { name: "Teropong Monokuler 10x42", price: 1_350_000 },
+  joran: { name: "Joran Carbon Fiber 210 cm Medium Action", price: 780_000 },
+  reel: { name: "Reel Spinning 4000 Series", price: 1_250_000 },
+  kotak: { name: "Kotak Umpan 6 Sekat Tahan Bocor", price: 95_000 },
+  piston: { name: "Piston Set Kaliber 5.5 mm Kuningan", price: 320_000 },
+  per: { name: "Per Gas Tuning Stainless Steel", price: 185_000 },
+  tenda: { name: "Tenda Dome 2 Orang Double Layer", price: 1_180_000 },
+  lampu: { name: "Lampu Kepala LED 1200 Lumen", price: 165_000 },
+  matras: { name: "Matras Lipat Alumunium Foil", price: 89_000 },
+} as const satisfies Record<string, { name: string; price: number }>
+
+type CatalogKey = keyof typeof CATALOG
+
+type ItemEntry = readonly [
+  product: CatalogKey,
+  variant: string,
+  quantity: number,
+]
+
+type TransactionEntry = readonly [
+  daysBack: number,
+  payout: PayoutState,
+  method: PaymentMethod,
+  shipping: number,
+  discount: number,
+  items: readonly [ItemEntry, ...ItemEntry[]],
+]
+
+const TRANSACTION_ENTRIES = [
+  [0, "pending", "manual", 24_000, 0, [["jaket", "Ukuran L", 1]]],
+  [0, "pending", "manual", 32_000, 0, [["reel", "Seri 4000", 1]]],
+  [
+    1,
+    "pending",
+    "midtrans",
+    28_000,
+    25_000,
+    [
+      ["joran", "Medium", 1],
+      ["kotak", "6 sekat", 2],
+    ],
+  ],
+  [1, "pending", "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
+  [2, "pending", "manual", 26_000, 0, [["tas", "Olive", 1]]],
+  [3, "pending", "midtrans", 30_000, 50_000, [["teropong", "Standar", 1]]],
+  [3, "pending", "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
+  [
+    4,
+    "pending",
+    "midtrans",
+    35_000,
+    0,
+    [
+      ["tenda", "Olive", 1],
+      ["matras", "180 cm", 2],
+    ],
+  ],
+  [5, "pending", "midtrans", 22_000, 15_000, [["piston", "5.5 mm", 2]]],
+  [6, "pending", "midtrans", 28_000, 0, [["joran", "Medium Heavy", 1]]],
+  [
+    7,
+    "pending",
+    "midtrans",
+    41_000,
+    0,
+    [
+      ["reel", "Seri 5000", 1],
+      ["kotak", "12 sekat", 1],
+    ],
+  ],
+  [8, "pending", "midtrans", 24_000, 0, [["per", "Medium", 2]]],
+  [9, "pending", "manual", 26_000, 0, [["jaket", "Ukuran XL", 1]]],
+  [
+    10,
+    "pending",
+    "midtrans",
+    32_000,
+    20_000,
+    [
+      ["tas", "Kamuflase", 1],
+      ["lampu", "Hitam", 1],
+    ],
+  ],
+  [12, "released", "midtrans", 24_000, 0, [["matras", "180 cm", 3]]],
+  [13, "released", "midtrans", 28_000, 0, [["sarung", "Olive / L", 2]]],
+  [15, "released", "midtrans", 22_000, 10_000, [["kotak", "6 sekat", 2]]],
+  [17, "released", "midtrans", 38_000, 0, [["teropong", "Plus tripod", 1]]],
+  [
+    19,
+    "released",
+    "midtrans",
+    30_000,
+    0,
+    [
+      ["joran", "Light", 1],
+      ["per", "Medium", 1],
+    ],
+  ],
+  [21, "released", "manual", 24_000, 0, [["piston", "4.5 mm", 1]]],
+  [23, "released", "midtrans", 26_000, 0, [["lampu", "Hitam", 2]]],
+  [25, "released", "midtrans", 34_000, 45_000, [["tenda", "Olive", 1]]],
+  [27, "released", "midtrans", 24_000, 0, [["jaket", "Ukuran M", 1]]],
+  [30, "released", "midtrans", 28_000, 0, [["reel", "Seri 3000", 1]]],
+  [
+    33,
+    "released",
+    "midtrans",
+    22_000,
+    0,
+    [
+      ["matras", "180 cm", 1],
+      ["kotak", "6 sekat", 1],
+    ],
+  ],
+  [
+    36,
+    "released",
+    "midtrans",
+    40_000,
+    30_000,
+    [
+      ["tas", "Coyote", 1],
+      ["sarung", "XL", 1],
+    ],
+  ],
+] as const satisfies readonly TransactionEntry[]
+
+const FIRST_INVOICE = 184
+const SETTLED_TIME = "14:05:00+07:00"
+
+function toItem([product, variant, quantity]: ItemEntry): OrderItem {
+  const { name, price } = CATALOG[product]
+
+  return { name, variant, quantity, price }
+}
+
+export const MOCK_TRANSACTIONS: readonly Transaction[] =
+  TRANSACTION_ENTRIES.map(
+    ([daysBack, payout, method, shipping, discount, items], index) => {
+      const date = dayBefore(daysBack)
+      const invoice = String(FIRST_INVOICE - index).padStart(4, "0")
+      const [firstItem, ...otherItems] = items
+
+      return {
+        orderId: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
+        settledAt: `${date}T${SETTLED_TIME}`,
+        payout,
+        method,
+        shipping,
+        discount,
+        items: [toItem(firstItem), ...otherItems.map(toItem)],
+      }
+    }
+  )

@@ -65,18 +65,18 @@ export type Order = {
   readonly items: readonly OrderItem[]
 }
 
-export function orderSubtotal(order: Order) {
+export function orderSubtotal(order: Pick<Order, "items">) {
   return order.items.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   )
 }
 
-export function orderTotal(order: Order) {
+export function orderTotal(order: Pick<Order, "items" | "shipping">) {
   return orderSubtotal(order) + order.shipping
 }
 
-export function orderItemCount(order: Order) {
+export function orderItemCount(order: Pick<Order, "items">) {
   return order.items.reduce((count, item) => count + item.quantity, 0)
 }
 
