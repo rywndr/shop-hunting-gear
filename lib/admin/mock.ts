@@ -5,8 +5,8 @@ import {
 } from "@/lib/admin/config"
 import type {
   PaymentMethod,
-  PayoutState,
   Transaction,
+  TransactionLifecycle,
 } from "@/lib/admin/finance"
 import type { OrderItem } from "@/lib/orders/config"
 
@@ -125,19 +125,34 @@ type ItemEntry = readonly [
 
 type TransactionEntry = readonly [
   daysBack: number,
-  payout: PayoutState,
+  lifecycle: TransactionLifecycle,
   method: PaymentMethod,
   shipping: number,
   discount: number,
   items: readonly [ItemEntry, ...ItemEntry[]],
 ]
 
+const IN_TRANSIT = {
+  payout: "pending",
+  fulfillment: "inTransit",
+} as const satisfies TransactionLifecycle
+
+const AWAITING_COMPLETION = {
+  payout: "pending",
+  fulfillment: "awaitingCompletion",
+} as const satisfies TransactionLifecycle
+
+const RELEASED = {
+  payout: "released",
+  fulfillment: "completed",
+} as const satisfies TransactionLifecycle
+
 const TRANSACTION_ENTRIES = [
-  [0, "pending", "manual", 24_000, 0, [["jaket", "Ukuran L", 1]]],
-  [0, "pending", "manual", 32_000, 0, [["reel", "Seri 4000", 1]]],
+  [0, IN_TRANSIT, "manual", 24_000, 0, [["jaket", "Ukuran L", 1]]],
+  [0, IN_TRANSIT, "manual", 32_000, 0, [["reel", "Seri 4000", 1]]],
   [
     1,
-    "pending",
+    IN_TRANSIT,
     "midtrans",
     28_000,
     25_000,
@@ -146,13 +161,13 @@ const TRANSACTION_ENTRIES = [
       ["kotak", "6 sekat", 2],
     ],
   ],
-  [1, "pending", "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
-  [2, "pending", "manual", 26_000, 0, [["tas", "Olive", 1]]],
-  [3, "pending", "midtrans", 30_000, 50_000, [["teropong", "Standar", 1]]],
-  [3, "pending", "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
+  [1, IN_TRANSIT, "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
+  [2, IN_TRANSIT, "manual", 26_000, 0, [["tas", "Olive", 1]]],
+  [3, AWAITING_COMPLETION, "midtrans", 30_000, 50_000, [["teropong", "Standar", 1]]],
+  [3, AWAITING_COMPLETION, "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
   [
     4,
-    "pending",
+    AWAITING_COMPLETION,
     "midtrans",
     35_000,
     0,
@@ -161,11 +176,11 @@ const TRANSACTION_ENTRIES = [
       ["matras", "180 cm", 2],
     ],
   ],
-  [5, "pending", "midtrans", 22_000, 15_000, [["piston", "5.5 mm", 2]]],
-  [6, "pending", "midtrans", 28_000, 0, [["joran", "Medium Heavy", 1]]],
+  [5, AWAITING_COMPLETION, "midtrans", 22_000, 15_000, [["piston", "5.5 mm", 2]]],
+  [6, AWAITING_COMPLETION, "midtrans", 28_000, 0, [["joran", "Medium Heavy", 1]]],
   [
     7,
-    "pending",
+    AWAITING_COMPLETION,
     "midtrans",
     41_000,
     0,
@@ -174,11 +189,11 @@ const TRANSACTION_ENTRIES = [
       ["kotak", "12 sekat", 1],
     ],
   ],
-  [8, "pending", "midtrans", 24_000, 0, [["per", "Medium", 2]]],
-  [9, "pending", "manual", 26_000, 0, [["jaket", "Ukuran XL", 1]]],
+  [8, AWAITING_COMPLETION, "midtrans", 24_000, 0, [["per", "Medium", 2]]],
+  [9, AWAITING_COMPLETION, "manual", 26_000, 0, [["jaket", "Ukuran XL", 1]]],
   [
     10,
-    "pending",
+    AWAITING_COMPLETION,
     "midtrans",
     32_000,
     20_000,
@@ -187,13 +202,13 @@ const TRANSACTION_ENTRIES = [
       ["lampu", "Hitam", 1],
     ],
   ],
-  [12, "released", "midtrans", 24_000, 0, [["matras", "180 cm", 3]]],
-  [13, "released", "midtrans", 28_000, 0, [["sarung", "Olive / L", 2]]],
-  [15, "released", "midtrans", 22_000, 10_000, [["kotak", "6 sekat", 2]]],
-  [17, "released", "midtrans", 38_000, 0, [["teropong", "Plus tripod", 1]]],
+  [12, RELEASED, "midtrans", 24_000, 0, [["matras", "180 cm", 3]]],
+  [13, RELEASED, "midtrans", 28_000, 0, [["sarung", "Olive / L", 2]]],
+  [15, RELEASED, "midtrans", 22_000, 10_000, [["kotak", "6 sekat", 2]]],
+  [17, RELEASED, "midtrans", 38_000, 0, [["teropong", "Plus tripod", 1]]],
   [
     19,
-    "released",
+    RELEASED,
     "midtrans",
     30_000,
     0,
@@ -202,14 +217,14 @@ const TRANSACTION_ENTRIES = [
       ["per", "Medium", 1],
     ],
   ],
-  [21, "released", "manual", 24_000, 0, [["piston", "4.5 mm", 1]]],
-  [23, "released", "midtrans", 26_000, 0, [["lampu", "Hitam", 2]]],
-  [25, "released", "midtrans", 34_000, 45_000, [["tenda", "Olive", 1]]],
-  [27, "released", "midtrans", 24_000, 0, [["jaket", "Ukuran M", 1]]],
-  [30, "released", "midtrans", 28_000, 0, [["reel", "Seri 3000", 1]]],
+  [21, RELEASED, "manual", 24_000, 0, [["piston", "4.5 mm", 1]]],
+  [23, RELEASED, "midtrans", 26_000, 0, [["lampu", "Hitam", 2]]],
+  [25, RELEASED, "midtrans", 34_000, 45_000, [["tenda", "Olive", 1]]],
+  [27, RELEASED, "midtrans", 24_000, 0, [["jaket", "Ukuran M", 1]]],
+  [30, RELEASED, "midtrans", 28_000, 0, [["reel", "Seri 3000", 1]]],
   [
     33,
-    "released",
+    RELEASED,
     "midtrans",
     22_000,
     0,
@@ -220,7 +235,7 @@ const TRANSACTION_ENTRIES = [
   ],
   [
     36,
-    "released",
+    RELEASED,
     "midtrans",
     40_000,
     30_000,
@@ -242,7 +257,7 @@ function toItem([product, variant, quantity]: ItemEntry): OrderItem {
 
 export const MOCK_TRANSACTIONS: readonly Transaction[] =
   TRANSACTION_ENTRIES.map(
-    ([daysBack, payout, method, shipping, discount, items], index) => {
+    ([daysBack, lifecycle, method, shipping, discount, items], index) => {
       const date = dayBefore(daysBack)
       const invoice = String(FIRST_INVOICE - index).padStart(4, "0")
       const [firstItem, ...otherItems] = items
@@ -250,7 +265,7 @@ export const MOCK_TRANSACTIONS: readonly Transaction[] =
       return {
         orderId: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
         settledAt: `${date}T${SETTLED_TIME}`,
-        payout,
+        ...lifecycle,
         method,
         shipping,
         discount,

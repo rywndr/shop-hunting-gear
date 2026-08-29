@@ -10,8 +10,6 @@ type BadgeVariant = OrderStatusMeta["badge"]
 export type PayoutStateMeta = {
   readonly label: string
   readonly shortLabel: string
-  readonly statusLabel: string
-  readonly badge: BadgeVariant
   readonly note: string
 }
 
@@ -23,15 +21,11 @@ export const PAYOUT_STATES = {
   pending: {
     label: "Dana Pending",
     shortLabel: "Pending",
-    statusLabel: "Menunggu Pesanan Selesai",
-    badge: "secondary",
     note: "Dari pesanan yang sudah dikirim dan belum selesai.",
   },
   released: {
     label: "Dana Dilepas",
     shortLabel: "Dilepas",
-    statusLabel: "Dana Dilepas",
-    badge: "default",
     note: "Sudah cair ke rekening toko.",
   },
 } as const satisfies Record<string, PayoutStateMeta>
@@ -54,15 +48,37 @@ export const PAYMENT_METHODS = {
 
 export type PaymentMethod = keyof typeof PAYMENT_METHODS
 
-export type Transaction = {
+export const FULFILLMENT_STAGES = {
+  inTransit: { label: "Dikirim", badge: "default" },
+  awaitingCompletion: {
+    label: "Menunggu Pesanan Selesai",
+    badge: "secondary",
+  },
+  completed: { label: "Selesai", badge: "outline" },
+} as const satisfies Record<
+  string,
+  { readonly label: string; readonly badge: BadgeVariant }
+>
+
+export type FulfillmentStage = keyof typeof FULFILLMENT_STAGES
+
+export type TransactionLifecycle =
+  | {
+      readonly payout: "pending"
+      readonly fulfillment: Exclude<FulfillmentStage, "completed">
+    }
+  | { readonly payout: "released"; readonly fulfillment: "completed" }
+
+type TransactionDetails = {
   readonly orderId: string
   readonly settledAt: string
-  readonly payout: PayoutState
   readonly method: PaymentMethod
   readonly items: readonly [OrderItem, ...OrderItem[]]
   readonly shipping: number
   readonly discount: number
 }
+
+export type Transaction = TransactionDetails & TransactionLifecycle
 
 export type EarningsLineKind = "credit" | "debit"
 

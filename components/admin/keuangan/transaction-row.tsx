@@ -4,8 +4,8 @@ import { useId, useState } from "react"
 import { CaretDownIcon } from "@phosphor-icons/react"
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
-import { PayoutBadge } from "@/components/admin/payout-badge"
-import { TransactionBreakdown } from "@/components/admin/transaction-breakdown"
+import { FulfillmentBadge } from "@/components/admin/keuangan/fulfillment-badge"
+import { TransactionBreakdown } from "@/components/admin/keuangan/transaction-breakdown"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import {
@@ -51,7 +51,7 @@ function TransactionRow({
           </span>
 
           <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 md:hidden">
-            <PayoutBadge payout={transaction.payout} />
+            <FulfillmentBadge fulfillment={transaction.fulfillment} />
             <span className="text-xs text-muted-foreground">
               {method.label}
             </span>
@@ -59,7 +59,7 @@ function TransactionRow({
         </TableCell>
 
         <TableCell className={cn(TABLE_EDGE, "hidden align-top md:table-cell")}>
-          <PayoutBadge payout={transaction.payout} />
+          <FulfillmentBadge fulfillment={transaction.fulfillment} />
         </TableCell>
 
         <TableCell className={cn(TABLE_EDGE, "hidden align-top md:table-cell")}>
