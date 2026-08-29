@@ -2,24 +2,15 @@ import { HeroCarousel } from "@/components/layout/hero-carousel"
 import { CategoryFilterList } from "@/components/products/category-filter-list"
 import { ProductGrid } from "@/components/products/product-grid"
 import { ProductSection } from "@/components/products/product-section"
-import {
-  productsInCategories,
-  productsMatching,
-} from "@/lib/products/config"
+import { productsInCategories, productsMatching } from "@/lib/products/config"
 import { MOCK_PRODUCTS } from "@/lib/products/mock"
-import {
-  CATEGORY_QUERY,
-  SEARCH_QUERY,
-  findCategories,
-} from "@/lib/site/config"
+import { CATEGORY_QUERY, SEARCH_QUERY, findCategories } from "@/lib/site/config"
 
 export default async function Page({ searchParams }: PageProps<"/">) {
   const query = await searchParams
   const categoryQuery = query[CATEGORY_QUERY]
   const categories = findCategories(
-    typeof categoryQuery === "string"
-      ? [categoryQuery]
-      : categoryQuery ?? []
+    typeof categoryQuery === "string" ? [categoryQuery] : (categoryQuery ?? [])
   )
   const search =
     typeof query[SEARCH_QUERY] === "string" ? query[SEARCH_QUERY].trim() : ""
@@ -42,8 +33,8 @@ export default async function Page({ searchParams }: PageProps<"/">) {
           search
             ? `Hasil pencarian untuk "${search}".`
             : categories.length > 0
-            ? "Produk dari kategori yang dipilih."
-            : "Seluruh katalog dari empat kategori dalam satu daftar."
+              ? "Produk dari kategori yang dipilih."
+              : "Seluruh katalog dari empat kategori dalam satu daftar."
         }
         action={
           categories.length > 0 ? (

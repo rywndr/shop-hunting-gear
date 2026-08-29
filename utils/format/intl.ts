@@ -30,6 +30,46 @@ export function formatShortDate(value: string) {
   return shortDate.format(new Date(value))
 }
 
+const shortTime = new Intl.DateTimeFormat("id-ID", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Asia/Jakarta",
+})
+
+const dateParts = new Intl.DateTimeFormat("en", {
+  day: "numeric",
+  month: "numeric",
+  year: "numeric",
+  timeZone: "Asia/Jakarta",
+})
+
+function dateKey(value: Date) {
+  return dateParts
+    .formatToParts(value)
+    .filter(({ type }) => type === "day" || type === "month" || type === "year")
+    .map(({ value: part }) => part)
+    .join("-")
+}
+
+export function formatUpdateTime(updatedAt: string, now: string) {
+  const updated = new Date(updatedAt)
+  const current = new Date(now)
+  const minutes = Math.floor(
+    (current.getTime() - updated.getTime()) / 60_000
+  )
+
+  if (minutes >= 0 && minutes < 60) {
+    return `${Math.max(1, minutes)} menit lalu`
+  }
+
+  if (dateKey(updated) === dateKey(current)) {
+    return `Hari ini ${shortTime.format(updated)}`
+  }
+
+  return shortDate.format(updated)
+}
+
 const dayMonth = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",
   month: "short",

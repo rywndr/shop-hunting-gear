@@ -139,9 +139,7 @@ function MobileNav({
                     {...category}
                     href={shopHref({
                       categories: selectedSlugs.includes(category.slug)
-                        ? selectedSlugs.filter(
-                            (slug) => slug !== category.slug
-                          )
+                        ? selectedSlugs.filter((slug) => slug !== category.slug)
                         : [...selectedSlugs, category.slug],
                       search,
                     })}

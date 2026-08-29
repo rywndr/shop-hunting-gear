@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils"
 
 type AdminCardProps = {
-  title: string
+  title?: string
   description?: string
   action?: React.ReactNode
   children: React.ReactNode
@@ -35,11 +35,15 @@ function AdminCard({
 }: AdminCardProps) {
   return (
     <Card className={cn(FLAT_CARD, className)}>
-      <CardHeader>
-        <CardTitle className="tracking-tight uppercase">{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-        {action && <CardAction>{action}</CardAction>}
-      </CardHeader>
+      {(title || description || action) && (
+        <CardHeader>
+          {title && (
+            <CardTitle className="tracking-tight uppercase">{title}</CardTitle>
+          )}
+          {description && <CardDescription>{description}</CardDescription>}
+          {action && <CardAction>{action}</CardAction>}
+        </CardHeader>
+      )}
 
       <CardContent className={contentClassName}>{children}</CardContent>
 

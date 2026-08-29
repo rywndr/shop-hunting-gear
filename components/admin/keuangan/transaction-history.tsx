@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ReceiptIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
-import { TablePagination } from "@/components/admin/keuangan/table-pagination"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { TransactionRow } from "@/components/admin/keuangan/transaction-row"
 import {
   Empty,

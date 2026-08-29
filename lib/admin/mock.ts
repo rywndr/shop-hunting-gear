@@ -1,3 +1,4 @@
+import type { Listing, ListingState } from "@/lib/admin/catalog"
 import {
   trailingMetric,
   type DailySales,
@@ -9,6 +10,8 @@ import type {
   TransactionLifecycle,
 } from "@/lib/admin/finance"
 import type { OrderItem } from "@/lib/orders/config"
+import type { Product } from "@/lib/products/config"
+import { MOCK_PRODUCTS } from "@/lib/products/mock"
 
 type DailyEntry = readonly [amount: number, orderCount: number]
 
@@ -163,7 +166,14 @@ const TRANSACTION_ENTRIES = [
   ],
   [1, IN_TRANSIT, "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
   [2, IN_TRANSIT, "manual", 26_000, 0, [["tas", "Olive", 1]]],
-  [3, AWAITING_COMPLETION, "midtrans", 30_000, 50_000, [["teropong", "Standar", 1]]],
+  [
+    3,
+    AWAITING_COMPLETION,
+    "midtrans",
+    30_000,
+    50_000,
+    [["teropong", "Standar", 1]],
+  ],
   [3, AWAITING_COMPLETION, "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
   [
     4,
@@ -176,8 +186,22 @@ const TRANSACTION_ENTRIES = [
       ["matras", "180 cm", 2],
     ],
   ],
-  [5, AWAITING_COMPLETION, "midtrans", 22_000, 15_000, [["piston", "5.5 mm", 2]]],
-  [6, AWAITING_COMPLETION, "midtrans", 28_000, 0, [["joran", "Medium Heavy", 1]]],
+  [
+    5,
+    AWAITING_COMPLETION,
+    "midtrans",
+    22_000,
+    15_000,
+    [["piston", "5.5 mm", 2]],
+  ],
+  [
+    6,
+    AWAITING_COMPLETION,
+    "midtrans",
+    28_000,
+    0,
+    [["joran", "Medium Heavy", 1]],
+  ],
   [
     7,
     AWAITING_COMPLETION,
@@ -273,3 +297,32 @@ export const MOCK_TRANSACTIONS: readonly Transaction[] =
       }
     }
   )
+
+type ProductSlug = (typeof MOCK_PRODUCTS)[number]["slug"]
+const FIRST_PRODUCT_ID = BigInt("1737264385472693352")
+
+// Keep this keyed by slug so every new product needs an explicit state.
+const LISTING_STATE_BY_SLUG = {
+  "jaket-kamuflase-bottomland": "active",
+  "sarung-tangan-taktis-anti-slip": "active",
+  "tas-punggung-hunting-45l": "active",
+  "teropong-monokuler-10x42": "inactive",
+  "joran-carbon-fiber-210": "active",
+  "reel-spinning-4000-series": "active",
+  "kotak-umpan-6-sekat": "draft",
+  "piston-set-kaliber-55": "active",
+  "per-gas-tuning-stainless": "inactive",
+  "tenda-dome-2-orang": "active",
+  "lampu-kepala-led-1200-lumen": "draft",
+  "matras-lipat-alumunium-foil": "deleted",
+} as const satisfies Record<ProductSlug, ListingState>
+
+export const MOCK_LISTINGS: readonly Listing<Product>[] = MOCK_PRODUCTS.map(
+  (product, index) => ({
+    id: (FIRST_PRODUCT_ID + BigInt(index)).toString(),
+    uploadedAt: `${dayBefore(90 - index * 3)}T09:00:00+07:00`,
+    updatedAt: `${dayBefore(index * 2)}T15:30:00+07:00`,
+    product,
+    state: LISTING_STATE_BY_SLUG[product.slug],
+  })
+)

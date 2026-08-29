@@ -24,24 +24,24 @@ function SiteShell({ children, variant }: SiteShellProps) {
   return (
     <CartProvider>
       <div className="flex min-h-svh flex-col">
-      <header
-        className={cn(
-          "bg-navbar text-navbar-foreground",
-          browsing && "sticky top-0 z-20"
-        )}
-      >
-        <TopBar />
-        <NavBar search={browsing} />
-        {browsing && (
-          <Suspense>
-            <CategoryBar className="absolute inset-x-0 top-full" />
-          </Suspense>
-        )}
-      </header>
+        <header
+          className={cn(
+            "bg-navbar text-navbar-foreground",
+            browsing && "sticky top-0 z-20"
+          )}
+        >
+          <TopBar />
+          <NavBar search={browsing} />
+          {browsing && (
+            <Suspense>
+              <CategoryBar className="absolute inset-x-0 top-full" />
+            </Suspense>
+          )}
+        </header>
 
-      <main className="flex-1">{children}</main>
+        <main className="flex-1">{children}</main>
 
-      <SiteFooter />
+        <SiteFooter />
       </div>
     </CartProvider>
   )

@@ -65,14 +65,26 @@ export const SITE = {
 }
 
 export const CATEGORIES = [
-  { slug: "hunting", label: "Hunting", href: shopHref({ categories: ["hunting"] }) },
-  { slug: "fishing", label: "Fishing", href: shopHref({ categories: ["fishing"] }) },
+  {
+    slug: "hunting",
+    label: "Hunting",
+    href: shopHref({ categories: ["hunting"] }),
+  },
+  {
+    slug: "fishing",
+    label: "Fishing",
+    href: shopHref({ categories: ["fishing"] }),
+  },
   {
     slug: "spareparts",
     label: "Spareparts",
     href: shopHref({ categories: ["spareparts"] }),
   },
-  { slug: "hobbies", label: "Hobbies", href: shopHref({ categories: ["hobbies"] }) },
+  {
+    slug: "hobbies",
+    label: "Hobbies",
+    href: shopHref({ categories: ["hobbies"] }),
+  },
 ] as const satisfies readonly Category[]
 
 export type CategorySlug = (typeof CATEGORIES)[number]["slug"]
@@ -159,7 +171,10 @@ export const HERO_SLIDES = [
     eyebrow: "Hunting",
     title: "Berangkat sebelum fajar",
     body: "Kamuflase, tas, dan perlengkapan berburu.",
-    cta: { label: "Belanja Sekarang", href: shopHref({ categories: ["hunting"] }) },
+    cta: {
+      label: "Belanja Sekarang",
+      href: shopHref({ categories: ["hunting"] }),
+    },
   },
   {
     image: "/carousel/breakupinfinity-2.webp",
@@ -168,7 +183,10 @@ export const HERO_SLIDES = [
     eyebrow: "Fishing",
     title: "Air tenang, alat siap",
     body: "Joran, reel, dan aksesoris untuk seharian di air.",
-    cta: { label: "Mulai Belanja", href: shopHref({ categories: ["fishing"] }) },
+    cta: {
+      label: "Mulai Belanja",
+      href: shopHref({ categories: ["fishing"] }),
+    },
   },
   {
     image: "/carousel/brush-16.webp",

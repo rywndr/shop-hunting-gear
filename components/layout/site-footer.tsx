@@ -73,8 +73,8 @@ function SiteFooter({ className }: { className?: string }) {
 
       <div className="border-t border-navbar-border bg-navbar-accent/75">
         <p className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2 text-center text-[11px] tracking-wide text-navbar-foreground/70">
-          &copy; {new Date().getFullYear()} {SITE.alternateName} Seluruh hak cipta
-          dilindungi.
+          &copy; {new Date().getFullYear()} {SITE.alternateName} Seluruh hak
+          cipta dilindungi.
         </p>
       </div>
     </footer>
