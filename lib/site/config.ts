@@ -145,7 +145,6 @@ export const USER_LINKS = {
 
 export const INFO_LINKS = [
   { label: "Tentang Kami", href: "/tentang-kami" },
-  { label: "Cara Pemesanan", href: "/cara-pemesanan" },
   { label: "Pengiriman & Retur", href: "/pengiriman-retur" },
   { label: "Kebijakan Privasi", href: "/kebijakan-privasi" },
 ] as const satisfies readonly NavLink[]
