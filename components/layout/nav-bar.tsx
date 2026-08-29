@@ -1,21 +1,12 @@
 import { Suspense } from "react"
-import Link from "next/link"
-import { UserCircleIcon } from "@phosphor-icons/react/ssr"
 
+import { AccountMenu } from "@/components/layout/account-menu"
 import { BrandLogo } from "@/components/layout/brand-logo"
 import { CartSheet } from "@/components/layout/cart-sheet"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { SearchForm } from "@/components/layout/search-form"
-import { ThemeToggleMenuItem } from "@/components/layout/theme-toggle"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { IS_LOGGED_IN, USER_LINKS } from "@/lib/site/config"
+import { accountMenuLinks } from "@/lib/admin/config"
+import { IS_ADMIN, IS_LOGGED_IN } from "@/lib/site/config"
 
 const SEARCH_CLASS = "order-last w-full md:order-none md:w-64 lg:w-72"
 
@@ -41,38 +32,7 @@ function NavBar({
           </Suspense>
         )}
         <CartSheet />
-        {IS_LOGGED_IN && (
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-lg"
-                  aria-label="Menu akun"
-                  className="text-navbar-foreground hover:bg-navbar-foreground/10 hover:text-navbar-foreground"
-                />
-              }
-            >
-              <UserCircleIcon className="size-6" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-auto border border-navbar-border bg-navbar-accent text-navbar-accent-foreground"
-            >
-              {Object.values(USER_LINKS).map((link) => (
-                <DropdownMenuItem
-                  key={link.href}
-                  render={<Link href={link.href} />}
-                  className="focus:bg-navbar-foreground/10 focus:text-navbar-foreground"
-                >
-                  {link.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator className="bg-navbar-border" />
-              <ThemeToggleMenuItem className="focus:bg-navbar-foreground/10 focus:text-navbar-foreground focus:**:text-navbar-foreground!" />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {IS_LOGGED_IN && <AccountMenu links={accountMenuLinks(IS_ADMIN)} />}
       </div>
     </div>
   )

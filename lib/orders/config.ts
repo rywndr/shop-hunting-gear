@@ -1,7 +1,3 @@
-/**
- * Single source of truth for the orders lifecycle.
- */
-
 export const ORDER_STATUSES = {
   unpaid: {
     label: "Belum Bayar",
@@ -82,4 +78,10 @@ export function orderTotal(order: Order) {
 
 export function orderItemCount(order: Order) {
   return order.items.reduce((count, item) => count + item.quantity, 0)
+}
+
+export function recentOrders(orders: readonly Order[], limit: number) {
+  return [...orders]
+    .sort((a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt))
+    .slice(0, limit)
 }

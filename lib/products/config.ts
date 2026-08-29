@@ -95,6 +95,15 @@ export function isInStock(product: Product) {
   return product.stock > 0
 }
 
+export function lowStockProducts(
+  products: readonly Product[],
+  threshold: number
+) {
+  return [...products]
+    .filter((product) => product.stock <= threshold)
+    .sort((a, b) => a.stock - b.stock)
+}
+
 export function findProduct(products: readonly Product[], slug: string) {
   return products.find((product) => product.slug === slug)
 }

@@ -123,6 +123,8 @@ export const ACCOUNT_LINKS = [
 
 export const IS_LOGGED_IN = true
 
+export const IS_ADMIN = true
+
 export const USER_LINKS = {
   account: { label: "Akun", href: "/akun" },
   history: { label: "History", href: "/history" },
