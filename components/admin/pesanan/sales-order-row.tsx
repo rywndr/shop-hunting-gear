@@ -2,6 +2,7 @@
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
 import { CopyIdButton } from "@/components/admin/copy-id-button"
+import { MarkOrderPaidDialog } from "@/components/admin/pesanan/mark-order-paid-dialog"
 import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
@@ -102,13 +103,18 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
       </TableCell>
 
       <TableCell className={cn(TABLE_EDGE, "text-right align-top")}>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-label={`Rincian pesanan ${order.id}`}
-        >
-          Rincian
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          {order.status === "unpaid" && (
+            <MarkOrderPaidDialog orderId={order.id} />
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={`Rincian pesanan ${order.id}`}
+          >
+            Rincian
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   )
