@@ -1,6 +1,7 @@
 import { PackageIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { InfiniteScrollList } from "@/components/infinite-scroll-list"
 import { ProductCard } from "@/components/products/product-card"
 import {
   Empty,
@@ -18,6 +19,9 @@ type ProductGridProps = {
   className?: string
 }
 
+const INITIAL_PRODUCT_COUNT = 10
+const PRODUCTS_PER_LOAD = 10
+
 function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
   if (products.length === 0) {
     return (
@@ -34,7 +38,10 @@ function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
   }
 
   return (
-    <ul
+    <InfiniteScrollList
+      aria-label="Daftar produk"
+      initialItemCount={INITIAL_PRODUCT_COUNT}
+      loadMoreItemCount={PRODUCTS_PER_LOAD}
       className={cn(
         "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
         className
@@ -45,7 +52,7 @@ function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
           <ProductCard product={product} />
         </li>
       ))}
-    </ul>
+    </InfiniteScrollList>
   )
 }
 
