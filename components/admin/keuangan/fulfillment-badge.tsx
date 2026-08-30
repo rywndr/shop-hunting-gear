@@ -1,8 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import {
-  FULFILLMENT_STAGES,
-  type FulfillmentStage,
-} from "@/lib/admin/finance"
+import { FULFILLMENT_STAGES, type FulfillmentStage } from "@/lib/admin/finance"
 
 function FulfillmentBadge({
   fulfillment,

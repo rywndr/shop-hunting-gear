@@ -1,6 +1,7 @@
 "use client"
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
+import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
@@ -57,13 +58,16 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
   const queue = salesOrderQueue(salesOrder)
 
   return (
-    <TableRow>
+    <TableRow className="group/row">
       <TableCell
         className={cn(TABLE_EDGE, "max-w-72 align-top whitespace-normal")}
       >
-        <span className="block font-mono text-xs text-muted-foreground">
-          {order.id}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+            {order.id}
+          </span>
+          <CopyIdButton value={order.id} />
+        </div>
 
         <OrderItemList order={order} className="mt-2" />
 

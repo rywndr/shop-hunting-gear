@@ -1,9 +1,10 @@
 "use client"
 
 import { useId, useState } from "react"
-import { CaretDownIcon, CheckIcon, CopyIcon } from "@phosphor-icons/react"
+import { CaretDownIcon } from "@phosphor-icons/react"
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
+import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { FulfillmentBadge } from "@/components/admin/keuangan/fulfillment-badge"
 import { TransactionBreakdown } from "@/components/admin/keuangan/transaction-breakdown"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
@@ -58,19 +59,9 @@ function TransactionRow({
   columnCount: number
 }) {
   const [open, setOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
   const detailId = useId()
 
   const method = PAYMENT_METHODS[transaction.method]
-
-  async function copyOrderId() {
-    try {
-      await navigator.clipboard.writeText(transaction.orderId)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
 
   return (
     <>
@@ -82,19 +73,7 @@ function TransactionRow({
             <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
               {transaction.orderId}
             </span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={copyOrderId}
-              aria-label={
-                copied
-                  ? `${transaction.orderId} tersalin`
-                  : `Salin ${transaction.orderId}`
-              }
-              className="opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
-            >
-              {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
-            </Button>
+            <CopyIdButton value={transaction.orderId} />
           </div>
           <span className="block text-xs text-muted-foreground">
             {formatShortDate(transaction.settledAt)}

@@ -160,7 +160,14 @@ const TRANSACTION_ENTRIES = [
     50_000,
     [["teropong", "Standar", 1]],
   ],
-  [3, "awaitingCompletion", "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
+  [
+    3,
+    "awaitingCompletion",
+    "midtrans",
+    24_000,
+    0,
+    [["sarung", "Hitam / M", 3]],
+  ],
   [
     4,
     "awaitingCompletion",

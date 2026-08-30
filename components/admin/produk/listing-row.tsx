@@ -2,14 +2,10 @@
 
 import { Fragment, useId, useState } from "react"
 import Link from "next/link"
-import {
-  CaretDownIcon,
-  CheckIcon,
-  CopyIcon,
-  EyeIcon,
-} from "@phosphor-icons/react"
+import { CaretDownIcon, EyeIcon } from "@phosphor-icons/react"
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
+import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { ListingActions } from "@/components/admin/produk/listing-actions"
 import { ListingQuickEdit } from "@/components/admin/produk/listing-quick-edit"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
@@ -45,19 +41,9 @@ function ListingRow({
 }) {
   const { id, product } = listing
   const { editable } = LISTING_STATES[listing.state]
-  const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const variantsId = useId()
   const variantNames = listingVariantNames(listing)
-
-  async function copyId() {
-    try {
-      await navigator.clipboard.writeText(id)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
-  }
 
   return (
     <Fragment>
@@ -100,22 +86,10 @@ function ListingRow({
               </div>
 
               <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                <span className="min-w-0 max-w-[12ch] truncate sm:max-w-none">
+                <span className="max-w-[12ch] min-w-0 truncate sm:max-w-none">
                   ID {id}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={copyId}
-                  aria-label={copied ? `ID ${id} tersalin` : `Salin ID ${id}`}
-                  className="opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
-                >
-                  {copied ? (
-                    <CheckIcon aria-hidden />
-                  ) : (
-                    <CopyIcon aria-hidden />
-                  )}
-                </Button>
+                <CopyIdButton value={id} label={`ID ${id}`} />
               </div>
 
               <div className="flex items-center gap-1 text-xs font-medium tabular-nums md:hidden">
