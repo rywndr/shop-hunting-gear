@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { ReceiptIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
@@ -21,15 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import {
-  isPayoutState,
-  PAYOUT_STATES,
-  PAYOUT_STATE_ORDER,
-  transactionsByPayout,
-  type PayoutState,
-  type Transaction,
-} from "@/lib/admin/finance"
+import { transactionsByDate, type Transaction } from "@/lib/admin/finance"
 import { usePagination } from "@/hooks/use-pagination"
 import { cn } from "@/lib/utils"
 
@@ -42,45 +33,13 @@ const COLUMNS = [
   { label: "Penghasilan", className: cn(TABLE_EDGE, "text-right") },
 ] as const satisfies readonly { label: string; className: string }[]
 
-function PayoutToggle({
-  payout,
-  onPayoutChange,
-}: {
-  payout: PayoutState
-  onPayoutChange: (payout: PayoutState) => void
-}) {
-  return (
-    <ToggleGroup
-      aria-label="Status pencairan dana"
-      variant="outline"
-      spacing={0}
-      value={[payout]}
-      onValueChange={(next) => {
-        const [selected] = next
-
-        // Base UI allows unpressing the active item, the table needs a filter.
-        if (selected && isPayoutState(selected)) {
-          onPayoutChange(selected)
-        }
-      }}
-    >
-      {PAYOUT_STATE_ORDER.map((state) => (
-        <ToggleGroupItem key={state} value={state} size="sm">
-          {PAYOUT_STATES[state].shortLabel}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
-
 function TransactionHistory({
   transactions,
 }: {
   transactions: readonly Transaction[]
 }) {
-  const [payout, setPayout] = useState<PayoutState>("pending")
   const pagination = usePagination({
-    items: transactionsByPayout(transactions, payout),
+    items: transactionsByDate(transactions),
     pageSize: DEFAULT_PAGE_SIZE,
   })
 
@@ -89,15 +48,6 @@ function TransactionHistory({
       title="Riwayat Transaksi"
       description="Penghasilan per transaksi. Buka baris untuk melihat rinciannya."
       contentClassName="px-0"
-      action={
-        <PayoutToggle
-          payout={payout}
-          onPayoutChange={(next) => {
-            setPayout(next)
-            pagination.setPage(1)
-          }}
-        />
-      }
       footer={
         pagination.total > 0 ? (
           <TablePagination
@@ -129,8 +79,7 @@ function TransactionHistory({
                     </EmptyMedia>
                     <EmptyTitle>Belum ada transaksi</EmptyTitle>
                     <EmptyDescription>
-                      Transaksi dengan{" "}
-                      {PAYOUT_STATES[payout].label.toLowerCase()} akan muncul di
+                      Transaksi dari pesanan yang sudah dibayar akan muncul di
                       sini.
                     </EmptyDescription>
                   </EmptyHeader>

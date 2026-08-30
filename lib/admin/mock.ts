@@ -5,9 +5,9 @@ import {
   type SalesMetric,
 } from "@/lib/admin/config"
 import type {
+  FulfillmentStage,
   PaymentMethod,
   Transaction,
-  TransactionLifecycle,
 } from "@/lib/admin/finance"
 import type { SalesOrder } from "@/lib/admin/orders"
 import type { OrderItem, OrderStatus } from "@/lib/orders/config"
@@ -129,34 +129,19 @@ type ItemEntry = readonly [
 
 type TransactionEntry = readonly [
   daysBack: number,
-  lifecycle: TransactionLifecycle,
+  fulfillment: FulfillmentStage,
   method: PaymentMethod,
   shipping: number,
   discount: number,
   items: readonly [ItemEntry, ...ItemEntry[]],
 ]
 
-const IN_TRANSIT = {
-  payout: "pending",
-  fulfillment: "inTransit",
-} as const satisfies TransactionLifecycle
-
-const AWAITING_COMPLETION = {
-  payout: "pending",
-  fulfillment: "awaitingCompletion",
-} as const satisfies TransactionLifecycle
-
-const RELEASED = {
-  payout: "released",
-  fulfillment: "completed",
-} as const satisfies TransactionLifecycle
-
 const TRANSACTION_ENTRIES = [
-  [0, IN_TRANSIT, "manual", 24_000, 0, [["jaket", "Ukuran L", 1]]],
-  [0, IN_TRANSIT, "manual", 32_000, 0, [["reel", "Seri 4000", 1]]],
+  [0, "inTransit", "manual", 24_000, 0, [["jaket", "Ukuran L", 1]]],
+  [0, "inTransit", "manual", 32_000, 0, [["reel", "Seri 4000", 1]]],
   [
     1,
-    IN_TRANSIT,
+    "inTransit",
     "midtrans",
     28_000,
     25_000,
@@ -165,20 +150,20 @@ const TRANSACTION_ENTRIES = [
       ["kotak", "6 sekat", 2],
     ],
   ],
-  [1, IN_TRANSIT, "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
-  [2, IN_TRANSIT, "manual", 26_000, 0, [["tas", "Olive", 1]]],
+  [1, "inTransit", "midtrans", 22_000, 0, [["lampu", "Hitam", 2]]],
+  [2, "inTransit", "manual", 26_000, 0, [["tas", "Olive", 1]]],
   [
     3,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     30_000,
     50_000,
     [["teropong", "Standar", 1]],
   ],
-  [3, AWAITING_COMPLETION, "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
+  [3, "awaitingCompletion", "midtrans", 24_000, 0, [["sarung", "Hitam / M", 3]]],
   [
     4,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     35_000,
     0,
@@ -189,7 +174,7 @@ const TRANSACTION_ENTRIES = [
   ],
   [
     5,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     22_000,
     15_000,
@@ -197,7 +182,7 @@ const TRANSACTION_ENTRIES = [
   ],
   [
     6,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     28_000,
     0,
@@ -205,7 +190,7 @@ const TRANSACTION_ENTRIES = [
   ],
   [
     7,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     41_000,
     0,
@@ -214,11 +199,11 @@ const TRANSACTION_ENTRIES = [
       ["kotak", "12 sekat", 1],
     ],
   ],
-  [8, AWAITING_COMPLETION, "midtrans", 24_000, 0, [["per", "Medium", 2]]],
-  [9, AWAITING_COMPLETION, "manual", 26_000, 0, [["jaket", "Ukuran XL", 1]]],
+  [8, "awaitingCompletion", "midtrans", 24_000, 0, [["per", "Medium", 2]]],
+  [9, "awaitingCompletion", "manual", 26_000, 0, [["jaket", "Ukuran XL", 1]]],
   [
     10,
-    AWAITING_COMPLETION,
+    "awaitingCompletion",
     "midtrans",
     32_000,
     20_000,
@@ -227,13 +212,13 @@ const TRANSACTION_ENTRIES = [
       ["lampu", "Hitam", 1],
     ],
   ],
-  [12, RELEASED, "midtrans", 24_000, 0, [["matras", "180 cm", 3]]],
-  [13, RELEASED, "midtrans", 28_000, 0, [["sarung", "Olive / L", 2]]],
-  [15, RELEASED, "midtrans", 22_000, 10_000, [["kotak", "6 sekat", 2]]],
-  [17, RELEASED, "midtrans", 38_000, 0, [["teropong", "Plus tripod", 1]]],
+  [12, "completed", "midtrans", 24_000, 0, [["matras", "180 cm", 3]]],
+  [13, "completed", "midtrans", 28_000, 0, [["sarung", "Olive / L", 2]]],
+  [15, "completed", "midtrans", 22_000, 10_000, [["kotak", "6 sekat", 2]]],
+  [17, "completed", "midtrans", 38_000, 0, [["teropong", "Plus tripod", 1]]],
   [
     19,
-    RELEASED,
+    "completed",
     "midtrans",
     30_000,
     0,
@@ -242,14 +227,14 @@ const TRANSACTION_ENTRIES = [
       ["per", "Medium", 1],
     ],
   ],
-  [21, RELEASED, "manual", 24_000, 0, [["piston", "4.5 mm", 1]]],
-  [23, RELEASED, "midtrans", 26_000, 0, [["lampu", "Hitam", 2]]],
-  [25, RELEASED, "midtrans", 34_000, 45_000, [["tenda", "Olive", 1]]],
-  [27, RELEASED, "midtrans", 24_000, 0, [["jaket", "Ukuran M", 1]]],
-  [30, RELEASED, "midtrans", 28_000, 0, [["reel", "Seri 3000", 1]]],
+  [21, "completed", "manual", 24_000, 0, [["piston", "4.5 mm", 1]]],
+  [23, "completed", "midtrans", 26_000, 0, [["lampu", "Hitam", 2]]],
+  [25, "completed", "midtrans", 34_000, 45_000, [["tenda", "Olive", 1]]],
+  [27, "completed", "midtrans", 24_000, 0, [["jaket", "Ukuran M", 1]]],
+  [30, "completed", "midtrans", 28_000, 0, [["reel", "Seri 3000", 1]]],
   [
     33,
-    RELEASED,
+    "completed",
     "midtrans",
     22_000,
     0,
@@ -260,7 +245,7 @@ const TRANSACTION_ENTRIES = [
   ],
   [
     36,
-    RELEASED,
+    "completed",
     "midtrans",
     40_000,
     30_000,
@@ -282,7 +267,7 @@ function toItem([product, variant, quantity]: ItemEntry): OrderItem {
 
 export const MOCK_TRANSACTIONS: readonly Transaction[] =
   TRANSACTION_ENTRIES.map(
-    ([daysBack, lifecycle, method, shipping, discount, items], index) => {
+    ([daysBack, fulfillment, method, shipping, discount, items], index) => {
       const date = dayBefore(daysBack)
       const invoice = String(FIRST_INVOICE - index).padStart(4, "0")
       const [firstItem, ...otherItems] = items
@@ -290,7 +275,7 @@ export const MOCK_TRANSACTIONS: readonly Transaction[] =
       return {
         orderId: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
         settledAt: `${date}T${SETTLED_TIME}`,
-        ...lifecycle,
+        fulfillment,
         method,
         shipping,
         discount,
@@ -474,7 +459,6 @@ const FIRST_ORDER_INVOICE = 212
 const PLACED_TIME = "10:12:00+07:00"
 const FIRST_TRACKING = 8_204_915_037
 
-/** Only a shipment that left the shop has a number to track. */
 function trackingNumber(
   courier: string,
   status: OrderStatus,
@@ -515,7 +499,6 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
 type ProductSlug = (typeof MOCK_PRODUCTS)[number]["slug"]
 const FIRST_PRODUCT_ID = BigInt("1737264385472693352")
 
-// Keep this keyed by slug so every new product needs an explicit state.
 const LISTING_STATE_BY_SLUG = {
   "jaket-kamuflase-bottomland": "active",
   "sarung-tangan-taktis-anti-slip": "active",

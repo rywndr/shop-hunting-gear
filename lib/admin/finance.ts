@@ -1,45 +1,10 @@
 import {
-  orderItemCount,
   orderSubtotal,
   type OrderItem,
   type OrderStatusMeta,
 } from "@/lib/orders/config"
 
 type BadgeVariant = OrderStatusMeta["badge"]
-
-export type PayoutStateMeta = {
-  readonly label: string
-  readonly shortLabel: string
-  readonly note: string
-}
-
-/**
- * A transaction reaches this page once the order ships, so the money is either
- * waiting for that order to finish or already out.
- */
-export const PAYOUT_STATES = {
-  pending: {
-    label: "Dana Pending",
-    shortLabel: "Pending",
-    note: "Dari pesanan yang sudah dikirim dan belum selesai.",
-  },
-  released: {
-    label: "Dana Dilepas",
-    shortLabel: "Dilepas",
-    note: "Sudah cair ke rekening toko.",
-  },
-} as const satisfies Record<string, PayoutStateMeta>
-
-export type PayoutState = keyof typeof PAYOUT_STATES
-
-export const PAYOUT_STATE_ORDER = [
-  "pending",
-  "released",
-] as const satisfies readonly PayoutState[]
-
-export function isPayoutState(value: string): value is PayoutState {
-  return Object.hasOwn(PAYOUT_STATES, value)
-}
 
 export const PAYMENT_METHODS = {
   midtrans: { label: "Midtrans" },
@@ -62,13 +27,6 @@ export const FULFILLMENT_STAGES = {
 
 export type FulfillmentStage = keyof typeof FULFILLMENT_STAGES
 
-export type TransactionLifecycle =
-  | {
-      readonly payout: "pending"
-      readonly fulfillment: Exclude<FulfillmentStage, "completed">
-    }
-  | { readonly payout: "released"; readonly fulfillment: "completed" }
-
 type TransactionDetails = {
   readonly orderId: string
   readonly settledAt: string
@@ -78,7 +36,9 @@ type TransactionDetails = {
   readonly discount: number
 }
 
-export type Transaction = TransactionDetails & TransactionLifecycle
+export type Transaction = TransactionDetails & {
+  readonly fulfillment: FulfillmentStage
+}
 
 export type EarningsLineKind = "credit" | "debit"
 
@@ -143,10 +103,6 @@ export function transactionEarnings(transaction: Transaction) {
   return amountPaid(transaction) + lineTotal(deductionLines(transaction))
 }
 
-export function transactionItemCount(transaction: Transaction) {
-  return orderItemCount(transaction)
-}
-
 export type EarningsGroup = {
   readonly label: string
   readonly lines: readonly EarningsLine[]
@@ -173,34 +129,17 @@ export function earningsBreakdown(
   ]
 }
 
-export function transactionsByPayout(
-  transactions: readonly Transaction[],
-  payout: PayoutState
+export function transactionsByDate(
+  transactions: readonly Transaction[]
 ): readonly Transaction[] {
   return transactions
-    .filter((transaction) => transaction.payout === payout)
+    .slice()
     .sort((a, b) => Date.parse(b.settledAt) - Date.parse(a.settledAt))
 }
 
-export type PayoutTotal = {
-  readonly payout: PayoutState
-  readonly amount: number
-  readonly count: number
-}
-
-export function payoutTotals(
-  transactions: readonly Transaction[]
-): readonly PayoutTotal[] {
-  return PAYOUT_STATE_ORDER.map((payout) => {
-    const group = transactionsByPayout(transactions, payout)
-
-    return {
-      payout,
-      amount: group.reduce(
-        (total, transaction) => total + transactionEarnings(transaction),
-        0
-      ),
-      count: group.length,
-    }
-  })
+export function fundsTotal(transactions: readonly Transaction[]) {
+  return transactions.reduce(
+    (total, transaction) => total + transactionEarnings(transaction),
+    0
+  )
 }
