@@ -139,6 +139,64 @@ function PasswordField({
   )
 }
 
+type NumberFieldProps = Omit<TextFieldProps, "prefix" | "type"> & {
+  prefix?: string
+  suffix?: string
+}
+
+function NumberField({
+  id,
+  label,
+  description,
+  error,
+  prefix,
+  suffix,
+  className,
+  ...props
+}: NumberFieldProps) {
+  const unit = prefix ?? suffix
+  const unitId = `${id}-unit`
+
+  return (
+    <FieldFrame id={id} label={label} description={description} error={error}>
+      <div className={cn("relative", className)}>
+        {prefix && (
+          <span
+            id={unitId}
+            className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-sm text-muted-foreground"
+          >
+            {prefix}
+          </span>
+        )}
+
+        <Input
+          id={id}
+          type="number"
+          inputMode="numeric"
+          aria-invalid={Boolean(error) || undefined}
+          aria-describedby={unit ? unitId : undefined}
+          className={cn(
+            CONTROL,
+            "tabular-nums",
+            prefix && "pl-9",
+            suffix && "pr-14"
+          )}
+          {...props}
+        />
+
+        {suffix && (
+          <span
+            id={unitId}
+            className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-sm text-muted-foreground"
+          >
+            {suffix}
+          </span>
+        )}
+      </div>
+    </FieldFrame>
+  )
+}
+
 type TextareaFieldProps = ControlProps<React.ComponentProps<typeof Textarea>>
 
 function TextareaField({
@@ -161,11 +219,22 @@ function TextareaField({
   )
 }
 
+type SelectOption = {
+  readonly value: string
+  readonly label: string
+}
+
+type SelectFieldOption = string | SelectOption
+
+function selectOption(option: SelectFieldOption): SelectOption {
+  return typeof option === "string" ? { value: option, label: option } : option
+}
+
 type SelectFieldProps = {
   id: string
   label: string
-  placeholder: string
-  options: readonly string[]
+  placeholder?: string
+  options: readonly SelectFieldOption[]
   value: string
   onValueChange: (value: string) => void
   onBlur?: () => void
@@ -190,6 +259,8 @@ function SelectField({
   error,
   disabled,
 }: SelectFieldProps) {
+  const items = options.map(selectOption)
+
   return (
     <FieldFrame id={id} label={label} description={description} error={error}>
       <Select
@@ -205,12 +276,16 @@ function SelectField({
           aria-invalid={Boolean(error) || undefined}
           className={cn(CONTROL, "w-full")}
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder}>
+            {(selected: string | null) =>
+              items.find((item) => item.value === selected)?.label
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -219,4 +294,11 @@ function SelectField({
   )
 }
 
-export { CONTROL, PasswordField, SelectField, TextareaField, TextField }
+export {
+  CONTROL,
+  NumberField,
+  PasswordField,
+  SelectField,
+  TextareaField,
+  TextField,
+}

@@ -98,6 +98,10 @@ export function findCategories(slugs: readonly string[]) {
   return CATEGORIES.filter((category) => selected.has(category.slug))
 }
 
+export function isCategorySlug(value: unknown): value is CategorySlug {
+  return CATEGORIES.some((category) => category.slug === value)
+}
+
 export function categoryBySlug(slug: CategorySlug): Category {
   const category = findCategory(slug)
 

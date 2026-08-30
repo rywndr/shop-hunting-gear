@@ -16,6 +16,7 @@ import {
   BULK_MODE_ORDER,
   DEFAULT_BULK_STEP,
 } from "@/lib/admin/bulk"
+import { NEW_PRODUCT_HREF } from "@/lib/admin/product-form"
 
 function CatalogActions() {
   return (
@@ -52,7 +53,12 @@ function CatalogActions() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button size="lg" className="flex-1 md:flex-none">
+      <Button
+        size="lg"
+        nativeButton={false}
+        render={<Link href={NEW_PRODUCT_HREF} />}
+        className="flex-1 md:flex-none"
+      >
         <PlusIcon data-icon="inline-start" />
         Tambah produk
       </Button>
