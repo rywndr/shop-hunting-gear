@@ -2,6 +2,7 @@ import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
+import { ReturnOrderDialog } from "@/components/orders/return-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
@@ -36,7 +37,8 @@ function OrderItemRow({ item }: { item: OrderItem }) {
 }
 
 function OrderCard({ order }: { order: Order }) {
-  const { primaryAction, secondaryAction } = ORDER_STATUSES[order.status]
+  const { primaryAction, returnAction, secondaryAction } =
+    ORDER_STATUSES[order.status]
 
   return (
     <Card size="sm" className={cn(FLAT_CARD, "gap-0 py-0")}>
@@ -89,6 +91,9 @@ function OrderCard({ order }: { order: Order }) {
             <Button type="button" variant="outline" className="h-10">
               {secondaryAction}
             </Button>
+          )}
+          {returnAction && (
+            <ReturnOrderDialog order={order} triggerLabel={returnAction} />
           )}
           {primaryAction && (
             <Button type="button" className="h-10">

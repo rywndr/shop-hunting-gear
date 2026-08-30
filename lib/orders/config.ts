@@ -4,30 +4,35 @@ export const ORDER_STATUSES = {
     badge: "destructive",
     primaryAction: "Bayar Sekarang",
     secondaryAction: "Batalkan Pesanan",
+    returnAction: null,
   },
   processing: {
     label: "Diproses",
     badge: "secondary",
     primaryAction: null,
     secondaryAction: "Lihat Detail",
+    returnAction: null,
   },
   shipped: {
     label: "Dikirim",
     badge: "default",
     primaryAction: "Lacak Pengiriman",
     secondaryAction: "Pesanan Diterima",
+    returnAction: null,
   },
   completed: {
     label: "Selesai",
     badge: "outline",
     primaryAction: "Beli Lagi",
     secondaryAction: "Beri Ulasan",
+    returnAction: "Ajukan Retur",
   },
   cancelled: {
     label: "Dibatalkan",
     badge: "outline",
     primaryAction: "Beli Lagi",
     secondaryAction: null,
+    returnAction: null,
   },
 } as const satisfies Record<string, OrderStatusMeta>
 
@@ -36,6 +41,7 @@ export type OrderStatusMeta = {
   readonly badge: "default" | "secondary" | "destructive" | "outline"
   readonly primaryAction: string | null
   readonly secondaryAction: string | null
+  readonly returnAction: string | null
 }
 
 export type OrderStatus = keyof typeof ORDER_STATUSES
