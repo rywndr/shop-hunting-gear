@@ -299,15 +299,3 @@ export function listingForTable(
     product: { category, name, price, slug, stock, variants },
   }
 }
-
-export type BulkActionKind = "upload" | "update"
-
-export type BulkAction = {
-  readonly kind: BulkActionKind
-  readonly label: string
-}
-
-export const BULK_ACTIONS = [
-  { kind: "upload", label: "Unggah Massal" },
-  { kind: "update", label: "Perbarui Massal" },
-] as const satisfies readonly BulkAction[]

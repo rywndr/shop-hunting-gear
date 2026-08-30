@@ -1,0 +1,13 @@
+import type { Metadata } from "next"
+
+import { BulkPage } from "@/components/admin/produk/bulk-page"
+import { bulkMetadata, BULK_MODES, type BulkStepKind } from "@/lib/admin/bulk"
+
+const MODE = BULK_MODES.upload
+const STEP = "upload" satisfies BulkStepKind
+
+export const metadata: Metadata = bulkMetadata({ mode: MODE, step: STEP })
+
+export default function MassUploadUploadPage() {
+  return <BulkPage mode={MODE} step={STEP} />
+}

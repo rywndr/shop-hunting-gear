@@ -1,12 +1,7 @@
 "use client"
 
-import {
-  ArrowsClockwiseIcon,
-  CaretDownIcon,
-  PlusIcon,
-  UploadSimpleIcon,
-} from "@phosphor-icons/react"
-import type { Icon } from "@phosphor-icons/react"
+import Link from "next/link"
+import { CaretDownIcon, PlusIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,12 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { BULK_ACTIONS, type BulkActionKind } from "@/lib/admin/catalog"
-
-const BULK_ICONS = {
-  upload: UploadSimpleIcon,
-  update: ArrowsClockwiseIcon,
-} satisfies Record<BulkActionKind, Icon>
+import {
+  bulkHref,
+  BULK_MODES,
+  BULK_MODE_ORDER,
+  DEFAULT_BULK_STEP,
+} from "@/lib/admin/bulk"
 
 function CatalogActions() {
   return (
@@ -35,18 +30,22 @@ function CatalogActions() {
             />
           }
         >
-          Pengaturan Massal
+          Pengaturan massal
           <CaretDownIcon data-icon="inline-end" className="size-3.5" />
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-auto">
-          {BULK_ACTIONS.map((action) => {
-            const BulkIcon = BULK_ICONS[action.kind]
+          {BULK_MODE_ORDER.map((kind) => {
+            const mode = BULK_MODES[kind]
 
             return (
-              <DropdownMenuItem key={action.kind}>
-                <BulkIcon aria-hidden />
-                {action.label}
+              <DropdownMenuItem
+                key={kind}
+                render={
+                  <Link href={bulkHref({ mode, step: DEFAULT_BULK_STEP })} />
+                }
+              >
+                {mode.label}
               </DropdownMenuItem>
             )
           })}
@@ -55,7 +54,7 @@ function CatalogActions() {
 
       <Button size="lg" className="flex-1 md:flex-none">
         <PlusIcon data-icon="inline-start" />
-        Tambah Produk
+        Tambah produk
       </Button>
     </div>
   )
