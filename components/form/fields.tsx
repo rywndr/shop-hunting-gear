@@ -5,6 +5,14 @@ import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
 import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox"
+import {
   Field,
   FieldDescription,
   FieldError,
@@ -294,7 +302,79 @@ function SelectField({
   )
 }
 
+type ComboboxFieldProps = {
+  id: string
+  label: string
+  placeholder: string
+  emptyText: string
+  options: readonly SelectFieldOption[]
+  value: string
+  onValueChange: (value: string) => void
+  onBlur?: () => void
+  name?: string
+  inputRef?: React.Ref<HTMLInputElement>
+  description?: string
+  error?: string
+  disabled?: boolean
+}
+
+function ComboboxField({
+  id,
+  label,
+  placeholder,
+  emptyText,
+  options,
+  value,
+  onValueChange,
+  onBlur,
+  name,
+  inputRef,
+  description,
+  error,
+  disabled,
+}: ComboboxFieldProps) {
+  const items = options.map(selectOption)
+  const selected = items.find((item) => item.value === value) ?? null
+
+  return (
+    <FieldFrame id={id} label={label} description={description} error={error}>
+      <Combobox
+        items={items}
+        value={selected}
+        onValueChange={(item) => onValueChange(item?.value ?? "")}
+        itemToStringLabel={(item) => item.label}
+        itemToStringValue={(item) => item.value}
+        disabled={disabled}
+        name={name}
+        autoHighlight
+      >
+        <ComboboxInput
+          id={id}
+          ref={inputRef}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error) || undefined}
+          disabled={disabled}
+          showClear
+          className={cn(CONTROL, "w-full")}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{emptyText}</ComboboxEmpty>
+          <ComboboxList>
+            {(item: SelectOption) => (
+              <ComboboxItem key={item.value} value={item}>
+                {item.label}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </FieldFrame>
+  )
+}
+
 export {
+  ComboboxField,
   CONTROL,
   NumberField,
   PasswordField,

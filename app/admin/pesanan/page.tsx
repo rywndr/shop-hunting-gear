@@ -3,9 +3,11 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { AdminPage } from "@/components/admin/admin-page"
+import { ManualOrderWizard } from "@/components/admin/pesanan/manual-order-wizard"
 import { SalesOrderTable } from "@/components/admin/pesanan/sales-order-table"
 import { adminSection } from "@/lib/admin/config"
 import { MOCK_SALES_ORDERS } from "@/lib/admin/mock"
+import { MOCK_PRODUCTS } from "@/lib/products/mock"
 
 const SECTION = adminSection("orders")
 
@@ -24,7 +26,16 @@ export default async function AdminOrdersPage(
   }
 
   return (
-    <AdminPage title={SECTION.label} description={SECTION.description}>
+    <AdminPage
+      title={SECTION.label}
+      description={SECTION.description}
+      action={
+        <ManualOrderWizard
+          buyers={[...new Set(MOCK_SALES_ORDERS.map(({ buyer }) => buyer))]}
+          products={MOCK_PRODUCTS}
+        />
+      }
+    >
       <Suspense>
         <SalesOrderTable orders={MOCK_SALES_ORDERS} />
       </Suspense>
