@@ -9,10 +9,12 @@
     "start": "next start",
     "lint": "eslint",
     "auth:grant-admin": "tsx scripts/grant-admin.ts",
+    "db:push": "drizzle-kit push",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@base-ui/react": "^1.7.0",
     "@better-auth/drizzle-adapter": "1.7.2",
     "@hookform/resolvers": "^5.9.1",

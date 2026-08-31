@@ -11,6 +11,7 @@ type NonEmptyReadonlyArray<T> = readonly [T, ...T[]]
 export type ProductImage = {
   readonly id: string
   readonly alt: string
+  readonly url?: string
 }
 
 export type ProductVariant = {
@@ -35,6 +36,7 @@ export type Product = {
   readonly compareAtPrice: number | null
   readonly stock: number
   readonly sold: number
+  readonly weight: number
   readonly description: NonEmptyReadonlyArray<string>
   readonly images: NonEmptyReadonlyArray<ProductImage>
   readonly variants: readonly ProductVariant[]
@@ -44,6 +46,16 @@ export type Product = {
 
 export function productHref(product: Pick<Product, "category" | "slug">) {
   return `/c/${product.category}/p/${product.slug}`
+}
+
+export function productImageHref({
+  productId,
+  imageId,
+}: {
+  productId: string
+  imageId: string
+}) {
+  return `/images/products/${encodeURIComponent(productId)}/${encodeURIComponent(imageId)}`
 }
 
 export function reviewCount(product: Product) {
@@ -127,10 +139,7 @@ export function productsInCategories(
   return products.filter((product) => selected.has(product.category))
 }
 
-export function productsMatching(
-  products: readonly Product[],
-  search: string
-) {
+export function productsMatching(products: readonly Product[], search: string) {
   const term = search.trim().toLocaleLowerCase("id-ID")
 
   if (!term) {

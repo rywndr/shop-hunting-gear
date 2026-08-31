@@ -3,10 +3,13 @@ import { CategoryFilterList } from "@/components/products/category-filter-list"
 import { ProductGrid } from "@/components/products/product-grid"
 import { ProductSection } from "@/components/products/product-section"
 import { productsInCategories, productsMatching } from "@/lib/products/config"
-import { MOCK_PRODUCTS } from "@/lib/products/mock"
+import { storefrontProducts } from "@/lib/products/service"
 import { CATEGORY_QUERY, SEARCH_QUERY, findCategories } from "@/lib/site/config"
 
+export const dynamic = "force-dynamic"
+
 export default async function Page({ searchParams }: PageProps<"/">) {
+  const savedProducts = await storefrontProducts()
   const query = await searchParams
   const categoryQuery = query[CATEGORY_QUERY]
   const categories = findCategories(
@@ -15,7 +18,7 @@ export default async function Page({ searchParams }: PageProps<"/">) {
   const search =
     typeof query[SEARCH_QUERY] === "string" ? query[SEARCH_QUERY].trim() : ""
   const categorySlugs = categories.map((category) => category.slug)
-  const categoryProducts = productsInCategories(MOCK_PRODUCTS, categorySlugs)
+  const categoryProducts = productsInCategories(savedProducts, categorySlugs)
   const products = productsMatching(categoryProducts, search)
 
   return (

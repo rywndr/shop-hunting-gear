@@ -5,12 +5,8 @@ import type { CartItem, CartVariant } from "./config"
 import type { AddCartItemRequest } from "./schema"
 import { db } from "../db/client"
 import { cartItem } from "../db/schema/cart"
-import {
-  findProduct,
-  type Product,
-  type ProductVariant,
-} from "../products/config"
-import { MOCK_PRODUCTS } from "../products/mock"
+import type { Product, ProductVariant } from "../products/config"
+import { storefrontProductBySlug } from "../products/service"
 
 type CartInputResult =
   | {
@@ -32,8 +28,14 @@ function validVariant(
   )
 }
 
-function resolveCartInput(input: AddCartItemRequest): CartInputResult {
-  const product = findProduct(MOCK_PRODUCTS, input.productSlug)
+async function catalogProduct(slug: string) {
+  return storefrontProductBySlug(slug)
+}
+
+async function resolveCartInput(
+  input: AddCartItemRequest
+): Promise<CartInputResult> {
+  const product = await catalogProduct(input.productSlug)
 
   if (!product || product.stock === 0) {
     return { kind: "invalid", message: "Product is unavailable." }
@@ -87,20 +89,22 @@ export async function cartItemsForUser(
     .where(eq(cartItem.userId, userId))
     .orderBy(asc(cartItem.createdAt))
 
-  return rows.flatMap((row) => {
-    const product = findProduct(MOCK_PRODUCTS, row.productSlug)
+  const items = await Promise.all(
+    rows.map(async (row) => {
+      const product = await catalogProduct(row.productSlug)
 
-    return product
-      ? [
-          {
+      return product
+        ? {
             id: row.id,
             product: cartProduct(product),
             quantity: Math.min(row.quantity, product.stock),
             variants: row.variants,
-          },
-        ]
-      : []
-  })
+          }
+        : null
+    })
+  )
+
+  return items.filter((item): item is CartItem => item !== null)
 }
 
 export async function addCartItemForUser({
@@ -110,7 +114,7 @@ export async function addCartItemForUser({
   userId: string
   input: AddCartItemRequest
 }): Promise<{ kind: "success" } | { kind: "invalid"; message: string }> {
-  const resolved = resolveCartInput(input)
+  const resolved = await resolveCartInput(input)
 
   if (resolved.kind === "invalid") {
     return resolved
@@ -151,7 +155,7 @@ export async function updateCartItemForUser({
     .from(cartItem)
     .where(and(eq(cartItem.id, itemId), eq(cartItem.userId, userId)))
     .limit(1)
-  const product = row ? findProduct(MOCK_PRODUCTS, row.productSlug) : undefined
+  const product = row ? await catalogProduct(row.productSlug) : undefined
 
   if (!product || product.stock === 0) {
     return false

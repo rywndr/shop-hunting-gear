@@ -3,9 +3,10 @@ import { defineRelations } from "drizzle-orm"
 import { address } from "./schema/account"
 import { user } from "./schema/auth"
 import { cartItem } from "./schema/cart"
+import { product, productListing } from "./schema/product"
 
 export const applicationRelations = defineRelations(
-  { user, address, cartItem },
+  { user, address, cartItem, product, productListing },
   (relations) => ({
     user: {
       addresses: relations.many.address({
@@ -27,6 +28,18 @@ export const applicationRelations = defineRelations(
       user: relations.one.user({
         from: relations.cartItem.userId,
         to: relations.user.id,
+      }),
+    },
+    product: {
+      listing: relations.one.productListing({
+        from: relations.product.id,
+        to: relations.productListing.productId,
+      }),
+    },
+    productListing: {
+      product: relations.one.product({
+        from: relations.productListing.productId,
+        to: relations.product.id,
       }),
     },
   })

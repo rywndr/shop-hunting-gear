@@ -17,6 +17,7 @@ export const NEW_PRODUCT_PAGE = {
 } as const satisfies { label: string; description: string }
 
 export const MAX_PRODUCT_IMAGES = 6
+export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 export const MAX_VARIANTS = 2
 export const MAX_VARIANT_OPTIONS = 12
 const MIN_PRICE = 100
@@ -55,13 +56,20 @@ export function parseOptionalNumberInput(value: string) {
 }
 
 const imageDraftSchema = z.object({
+  file: z
+    .file("Pilih berkas foto.")
+    .max(MAX_PRODUCT_IMAGE_BYTES, "Ukuran foto maksimal 5 MB.")
+    .mime(
+      IMAGE_FORMATS.map(({ mime }) => mime),
+      `Format foto harus ${IMAGE_FORMAT_HINT}.`
+    ),
   name: z.string().min(1),
   previewUrl: z.string().min(1),
 })
 
 export type ProductImageDraft = z.infer<typeof imageDraftSchema>
 
-const variantOptionSchema = z
+export const variantOptionSchema = z
   .object({
     value: z
       .string()
@@ -93,7 +101,7 @@ const variantOptionSchema = z
     message: "Harga pilihan wajib diisi.",
   })
 
-const variantSchema = z.object({
+export const variantSchema = z.object({
   label: z
     .string()
     .trim()
@@ -163,7 +171,10 @@ export const productFormSchema = z
       .number({ error: "Berat produk wajib diisi." })
       .int("Berat produk harus berupa angka bulat.")
       .min(1, "Berat produk minimal 1 gram.")
-      .max(MAX_WEIGHT, `Berat produk maksimal ${formatNumber(MAX_WEIGHT)} gram.`),
+      .max(
+        MAX_WEIGHT,
+        `Berat produk maksimal ${formatNumber(MAX_WEIGHT)} gram.`
+      ),
     variants: z
       .array(variantSchema)
       .max(MAX_VARIANTS, `Maksimal ${MAX_VARIANTS} varian.`),
@@ -238,6 +249,12 @@ export const PRODUCT_SAVE_MODES = {
 } as const satisfies Record<string, ProductSaveMode>
 
 export type ProductSaveModeKind = keyof typeof PRODUCT_SAVE_MODES
+
+export function isProductSaveMode(
+  value: unknown
+): value is ProductSaveModeKind {
+  return typeof value === "string" && Object.hasOwn(PRODUCT_SAVE_MODES, value)
+}
 
 export const PRODUCT_SAVE_MODE_ORDER = [
   "draft",

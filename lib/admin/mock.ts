@@ -1,4 +1,3 @@
-import type { Listing, ListingState } from "@/lib/admin/catalog"
 import {
   trailingMetric,
   type DailySales,
@@ -11,8 +10,6 @@ import type {
 } from "@/lib/admin/finance"
 import type { SalesOrder } from "@/lib/admin/orders"
 import type { OrderItem, OrderStatus } from "@/lib/orders/config"
-import type { Product } from "@/lib/products/config"
-import { MOCK_PRODUCTS } from "@/lib/products/mock"
 
 type DailyEntry = readonly [amount: number, orderCount: number]
 
@@ -501,32 +498,4 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
       },
     }
   }
-)
-
-type ProductSlug = (typeof MOCK_PRODUCTS)[number]["slug"]
-const FIRST_PRODUCT_ID = BigInt("1737264385472693352")
-
-const LISTING_STATE_BY_SLUG = {
-  "jaket-kamuflase-bottomland": "active",
-  "sarung-tangan-taktis-anti-slip": "active",
-  "tas-punggung-hunting-45l": "active",
-  "teropong-monokuler-10x42": "inactive",
-  "joran-carbon-fiber-210": "active",
-  "reel-spinning-4000-series": "active",
-  "kotak-umpan-6-sekat": "draft",
-  "piston-set-kaliber-55": "active",
-  "per-gas-tuning-stainless": "inactive",
-  "tenda-dome-2-orang": "active",
-  "lampu-kepala-led-1200-lumen": "draft",
-  "matras-lipat-alumunium-foil": "deleted",
-} as const satisfies Record<ProductSlug, ListingState>
-
-export const MOCK_LISTINGS: readonly Listing<Product>[] = MOCK_PRODUCTS.map(
-  (product, index) => ({
-    id: (FIRST_PRODUCT_ID + BigInt(index)).toString(),
-    uploadedAt: `${dayBefore(90 - index * 3)}T09:00:00+07:00`,
-    updatedAt: `${dayBefore(index * 2)}T15:30:00+07:00`,
-    product,
-    state: LISTING_STATE_BY_SLUG[product.slug],
-  })
 )

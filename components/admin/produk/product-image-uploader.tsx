@@ -21,7 +21,7 @@ const OVERLAY_BUTTON =
   "bg-navbar/80 text-navbar-foreground hover:bg-navbar hover:text-navbar-foreground disabled:opacity-30"
 
 function toImageDraft(file: File): ProductImageDraft {
-  return { name: file.name, previewUrl: URL.createObjectURL(file) }
+  return { file, name: file.name, previewUrl: URL.createObjectURL(file) }
 }
 
 function ProductImageUploader({
@@ -127,7 +127,6 @@ function ProductImageUploader({
             >
               <XIcon />
             </Button>
-
           </li>
         ))}
 

@@ -10,7 +10,7 @@ import { MOCK_DAILY_SALES, MOCK_SALES_METRICS } from "@/lib/admin/mock"
 import { recentOrders } from "@/lib/orders/config"
 import { MOCK_ORDERS } from "@/lib/orders/mock"
 import { lowStockProducts } from "@/lib/products/config"
-import { MOCK_PRODUCTS } from "@/lib/products/mock"
+import { adminProductListings } from "@/lib/products/service"
 
 const SECTION = adminSection("dashboard")
 
@@ -21,14 +21,19 @@ export const metadata: Metadata = {
   description: SECTION.description,
 }
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const listings = await adminProductListings()
+  const products = listings
+    .filter(({ state }) => state !== "deleted")
+    .map(({ product }) => product)
+
   return (
     <AdminPage title={SECTION.label} description={SECTION.description}>
       <SalesSummary metrics={MOCK_SALES_METRICS} />
       <SalesChart series={MOCK_DAILY_SALES} />
       <RecentOrders orders={recentOrders(MOCK_ORDERS, RECENT_ORDER_LIMIT)} />
       <LowStockList
-        products={lowStockProducts(MOCK_PRODUCTS, LOW_STOCK_THRESHOLD)}
+        products={lowStockProducts(products, LOW_STOCK_THRESHOLD)}
         threshold={LOW_STOCK_THRESHOLD}
       />
     </AdminPage>

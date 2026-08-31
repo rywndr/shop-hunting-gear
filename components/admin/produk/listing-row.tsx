@@ -64,6 +64,8 @@ function ListingRow({
         >
           <div className="flex items-start gap-3">
             <ProductThumbnail
+              src={product.images[0].url}
+              label={product.images[0].alt}
               className="size-11 shrink-0"
               iconClassName="size-5"
             />

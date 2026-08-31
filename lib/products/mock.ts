@@ -9,6 +9,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 850000,
     stock: 18,
     sold: 1240,
+    weight: 920,
     description: [
       "Jaket kamuflase dengan motif Bottomland yang menyatu dengan ranting dan kulit kayu, cocok untuk berburu di hutan dataran rendah.",
       "Lapisan luar tahan angin dan gerimis, sementara bagian dalam dilapisi fleece tipis agar tetap hangat tanpa membatasi gerakan saat menarik busur.",
@@ -60,6 +61,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 64,
     sold: 890,
+    weight: 180,
     description: [
       "Telapak berbahan karet bertekstur untuk cengkeraman kuat pada gagang basah, dengan bantalan tipis di pangkal telapak.",
       "Ujung jari telunjuk dan jempol dilapisi bahan konduktif sehingga ponsel tetap bisa dioperasikan tanpa melepas sarung tangan.",
@@ -101,6 +103,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 640000,
     stock: 12,
     sold: 315,
+    weight: 2100,
     description: [
       "Kapasitas 45 liter dengan rangka internal alumunium yang memindahkan beban ke pinggul, nyaman untuk perjalanan dua hari.",
       "Dilengkapi dudukan busur atau senapan di bagian depan, kantong hidrasi 2 liter, dan sarung hujan yang tersimpan di dasar tas.",
@@ -132,6 +135,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 7,
     sold: 96,
+    weight: 460,
     description: [
       "Perbesaran 10x dengan lensa objektif 42 mm memberi gambar terang bahkan saat cahaya mulai turun di jam-jam terbaik berburu.",
       "Bodi berlapis karet kedap embun dengan pengisian nitrogen, aman dipakai di kabut dan gerimis. Ringan dan cukup untuk satu tangan.",
@@ -165,6 +169,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 950000,
     stock: 23,
     sold: 1580,
+    weight: 380,
     description: [
       "Blank carbon 24T yang ringan namun responsif, mengangkat ikan sedang tanpa membebani pergelangan sepanjang hari.",
       "Ring keramik mengurangi gesekan senar dan tahan terhadap braid. Gagang EVA padat tetap nyaman digenggam saat basah.",
@@ -227,6 +232,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 15,
     sold: 640,
+    weight: 420,
     description: [
       "Bodi grafit dengan rotor seimbang, putarannya halus dari lemparan pertama sampai jam terakhir.",
       "Drag depan berbahan karbon dengan daya tahan 8 kg, cukup untuk ikan besar di muara maupun tepi laut.",
@@ -266,6 +272,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 120000,
     stock: 80,
     sold: 2100,
+    weight: 240,
     description: [
       "Enam sekat berukuran sama untuk memisahkan minnow, jig, dan kail tanpa saling mengait.",
       "Bodi polipropilena bening sehingga isi terlihat tanpa perlu dibuka, dengan pengunci karet yang menahan air masuk saat kotak terkena cipratan.",
@@ -303,6 +310,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 26,
     sold: 410,
+    weight: 85,
     description: [
       "Piston kuningan yang dibubut presisi agar rapat di dalam silinder, mengurangi kebocoran udara pada tembakan pertama.",
       "Satu set berisi piston, dua seal cadangan, dan per pengganti. Pemasangan tidak memerlukan pembubutan ulang pada silinder standar.",
@@ -332,6 +340,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 34,
     sold: 58,
+    weight: 120,
     description: [
       "Per stainless steel yang digulung rapat dengan ujung digerinda datar, sehingga tekanan tetap merata pada setiap langkah.",
       "Tersedia tiga tingkat kekerasan agar tekanan bisa disesuaikan dengan panjang laras dan kaliber yang dipakai.",
@@ -352,6 +361,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 1450000,
     stock: 9,
     sold: 275,
+    weight: 3400,
     description: [
       "Konstruksi double layer memisahkan flysheet dari inner tent sehingga uap embun tidak menetes ke dalam saat pagi.",
       "Flysheet berlapis PU 3000 mm sanggup menahan hujan deras, sementara inner mesh menjaga sirkulasi udara tetap jalan.",
@@ -398,6 +408,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: 210000,
     stock: 52,
     sold: 1830,
+    weight: 165,
     description: [
       "Tiga mode putih dan satu mode merah, yang membuat mata tetap beradaptasi dengan gelap saat memeriksa peta atau ikan hasil tangkapan.",
       "Baterai 1200 mAh diisi lewat USB-C, penuh dalam dua jam dan tahan sembilan jam pada mode sedang.",
@@ -437,6 +448,7 @@ export const MOCK_PRODUCTS = [
     compareAtPrice: null,
     stock: 96,
     sold: 960,
+    weight: 310,
     description: [
       "Lapisan alumunium foil memantulkan panas tubuh kembali ke atas, sementara busa EPE menahan dingin dan lembap dari permukaan tanah.",
       "Dilipat menjadi bentuk akordeon sehingga bisa dibuka seketika tanpa perlu digulung ulang dengan rapi.",

@@ -47,6 +47,8 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
         className="group relative block w-full border border-border outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
       >
         <ProductThumbnail
+          src={active.url}
+          label={active.alt}
           className="aspect-square w-full"
           iconClassName="size-12"
         />
@@ -73,6 +75,8 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
                 className="block border border-border outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-[current=true]:border-primary"
               >
                 <ProductThumbnail
+                  src={image.url}
+                  label={image.alt}
                   className="size-16 sm:size-18"
                   iconClassName="size-5"
                 />
@@ -94,6 +98,7 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
           className="w-full gap-0 p-0 sm:max-w-2xl"
         >
           <ProductThumbnail
+            src={active.url}
             label={active.alt}
             className="aspect-square w-full"
             iconClassName="size-16"

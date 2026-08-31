@@ -63,7 +63,7 @@ function VariantOptionImage({
 
     const previewUrl = URL.createObjectURL(file)
     createdPreview.current = previewUrl
-    field.onChange({ name: file.name, previewUrl })
+    field.onChange({ file, name: file.name, previewUrl })
   }
 
   return (
@@ -193,7 +193,6 @@ function VariantOptionFields({
                   <XIcon />
                 </Button>
               </div>
-
             </div>
           )
         })}

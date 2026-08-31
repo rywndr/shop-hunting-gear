@@ -50,9 +50,13 @@ export const LISTING_STATES = {
 
 export type ListingState = keyof typeof LISTING_STATES
 
+export function isListingState(value: unknown): value is ListingState {
+  return typeof value === "string" && Object.hasOwn(LISTING_STATES, value)
+}
+
 export type ListingProduct = Pick<
   Product,
-  "category" | "name" | "price" | "slug" | "stock" | "variants"
+  "category" | "images" | "name" | "price" | "slug" | "stock" | "variants"
 >
 
 export type Listing<TProduct extends ListingProduct = ListingProduct> = {
@@ -289,13 +293,14 @@ export function queryListings(
 export function listingForTable(
   listing: Listing<Product>
 ): Listing<ListingProduct> {
-  const { category, name, price, slug, stock, variants } = listing.product
+  const { category, images, name, price, slug, stock, variants } =
+    listing.product
 
   return {
     id: listing.id,
     uploadedAt: listing.uploadedAt,
     updatedAt: listing.updatedAt,
     state: listing.state,
-    product: { category, name, price, slug, stock, variants },
+    product: { category, images, name, price, slug, stock, variants },
   }
 }

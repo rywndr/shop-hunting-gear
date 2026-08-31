@@ -21,6 +21,8 @@ function ProductCard({ product }: { product: Product }) {
       className="group flex h-full flex-col border border-border bg-card transition-colors outline-none hover:border-primary/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
     >
       <ProductThumbnail
+        src={product.images[0].url}
+        label={product.images[0].alt}
         className="aspect-square w-full"
         iconClassName="size-8"
       />

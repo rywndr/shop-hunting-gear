@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
@@ -21,6 +23,7 @@ import {
   MAX_VARIANTS,
   MAX_STOCK,
   MAX_WEIGHT,
+  isProductSaveMode,
   parseNumberInput,
   parseOptionalNumberInput,
   productFormSchema,
@@ -33,6 +36,8 @@ import {
 } from "@/lib/admin/product-form"
 import { productDiscount } from "@/lib/products/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
+import { createProductAction } from "@/app/admin/produk/tambah/actions"
+import { productSubmissionFormData } from "@/lib/admin/product-submission"
 
 function DiscountNote({ control }: { control: ProductFormControl }) {
   const price = useWatch({ control, name: "price" })
@@ -56,6 +61,9 @@ function DiscountNote({ control }: { control: ProductFormControl }) {
 }
 
 function ProductForm() {
+  const router = useRouter()
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
   const {
     control,
     formState: { errors },
@@ -68,10 +76,51 @@ function ProductForm() {
   const variants = useWatch({ control, name: "variants" })
   const hasVariants = variants.length > 0
 
+  async function saveProduct(
+    values: ProductFormValues,
+    mode: (typeof PRODUCT_SAVE_MODE_ORDER)[number]
+  ) {
+    setPending(true)
+    setSubmitError(null)
+
+    try {
+      const formData = productSubmissionFormData(values)
+      formData.set(SAVE_MODE_FIELD, mode)
+      const result = await createProductAction(formData)
+
+      if (result.kind === "success") {
+        router.push(result.href)
+        router.refresh()
+        return
+      }
+
+      if (result.kind === "error") {
+        setSubmitError(result.message)
+      }
+    } catch {
+      setSubmitError("Produk belum tersimpan. Periksa koneksi lalu coba lagi.")
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <form
       noValidate
-      onSubmit={handleSubmit(() => {})}
+      onSubmit={(event) => {
+        event.preventDefault()
+        const submitter =
+          event.nativeEvent instanceof SubmitEvent
+            ? event.nativeEvent.submitter
+            : null
+        const mode =
+          submitter instanceof HTMLButtonElement &&
+          isProductSaveMode(submitter.value)
+            ? submitter.value
+            : "draft"
+
+        void handleSubmit((values) => saveProduct(values, mode))(event)
+      }}
       className="flex flex-col gap-5 md:gap-6"
     >
       <AdminCard
@@ -115,7 +164,6 @@ function ProductForm() {
                 />
               )}
             />
-
           </div>
 
           <TextareaField
@@ -194,6 +242,11 @@ function ProductForm() {
       </AdminCard>
 
       <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
+        {submitError && (
+          <p role="alert" className="self-center text-sm text-destructive">
+            {submitError}
+          </p>
+        )}
         {PRODUCT_SAVE_MODE_ORDER.map((kind) => {
           const { label, variant } = PRODUCT_SAVE_MODES[kind]
 
@@ -203,11 +256,12 @@ function ProductForm() {
               type="submit"
               name={SAVE_MODE_FIELD}
               value={kind}
+              disabled={pending}
               variant={variant}
               size="lg"
               className="w-full sm:w-auto"
             >
-              {label}
+              {pending ? "Menyimpan..." : label}
             </Button>
           )
         })}

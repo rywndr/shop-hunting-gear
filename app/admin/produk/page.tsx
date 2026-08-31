@@ -7,7 +7,7 @@ import { CatalogActions } from "@/components/admin/produk/catalog-actions"
 import { ListingTable } from "@/components/admin/produk/listing-table"
 import { listingForTable } from "@/lib/admin/catalog"
 import { adminSection } from "@/lib/admin/config"
-import { MOCK_LISTINGS } from "@/lib/admin/mock"
+import { adminProductListings } from "@/lib/products/service"
 
 const SECTION = adminSection("products")
 
@@ -20,6 +20,7 @@ export default async function AdminProductsPage(
   props: PageProps<"/admin/produk">
 ) {
   const { tab } = await props.searchParams
+  const listings = await adminProductListings()
 
   if (tab === undefined) {
     redirect("/admin/produk?tab=all")
@@ -33,7 +34,7 @@ export default async function AdminProductsPage(
     >
       <Suspense>
         <ListingTable
-          listings={MOCK_LISTINGS.map(listingForTable)}
+          listings={listings.map(listingForTable)}
           now={new Date().toISOString()}
         />
       </Suspense>
