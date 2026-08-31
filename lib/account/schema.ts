@@ -24,9 +24,16 @@ export const addressSchema = z.object({
     ),
   street: z.string().trim().min(10, "Alamat lengkap minimal 10 karakter."),
   province: z.string().min(1, "Provinsi wajib dipilih."),
+  provinceId: z.number().int().positive("Provinsi wajib dipilih."),
   city: z.string().min(1, "Kota atau kabupaten wajib dipilih."),
+  cityId: z.number().int().positive("Kota atau kabupaten wajib dipilih."),
   district: z.string().min(1, "Kecamatan wajib dipilih."),
+  districtId: z.number().int().positive("Kecamatan wajib dipilih."),
   subdistrict: z.string().min(1, "Kelurahan atau desa wajib dipilih."),
+  subdistrictId: z
+    .number()
+    .int()
+    .positive("Kelurahan atau desa wajib dipilih."),
   postalCode: z
     .string()
     .trim()
@@ -51,6 +58,10 @@ export const addressesResponseSchema = z.object({
   addresses: z.array(
     addressSchema.extend({
       id: z.string().uuid(),
+      provinceId: z.number().int().positive().nullable(),
+      cityId: z.number().int().positive().nullable(),
+      districtId: z.number().int().positive().nullable(),
+      subdistrictId: z.number().int().positive().nullable(),
     })
   ),
 })

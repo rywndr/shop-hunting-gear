@@ -13,9 +13,13 @@ const addressSelection = {
   phone: address.phone,
   street: address.street,
   province: address.province,
+  provinceId: address.provinceId,
   city: address.city,
+  cityId: address.cityId,
   district: address.district,
+  districtId: address.districtId,
   subdistrict: address.subdistrict,
+  subdistrictId: address.subdistrictId,
   postalCode: address.postalCode,
   isPrimary: address.isPrimary,
 }

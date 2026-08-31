@@ -11,6 +11,7 @@ import {
   updateAddressForUser,
 } from "@/lib/account/service"
 import { getRequestSession } from "@/lib/auth/request"
+import { rajaOngkirAddressMatches } from "@/lib/shipping/rajaongkir"
 
 function unauthorized() {
   return Response.json(
@@ -35,6 +36,23 @@ async function addressResponse(userId: string) {
   return Response.json({ addresses: await addressesForUser(userId) })
 }
 
+async function validRajaOngkirAddress(
+  values: Parameters<typeof rajaOngkirAddressMatches>[0]
+) {
+  try {
+    return await rajaOngkirAddressMatches(values)
+  } catch {
+    return null
+  }
+}
+
+function locationUnavailable() {
+  return Response.json(
+    { error: "RajaOngkir locations are unavailable." },
+    { status: 502 }
+  )
+}
+
 export async function POST(request: Request) {
   const session = await getRequestSession(request)
 
@@ -49,6 +67,11 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return invalidRequest()
   }
+
+  const validLocation = await validRajaOngkirAddress(parsed.data)
+
+  if (validLocation === null) return locationUnavailable()
+  if (!validLocation) return invalidRequest()
 
   await createAddressForUser({ userId: session.user.id, values: parsed.data })
   return addressResponse(session.user.id)
@@ -68,6 +91,11 @@ export async function PUT(request: Request) {
   if (!parsed.success) {
     return invalidRequest()
   }
+
+  const validLocation = await validRajaOngkirAddress(parsed.data.values)
+
+  if (validLocation === null) return locationUnavailable()
+  if (!validLocation) return invalidRequest()
 
   const updated = await updateAddressForUser({
     userId: session.user.id,

@@ -72,6 +72,7 @@ function cartProduct(product: Product): CartItem["product"] {
     price: product.price,
     slug: product.slug,
     stock: product.stock,
+    weight: product.weight,
   }
 }
 

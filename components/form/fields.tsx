@@ -1,7 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react"
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  SpinnerGapIcon,
+} from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -316,6 +320,7 @@ type ComboboxFieldProps = {
   description?: string
   error?: string
   disabled?: boolean
+  loading?: boolean
 }
 
 function ComboboxField({
@@ -332,9 +337,11 @@ function ComboboxField({
   description,
   error,
   disabled,
+  loading,
 }: ComboboxFieldProps) {
   const items = options.map(selectOption)
   const selected = items.find((item) => item.value === value) ?? null
+  const isDisabled = disabled || loading
 
   return (
     <FieldFrame id={id} label={label} description={description} error={error}>
@@ -344,7 +351,7 @@ function ComboboxField({
         onValueChange={(item) => onValueChange(item?.value ?? "")}
         itemToStringLabel={(item) => item.label}
         itemToStringValue={(item) => item.value}
-        disabled={disabled}
+        disabled={isDisabled}
         name={name}
         autoHighlight
       >
@@ -354,10 +361,19 @@ function ComboboxField({
           onBlur={onBlur}
           placeholder={placeholder}
           aria-invalid={Boolean(error) || undefined}
-          disabled={disabled}
-          showClear
+          aria-busy={loading || undefined}
+          disabled={isDisabled}
+          showClear={!loading}
+          showTrigger={!loading}
           className={cn(CONTROL, "w-full")}
-        />
+        >
+          {loading && (
+            <span className="flex shrink-0 items-center pr-2 text-muted-foreground">
+              <SpinnerGapIcon className="size-4 animate-spin" aria-hidden />
+              <span className="sr-only">Memuat pilihan...</span>
+            </span>
+          )}
+        </ComboboxInput>
         <ComboboxContent>
           <ComboboxEmpty>{emptyText}</ComboboxEmpty>
           <ComboboxList>

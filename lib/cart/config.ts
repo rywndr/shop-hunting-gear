@@ -2,7 +2,7 @@ import type { Product } from "@/lib/products/config"
 
 type CartProduct = Pick<
   Product,
-  "category" | "compareAtPrice" | "name" | "price" | "slug" | "stock"
+  "category" | "compareAtPrice" | "name" | "price" | "slug" | "stock" | "weight"
 >
 
 export type CartVariant = {
@@ -103,6 +103,13 @@ export function cartItemCount(items: readonly CartItem[]) {
 export function cartSubtotal(items: readonly CartItem[]) {
   return items.reduce(
     (total, item) => total + item.product.price * item.quantity,
+    0
+  )
+}
+
+export function cartWeight(items: readonly CartItem[]) {
+  return items.reduce(
+    (total, item) => total + item.product.weight * item.quantity,
     0
   )
 }

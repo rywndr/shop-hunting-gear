@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth/client"
+import { checkoutHref } from "@/lib/checkout/config"
 import { isInStock, type Product } from "@/lib/products/config"
 import { AUTH_ROUTES } from "@/lib/site/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
@@ -165,7 +166,20 @@ function ProductPurchase({
   }
 
   function handleBuyNow() {
-    requireAccount()
+    if (!requireAccount()) {
+      return
+    }
+
+    router.push(
+      checkoutHref({
+        product,
+        quantity,
+        variants: product.variants.map((variant) => ({
+          label: variant.label,
+          value: selection[variant.label] ?? variant.options[0],
+        })),
+      })
+    )
   }
 
   return (

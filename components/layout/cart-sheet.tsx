@@ -205,7 +205,8 @@ function CartSheet({ className }: CartSheetProps) {
                 </span>
               </div>
               <Button
-                type="button"
+                render={<Link href="/checkout" />}
+                onClick={() => setOpen(false)}
                 className="h-10 font-bold tracking-wide uppercase"
               >
                 Checkout

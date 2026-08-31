@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import { CATEGORY_SLUGS } from "@/lib/site/config"
 
-const cartVariantSchema = z.object({
+export const cartVariantSchema = z.object({
   label: z.string().trim().min(1),
   value: z.string().trim().min(1),
 })
@@ -18,6 +18,7 @@ export const cartItemsResponseSchema = z.object({
         price: z.int().nonnegative(),
         slug: z.string(),
         stock: z.int().nonnegative(),
+        weight: z.int().positive(),
       }),
       quantity: z.int().positive(),
       variants: z.array(cartVariantSchema),

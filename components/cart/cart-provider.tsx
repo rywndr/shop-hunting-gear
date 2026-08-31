@@ -179,7 +179,7 @@ function CartProvider({ children }: { children: ReactNode }) {
     [error, items, mutateCart, open, pending]
   )
 
-  return <CartContext value={value}>{children}</CartContext>
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
 function useCart() {

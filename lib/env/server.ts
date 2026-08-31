@@ -91,4 +91,17 @@ export const serverEnv = {
   get backblazeB2() {
     return readBackblazeB2Config()
   },
+  get rajaOngkirApiKey() {
+    return readRequiredEnvironmentVariable("RAJAONGKIR_API_KEY")
+  },
+  get rajaOngkirOriginId() {
+    const value = readRequiredEnvironmentVariable("RAJAONGKIR_ORIGIN_ID")
+    const result = z.coerce.number().int().positive().safeParse(value)
+
+    if (!result.success) {
+      throw new Error("Invalid RAJAONGKIR_ORIGIN_ID.")
+    }
+
+    return result.data
+  },
 }
