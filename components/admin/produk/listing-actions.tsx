@@ -1,5 +1,8 @@
 "use client"
 
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   ArrowCounterClockwiseIcon,
   DotsThreeVerticalIcon,
@@ -31,9 +34,21 @@ const ACTION_ICONS = {
   restore: ArrowCounterClockwiseIcon,
 } satisfies Record<ListingActionKind, Icon>
 
-function ListingActionButton({ action }: { action: ListingActionKind }) {
+function ListingActionButton({
+  action,
+  onAction,
+  disabled,
+}: {
+  action: ListingActionKind
+  onAction: (action: ListingActionKind) => void
+  disabled?: boolean
+}) {
   return (
-    <Button variant="secondary">
+    <Button
+      variant="secondary"
+      disabled={disabled}
+      onClick={() => onAction(action)}
+    >
       {LISTING_ACTIONS[action].label}
     </Button>
   )
@@ -42,19 +57,19 @@ function ListingActionButton({ action }: { action: ListingActionKind }) {
 function ListingActionMenu({
   actions,
   ariaLabel,
+  onAction,
+  disabled,
 }: {
   actions: readonly ListingActionKind[]
   ariaLabel: string
+  onAction: (action: ListingActionKind) => void
+  disabled?: boolean
 }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={ariaLabel}
-          />
+          <Button variant="ghost" size="icon-sm" aria-label={ariaLabel} />
         }
       >
         <DotsThreeVerticalIcon className="size-4" aria-hidden />
@@ -65,7 +80,11 @@ function ListingActionMenu({
           const ActionIcon = ACTION_ICONS[action]
 
           return (
-            <DropdownMenuItem key={action}>
+            <DropdownMenuItem
+              key={action}
+              disabled={disabled}
+              onClick={() => onAction(action)}
+            >
               <ActionIcon aria-hidden />
               {LISTING_ACTIONS[action].label}
             </DropdownMenuItem>
@@ -78,6 +97,22 @@ function ListingActionMenu({
 
 function ListingActions({ listing }: { listing: Listing }) {
   const { actions, editable } = LISTING_STATES[listing.state]
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function runAction(action: ListingActionKind) {
+    setError(null)
+    startTransition(async () => {
+      const { applyListingAction } = await import("@/app/admin/produk/actions")
+      const result = await applyListingAction({
+        action,
+        productIds: [listing.id],
+      })
+      if (result.kind === "error") setError(result.message)
+      else router.refresh()
+    })
+  }
 
   return (
     <div className="-mr-1 flex justify-end gap-1">
@@ -85,6 +120,8 @@ function ListingActions({ listing }: { listing: Listing }) {
         <Button
           variant="ghost"
           size="icon-sm"
+          nativeButton={false}
+          render={<Link href={`/admin/produk/${listing.id}/ubah`} />}
           aria-label={`Ubah ${listing.product.name}`}
         >
           <PencilSimpleIcon className="size-4" aria-hidden />
@@ -93,7 +130,14 @@ function ListingActions({ listing }: { listing: Listing }) {
       <ListingActionMenu
         actions={actions}
         ariaLabel={`Aksi untuk ${listing.product.name}`}
+        onAction={runAction}
+        disabled={pending}
       />
+      {error && (
+        <span role="alert" className="sr-only">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

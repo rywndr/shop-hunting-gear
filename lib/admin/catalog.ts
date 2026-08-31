@@ -284,7 +284,8 @@ export function queryListings(
       matchesState(listing, query.state) &&
       (query.category === ALL_FILTER ||
         listing.product.category === query.category) &&
-      listing.product.name.toLocaleLowerCase("id-ID").includes(search)
+      (listing.product.name.toLocaleLowerCase("id-ID").includes(search) ||
+        listing.id.toLocaleLowerCase("id-ID").includes(search))
   )
 
   return query.sort === null ? matched : sortListings(matched, query.sort)

@@ -44,6 +44,11 @@ import { cn } from "@/lib/utils"
 
 const DEFAULT_PAGE_SIZE = 10
 
+function positiveInteger(value: string | null, fallback: number) {
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
 type Column =
   | { readonly kind: "select"; readonly className: string }
   | {
@@ -84,8 +89,17 @@ function ListingTable({
   const searchParams = useSearchParams()
   const state = listingFilterFromTab(searchParams.get("tab"))
   const [category, setCategory] = useState<ListingCategoryFilter>(ALL_FILTER)
-  const [search, setSearch] = useState("")
+  const search = searchParams.get("q") ?? ""
   const [sort, setSort] = useState<ListingSort | null>(null)
+
+  function updateUrl(updates: Readonly<Record<string, string | null>>) {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === "") params.delete(key)
+      else params.set(key, value)
+    }
+    window.history.replaceState(null, "", `?${params.toString()}`)
+  }
 
   const countForState = (filter: ListingStateFilter) =>
     queryListings(listings, {
@@ -106,6 +120,18 @@ function ListingTable({
   const pagination = usePagination({
     items: matched,
     pageSize: DEFAULT_PAGE_SIZE,
+    controlledPage: positiveInteger(searchParams.get("page"), 1),
+    controlledPageSize: positiveInteger(
+      searchParams.get("perPage"),
+      DEFAULT_PAGE_SIZE
+    ),
+    onPageChange: (page) =>
+      updateUrl({ page: page === 1 ? null : String(page) }),
+    onPageSizeChange: (pageSize) =>
+      updateUrl({
+        page: null,
+        perPage: pageSize === DEFAULT_PAGE_SIZE ? null : String(pageSize),
+      }),
   })
   const selection = useSelection({
     ids: pagination.items.map((listing) => listing.id),
@@ -130,6 +156,7 @@ function ListingTable({
           onStateChange={(next) => {
             const params = new URLSearchParams(searchParams.toString())
             params.set("tab", listingTab(next))
+            params.delete("page")
             window.history.pushState(null, "", `?${params.toString()}`)
             pagination.setPage(1)
             selection.clear()
@@ -139,8 +166,8 @@ function ListingTable({
         <ListingToolbar
           search={search}
           onSearchChange={(next) => {
-            setSearch(next)
             pagination.setPage(1)
+            updateUrl({ page: null, q: next })
           }}
           category={category}
           onCategoryChange={(next) => {
@@ -222,9 +249,7 @@ function ListingTable({
                 columnCount={COLUMNS.length}
                 now={now}
                 selected={selection.isSelected(listing.id)}
-                onSelectedChange={(next) =>
-                  selection.toggle(listing.id, next)
-                }
+                onSelectedChange={(next) => selection.toggle(listing.id, next)}
               />
             ))
           )}
@@ -234,6 +259,7 @@ function ListingTable({
         count={selection.selectedCount}
         state={state}
         onClear={selection.clear}
+        selectedIds={selection.selectedIds}
       />
     </AdminCard>
   )

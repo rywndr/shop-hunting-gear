@@ -98,6 +98,8 @@ function ListingRow({
                 {formatRupiah(product.price)}
                 {editable && (
                   <ListingQuickEdit
+                    productId={listing.id}
+                    field="price"
                     label="Harga jual"
                     value={product.price}
                     prefix="Rp"
@@ -133,6 +135,8 @@ function ListingRow({
             {formatRupiah(product.price)}
             {editable && (
               <ListingQuickEdit
+                productId={listing.id}
+                field="price"
                 label="Harga jual"
                 value={product.price}
                 prefix="Rp"
@@ -151,7 +155,12 @@ function ListingRow({
               </span>
             )}
             {editable && (
-              <ListingQuickEdit label="Stok" value={product.stock} />
+              <ListingQuickEdit
+                productId={listing.id}
+                field="stock"
+                label="Stok"
+                value={product.stock}
+              />
             )}
           </div>
         </TableCell>

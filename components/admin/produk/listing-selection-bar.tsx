@@ -1,5 +1,7 @@
 "use client"
 
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { XIcon } from "@phosphor-icons/react"
 
 import {
@@ -7,45 +9,81 @@ import {
   ListingActionMenu,
 } from "@/components/admin/produk/listing-actions"
 import { Button } from "@/components/ui/button"
-import {
-  SELECTION_ACTIONS,
-  type ListingStateFilter,
-} from "@/lib/admin/catalog"
+import { SELECTION_ACTIONS, type ListingStateFilter } from "@/lib/admin/catalog"
 import { formatNumber } from "@/utils/format/intl"
 
 function ListingSelectionBar({
   count,
   state,
   onClear,
+  selectedIds,
 }: {
   count: number
   state: ListingStateFilter
   onClear: () => void
+  selectedIds: readonly string[]
 }) {
+  const layout = SELECTION_ACTIONS[state]
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
   if (count === 0) {
     return null
   }
 
-  const layout = SELECTION_ACTIONS[state]
+  function runAction(
+    action: Parameters<
+      typeof import("@/app/admin/produk/actions").applyListingAction
+    >[0]["action"]
+  ) {
+    setError(null)
+    startTransition(async () => {
+      const { applyListingAction } = await import("@/app/admin/produk/actions")
+      const result = await applyListingAction({
+        action,
+        productIds: selectedIds,
+      })
+      if (result.kind === "error") setError(result.message)
+      else {
+        onClear()
+        router.refresh()
+      }
+    })
+  }
 
   function renderActions() {
     switch (layout.kind) {
       case "button":
-        return <ListingActionButton action={layout.action} />
+        return (
+          <ListingActionButton
+            action={layout.action}
+            onAction={runAction}
+            disabled={pending}
+          />
+        )
       case "menu":
         return (
           <ListingActionMenu
             actions={layout.actions}
             ariaLabel="Aksi untuk produk terpilih"
+            onAction={runAction}
+            disabled={pending}
           />
         )
       case "button-menu":
         return (
           <>
-            <ListingActionButton action={layout.action} />
+            <ListingActionButton
+              action={layout.action}
+              onAction={runAction}
+              disabled={pending}
+            />
             <ListingActionMenu
               actions={layout.menuActions}
               ariaLabel="Aksi lain untuk produk terpilih"
+              onAction={runAction}
+              disabled={pending}
             />
           </>
         )
@@ -71,6 +109,11 @@ function ListingSelectionBar({
         {formatNumber(count)} dipilih
       </span>
       {renderActions()}
+      {error && (
+        <span role="alert" className="px-2 text-xs text-destructive-foreground">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

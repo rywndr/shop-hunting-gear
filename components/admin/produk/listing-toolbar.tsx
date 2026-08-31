@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { SearchField } from "@/components/admin/search-field"
 import {
   Select,
@@ -21,6 +22,41 @@ import { ALL_FILTER } from "@/lib/admin/config"
 import { CATEGORIES } from "@/lib/site/config"
 
 const SORT_PLACEHOLDER = "Urutkan"
+const SEARCH_DEBOUNCE_MS = 350
+
+function DebouncedProductSearch({
+  initialValue,
+  onValueChange,
+}: {
+  initialValue: string
+  onValueChange: (value: string) => void
+}) {
+  const [value, setValue] = useState(initialValue)
+  const timeout = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (timeout.current !== null) window.clearTimeout(timeout.current)
+    },
+    []
+  )
+
+  return (
+    <SearchField
+      label="Cari nama atau ID produk"
+      value={value}
+      onValueChange={(next) => {
+        setValue(next)
+        if (timeout.current !== null) window.clearTimeout(timeout.current)
+        timeout.current = window.setTimeout(
+          () => onValueChange(next),
+          SEARCH_DEBOUNCE_MS
+        )
+      }}
+      className="sm:w-56"
+    />
+  )
+}
 
 function CategoryFilter({
   category,
@@ -111,11 +147,9 @@ function ListingToolbar({
 }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <SearchField
-        label="Cari produk"
-        value={search}
+      <DebouncedProductSearch
+        initialValue={search}
         onValueChange={onSearchChange}
-        className="sm:w-56"
       />
 
       <div className="flex flex-1 items-center gap-2">

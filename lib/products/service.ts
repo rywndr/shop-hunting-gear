@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 
 import {
   isListingState,
@@ -26,6 +26,20 @@ const EMPTY_RATINGS = {
 } as const satisfies RatingBreakdown
 
 type ProductRow = typeof productTable.$inferSelect
+
+export type EditableProduct = Pick<
+  ProductRow,
+  | "id"
+  | "name"
+  | "category"
+  | "description"
+  | "images"
+  | "variants"
+  | "price"
+  | "compareAtPrice"
+  | "stock"
+  | "weight"
+> & { readonly imageUrls: readonly string[] }
 
 function isMissingProductTable(error: unknown) {
   let current = error
@@ -179,6 +193,66 @@ export async function adminProductListings(): Promise<
   }))
 }
 
+export async function adminProductForEdit(
+  productId: string
+): Promise<EditableProduct | undefined> {
+  const rows = await readProductTables({
+    query: () =>
+      db
+        .select()
+        .from(productTable)
+        .where(eq(productTable.id, productId))
+        .limit(1),
+    missingTableValue: [],
+  })
+  const [row] = rows
+  if (!row) return undefined
+
+  const parsed = storedProductDataSchema.safeParse(row)
+  if (!parsed.success) throw new Error("Invalid stored product data.")
+  const [firstDescription, ...otherDescriptions] = parsed.data.description
+  const [firstImage, ...otherImages] = parsed.data.images
+
+  return {
+    id: row.id,
+    name: row.name,
+    category: parsed.data.category,
+    description: [firstDescription, ...otherDescriptions],
+    images: [firstImage, ...otherImages],
+    imageUrls: parsed.data.images.map(({ id }) =>
+      productImageHref({ productId: row.id, imageId: id })
+    ),
+    variants: parsed.data.variants,
+    price: row.price,
+    compareAtPrice: row.compareAtPrice,
+    stock: row.stock,
+    weight: row.weight,
+  }
+}
+
+export async function updateProductDetails({
+  productId,
+  values,
+}: {
+  productId: string
+  values: {
+    readonly name: string
+    readonly category: Product["category"]
+    readonly description: readonly [string, ...string[]]
+    readonly images: readonly [StoredProductImage, ...StoredProductImage[]]
+    readonly variants: readonly StoredProductVariant[]
+    readonly price: number
+    readonly compareAtPrice: number | null
+    readonly stock: number
+    readonly weight: number
+  }
+}) {
+  await db
+    .update(productTable)
+    .set({ ...values, updatedAt: new Date() })
+    .where(eq(productTable.id, productId))
+}
+
 export async function storedProductImage({
   productId,
   imageId,
@@ -268,4 +342,34 @@ export async function createProduct({
   ])
 
   return id
+}
+
+export async function updateProductListingState({
+  productIds,
+  state,
+}: {
+  productIds: readonly string[]
+  state: ListingState
+}) {
+  if (productIds.length === 0) return
+
+  await db
+    .update(productListing)
+    .set({ state, updatedAt: new Date() })
+    .where(inArray(productListing.productId, productIds))
+}
+
+export async function updateProductInventory({
+  productId,
+  field,
+  value,
+}: {
+  productId: string
+  field: "price" | "stock"
+  value: number
+}) {
+  await db
+    .update(productTable)
+    .set(field === "price" ? { price: value } : { stock: value })
+    .where(eq(productTable.id, productId))
 }

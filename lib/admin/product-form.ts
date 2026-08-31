@@ -55,7 +55,8 @@ export function parseOptionalNumberInput(value: string) {
   return parseNumberInput(value) ?? null
 }
 
-const imageDraftSchema = z.object({
+const newImageDraftSchema = z.object({
+  kind: z.literal("new"),
   file: z
     .file("Pilih berkas foto.")
     .max(MAX_PRODUCT_IMAGE_BYTES, "Ukuran foto maksimal 5 MB.")
@@ -66,6 +67,18 @@ const imageDraftSchema = z.object({
   name: z.string().min(1),
   previewUrl: z.string().min(1),
 })
+
+const existingImageDraftSchema = z.object({
+  kind: z.literal("existing"),
+  id: z.string().min(1),
+  name: z.string().min(1),
+  previewUrl: z.string().min(1),
+})
+
+const imageDraftSchema = z.discriminatedUnion("kind", [
+  newImageDraftSchema,
+  existingImageDraftSchema,
+])
 
 export type ProductImageDraft = z.infer<typeof imageDraftSchema>
 
@@ -203,6 +216,10 @@ export const productFormSchema = z
 
 export type ProductFormInput = z.input<typeof productFormSchema>
 export type ProductFormValues = z.output<typeof productFormSchema>
+
+export const productEditFormSchema = productFormSchema
+export type ProductEditFormInput = z.input<typeof productEditFormSchema>
+export type ProductEditFormValues = z.output<typeof productEditFormSchema>
 
 export type ProductFormControl = Control<
   ProductFormInput,

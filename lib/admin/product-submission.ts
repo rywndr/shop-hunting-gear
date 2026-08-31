@@ -8,14 +8,22 @@ import {
   type ProductFormValues,
 } from "./product-form"
 
-const fileReferenceSchema = z.object({
-  field: z.string().min(1),
-  name: z.string().min(1),
-})
+const imageReferenceSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("new"),
+    field: z.string().min(1),
+    name: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("existing"),
+    id: z.string().min(1),
+    name: z.string().min(1),
+  }),
+])
 
 const submittedOptionSchema = z.object({
   value: z.string(),
-  image: fileReferenceSchema.nullable(),
+  image: imageReferenceSchema.nullable(),
   price: z.number().nullable(),
   weight: z.number().nullable(),
 })
@@ -26,7 +34,7 @@ const submittedVariantSchema = z.object({
 })
 
 export const productSubmissionSchema = z.object({
-  images: z.array(fileReferenceSchema).max(MAX_PRODUCT_IMAGES),
+  images: z.array(imageReferenceSchema).max(MAX_PRODUCT_IMAGES),
   name: z.string(),
   category: z.string(),
   description: z.string(),
@@ -49,19 +57,23 @@ export function productSubmissionFormData(values: ProductFormValues) {
     const field = `file-${fileNumber}`
     fileNumber += 1
     formData.append(field, file)
-    return { field, name }
+    return { kind: "new" as const, field, name }
+  }
+
+  function imageReference(image: ProductFormValues["images"][number]) {
+    return image.kind === "new"
+      ? addFile(image.file, image.name)
+      : { kind: "existing" as const, id: image.id, name: image.name }
   }
 
   const submission = {
     ...values,
-    images: values.images.map(({ file, name }) => addFile(file, name)),
+    images: values.images.map(imageReference),
     variants: values.variants.map((variant) => ({
       ...variant,
       options: variant.options.map((option) => ({
         ...option,
-        image: option.image
-          ? addFile(option.image.file, option.image.name)
-          : null,
+        image: option.image ? imageReference(option.image) : null,
       })),
     })),
   } satisfies ProductSubmission
@@ -79,7 +91,11 @@ export function resolveProductSubmission({
 }) {
   let missingFile = false
 
-  function imageDraft(reference: z.infer<typeof fileReferenceSchema>) {
+  function imageDraft(reference: z.infer<typeof imageReferenceSchema>) {
+    if (reference.kind === "existing") {
+      missingFile = true
+      return null
+    }
     const file = formData.get(reference.field)
 
     if (!(file instanceof File)) {
@@ -87,7 +103,12 @@ export function resolveProductSubmission({
       return null
     }
 
-    return { file, name: reference.name, previewUrl: "server-upload" }
+    return {
+      kind: "new" as const,
+      file,
+      name: reference.name,
+      previewUrl: "server-upload",
+    }
   }
 
   const images = submission.images.map(imageDraft)

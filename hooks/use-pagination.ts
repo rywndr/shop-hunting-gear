@@ -20,18 +20,26 @@ export type Pagination<T> = PaginationState & {
 export function usePagination<T>({
   items,
   pageSize: initialPageSize,
+  controlledPage,
+  controlledPageSize,
+  onPageChange,
+  onPageSizeChange,
 }: {
   items: readonly T[]
   pageSize: number
+  controlledPage?: number
+  controlledPageSize?: number
+  onPageChange?: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
 }): Pagination<T> {
   const [requestedPageSize, setRequestedPageSize] =
     React.useState(initialPageSize)
   const [requestedPage, setRequestedPage] = React.useState(1)
 
-  const pageSize = Math.max(1, requestedPageSize)
+  const pageSize = Math.max(1, controlledPageSize ?? requestedPageSize)
   const total = items.length
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  const page = Math.min(Math.max(requestedPage, 1), pageCount)
+  const page = Math.min(Math.max(controlledPage ?? requestedPage, 1), pageCount)
   const start = (page - 1) * pageSize
 
   return {
@@ -42,10 +50,14 @@ export function usePagination<T>({
     total,
     from: total === 0 ? 0 : start + 1,
     to: Math.min(start + pageSize, total),
-    setPage: setRequestedPage,
+    setPage: (next) => {
+      setRequestedPage(next)
+      onPageChange?.(next)
+    },
     setPageSize: (next) => {
       setRequestedPageSize(Math.max(1, next))
       setRequestedPage(1)
+      onPageSizeChange?.(Math.max(1, next))
     },
   }
 }

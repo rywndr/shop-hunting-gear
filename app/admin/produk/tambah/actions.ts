@@ -13,7 +13,10 @@ import type {
   StoredProductImage,
   StoredProductVariant,
 } from "@/lib/db/schema/product"
-import { isProductSaveMode } from "@/lib/admin/product-form"
+import {
+  isProductSaveMode,
+  type ProductImageDraft,
+} from "@/lib/admin/product-form"
 import { createProduct } from "@/lib/products/service"
 import {
   deleteProductImages,
@@ -22,6 +25,11 @@ import {
 } from "@/lib/products/storage"
 
 const MAX_SUBMISSION_BYTES = 30 * 1024 * 1024
+
+function newImageFile(image: ProductImageDraft) {
+  if (image.kind !== "new") throw new Error("Existing image in new product.")
+  return image.file
+}
 
 type ProductCreateStage = "upload" | "database"
 
@@ -142,35 +150,37 @@ export async function createProductAction(
 
   try {
     for (const [index, image] of resolved.data.images.entries()) {
+      const file = newImageFile(image)
       const imageId = randomUUID()
       const stored = await uploadProductImage({
         id: imageId,
         productId: id,
         alt: `${resolved.data.name}, foto ${index + 1}`,
-        mime: image.file.type,
-        bytes: new Uint8Array(await image.file.arrayBuffer()),
+        mime: file.type,
+        bytes: new Uint8Array(await file.arrayBuffer()),
       })
-      uploaded.set(image.file, stored)
+      uploaded.set(file, stored)
     }
 
     for (const variant of resolved.data.variants) {
       for (const option of variant.options) {
-        if (option.image && !uploaded.has(option.image.file)) {
+        const file = option.image ? newImageFile(option.image) : null
+        if (file && !uploaded.has(file)) {
           const imageId = randomUUID()
           const stored = await uploadProductImage({
             id: imageId,
             productId: id,
             alt: `${resolved.data.name}, ${variant.label} ${option.value}`,
-            mime: option.image.file.type,
-            bytes: new Uint8Array(await option.image.file.arrayBuffer()),
+            mime: file.type,
+            bytes: new Uint8Array(await file.arrayBuffer()),
           })
-          uploaded.set(option.image.file, stored)
+          uploaded.set(file, stored)
         }
       }
     }
 
     const images = resolved.data.images.flatMap((image) => {
-      const stored = uploaded.get(image.file)
+      const stored = uploaded.get(newImageFile(image))
       return stored ? [stored] : []
     })
     const [firstImage, ...otherImages] = images
@@ -190,7 +200,7 @@ export async function createProductAction(
                   price: option.price,
                   weight: option.weight,
                   imageId: option.image
-                    ? (uploaded.get(option.image.file)?.id ?? null)
+                    ? (uploaded.get(newImageFile(option.image))?.id ?? null)
                     : null,
                 },
               ]

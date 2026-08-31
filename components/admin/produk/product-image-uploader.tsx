@@ -21,7 +21,12 @@ const OVERLAY_BUTTON =
   "bg-navbar/80 text-navbar-foreground hover:bg-navbar hover:text-navbar-foreground disabled:opacity-30"
 
 function toImageDraft(file: File): ProductImageDraft {
-  return { file, name: file.name, previewUrl: URL.createObjectURL(file) }
+  return {
+    kind: "new",
+    file,
+    name: file.name,
+    previewUrl: URL.createObjectURL(file),
+  }
 }
 
 function ProductImageUploader({
@@ -69,8 +74,10 @@ function ProductImageUploader({
   function removeAt(index: number) {
     const { previewUrl } = fields[index]
 
-    URL.revokeObjectURL(previewUrl)
-    previews.current.delete(previewUrl)
+    if (fields[index].kind === "new") {
+      URL.revokeObjectURL(previewUrl)
+      previews.current.delete(previewUrl)
+    }
     remove(index)
   }
 

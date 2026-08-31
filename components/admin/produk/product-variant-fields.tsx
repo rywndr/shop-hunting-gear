@@ -63,7 +63,7 @@ function VariantOptionImage({
 
     const previewUrl = URL.createObjectURL(file)
     createdPreview.current = previewUrl
-    field.onChange({ file, name: file.name, previewUrl })
+    field.onChange({ kind: "new", file, name: file.name, previewUrl })
   }
 
   return (
