@@ -1,7 +1,7 @@
 "use client"
 
 import { useId, useState } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Radio } from "@base-ui/react/radio"
 import { RadioGroup } from "@base-ui/react/radio-group"
 import { MinusIcon, PlusIcon } from "@phosphor-icons/react"
@@ -11,8 +11,9 @@ import { useCart } from "@/components/cart/cart-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { authClient } from "@/lib/auth/client"
 import { isInStock, type Product } from "@/lib/products/config"
-import { AUTH_ROUTES, IS_LOGGED_IN } from "@/lib/site/config"
+import { AUTH_ROUTES } from "@/lib/site/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
 import { cn } from "@/lib/utils"
 
@@ -126,6 +127,8 @@ function ProductPurchase({
   className?: string
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const { data: session, isPending: sessionPending } = authClient.useSession()
   const { addItem } = useCart()
   const [selection, setSelection] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -137,11 +140,12 @@ function ProductPurchase({
   const available = isInStock(product)
 
   function requireAccount() {
-    if (IS_LOGGED_IN) {
+    if (session) {
       return true
     }
 
-    router.push(AUTH_ROUTES.signIn)
+    const callbackURL = encodeURIComponent(pathname)
+    router.push(`${AUTH_ROUTES.signIn}?callbackURL=${callbackURL}`)
     return false
   }
 
@@ -150,7 +154,7 @@ function ProductPurchase({
       return
     }
 
-    addItem({
+    void addItem({
       product,
       quantity,
       variants: product.variants.map((variant) => ({
@@ -205,7 +209,7 @@ function ProductPurchase({
           <Button
             type="button"
             variant="outline"
-            disabled={!available}
+            disabled={!available || sessionPending}
             onClick={handleAddToCart}
             className="h-11 flex-1 font-bold tracking-wide uppercase"
           >
@@ -213,7 +217,7 @@ function ProductPurchase({
           </Button>
           <Button
             type="button"
-            disabled={!available}
+            disabled={!available || sessionPending}
             onClick={handleBuyNow}
             className="h-11 flex-1 font-bold tracking-wide uppercase"
           >

@@ -15,6 +15,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,7 +38,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import type { Address } from "@/lib/account/mock"
+import {
+  addressesResponseSchema,
+  type AddressValues,
+} from "@/lib/account/schema"
+import type { Address } from "@/lib/account/types"
 import { cn } from "@/lib/utils"
 
 /**
@@ -52,9 +66,15 @@ const DIALOG_COPY = {
 function AddressCard({
   address,
   onEdit,
+  onSetPrimary,
+  onDelete,
+  pending,
 }: {
   address: Address
   onEdit: () => void
+  onSetPrimary: () => void
+  onDelete: () => void
+  pending: boolean
 }) {
   return (
     <Card size="sm" className={FLAT_CARD}>
@@ -75,16 +95,34 @@ function AddressCard({
 
         <div className="mt-1 flex flex-wrap gap-2">
           {!address.isPrimary && (
-            <Button type="button" variant="outline" size="sm">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={onSetPrimary}
+            >
               <StarIcon aria-hidden />
               Jadikan Utama
             </Button>
           )}
-          <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={onEdit}
+          >
             <PencilSimpleIcon aria-hidden />
             Ubah
           </Button>
-          <Button type="button" variant="ghost" size="sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={onDelete}
+          >
             <TrashIcon aria-hidden />
             Hapus
           </Button>
@@ -96,11 +134,104 @@ function AddressCard({
 
 function AddressTab({ addresses }: { addresses: readonly Address[] }) {
   const [editing, setEditing] = useState<Editing | null>(null)
+  const [currentAddresses, setCurrentAddresses] =
+    useState<readonly Address[]>(addresses)
+  const [pendingId, setPendingId] = useState<string>()
+  const [deleteTarget, setDeleteTarget] = useState<Address | null>(null)
+  const [actionError, setActionError] = useState<string>()
   const copy = DIALOG_COPY[editing?.mode ?? "new"]
+
+  async function mutateAddresses({
+    method,
+    body,
+    pendingKey,
+  }: {
+    method: "POST" | "PUT" | "PATCH" | "DELETE"
+    body: unknown
+    pendingKey: string
+  }): Promise<string | undefined> {
+    setPendingId(pendingKey)
+    setActionError(undefined)
+
+    try {
+      const response = await fetch("/api/account/addresses", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        return "Alamat tidak dapat diperbarui. Coba lagi."
+      }
+
+      const result = addressesResponseSchema.safeParse(await response.json())
+
+      if (!result.success) {
+        return "Data alamat dari server tidak valid."
+      }
+
+      setCurrentAddresses(result.data.addresses)
+      return undefined
+    } catch {
+      return "Tidak dapat terhubung. Periksa koneksi lalu coba lagi."
+    } finally {
+      setPendingId(undefined)
+    }
+  }
+
+  function saveAddress(values: AddressValues) {
+    if (editing?.mode === "edit") {
+      return mutateAddresses({
+        method: "PUT",
+        body: { id: editing.address.id, values },
+        pendingKey: editing.address.id,
+      })
+    }
+
+    return mutateAddresses({
+      method: "POST",
+      body: values,
+      pendingKey: "new",
+    })
+  }
+
+  async function setPrimary(id: string) {
+    const error = await mutateAddresses({
+      method: "PATCH",
+      body: { id },
+      pendingKey: id,
+    })
+    setActionError(error)
+  }
+
+  async function deleteAddress() {
+    if (!deleteTarget) {
+      return
+    }
+
+    const error = await mutateAddresses({
+      method: "DELETE",
+      body: { id: deleteTarget.id },
+      pendingKey: deleteTarget.id,
+    })
+
+    if (error) {
+      setActionError(error)
+      return
+    }
+
+    setDeleteTarget(null)
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      {addresses.length === 0 ? (
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {currentAddresses.length === 0 ? (
         <Empty className={cn(FLAT_CARD, "border-dashed py-10")}>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -115,11 +246,14 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
         </Empty>
       ) : (
         <ul className="flex flex-col gap-4">
-          {addresses.map((address) => (
+          {currentAddresses.map((address) => (
             <li key={address.id}>
               <AddressCard
                 address={address}
                 onEdit={() => setEditing({ mode: "edit", address })}
+                onSetPrimary={() => void setPrimary(address.id)}
+                onDelete={() => setDeleteTarget(address)}
+                pending={pendingId === address.id}
               />
             </li>
           ))}
@@ -158,10 +292,42 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
                 editing.mode === "edit" ? editing.address : undefined
               }
               onCancel={() => setEditing(null)}
+              onSubmit={saveAddress}
             />
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus alamat ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Alamat {deleteTarget?.label} akan dihapus dari akun Anda.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pendingId !== undefined}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pendingId !== undefined}
+              onClick={(event) => {
+                event.preventDefault()
+                void deleteAddress()
+              }}
+            >
+              {pendingId ? "Menghapus..." : "Hapus"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

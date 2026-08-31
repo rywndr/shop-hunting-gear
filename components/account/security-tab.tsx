@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
@@ -19,7 +20,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import type { Account } from "@/lib/account/mock"
+import type { Account } from "@/lib/account/types"
+import { authClient } from "@/lib/auth/client"
+import { authErrorMessage } from "@/lib/auth/errors"
 import {
   changePasswordSchema,
   type ChangePasswordValues,
@@ -27,10 +30,13 @@ import {
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/schema"
 
 function ChangePasswordForm() {
+  const [formError, setFormError] = useState<string>()
+  const [success, setSuccess] = useState<string>()
   const {
-    formState: { errors },
+    formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    reset,
   } = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
@@ -40,11 +46,37 @@ function ChangePasswordForm() {
     },
   })
 
+  const onSubmit = handleSubmit(async (values) => {
+    setFormError(undefined)
+    setSuccess(undefined)
+
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        revokeOtherSessions: true,
+      })
+
+      if (error) {
+        setFormError(authErrorMessage(error))
+        return
+      }
+
+      reset()
+      setSuccess("Kata sandi berhasil diperbarui.")
+    } catch {
+      setFormError(authErrorMessage(null))
+    }
+  })
+
   return (
     <AccountFormCard
       title="Ubah Kata Sandi"
       submitLabel="Simpan Kata Sandi"
-      onSubmit={handleSubmit(() => {})}
+      onSubmit={onSubmit}
+      pending={isSubmitting}
+      error={formError}
+      success={success}
     >
       <PasswordField
         id="keamanan-sandi-lama"
@@ -80,9 +112,36 @@ function ChangePasswordForm() {
 const CONFIRM_ID = "keamanan-hapus-konfirmasi"
 const CONFIRM_PHRASE = "iya, saya yakin"
 
-function DeleteAccountCard() {
+function DeleteAccountCard({ account }: { account: Account }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState("")
+  const [password, setPassword] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string>()
+
+  async function deleteAccount() {
+    setDeleting(true)
+    setDeleteError(undefined)
+
+    try {
+      const { error } = await authClient.deleteUser(
+        account.provider === "credential" ? { password } : {}
+      )
+
+      if (error) {
+        setDeleteError(authErrorMessage(error))
+        setDeleting(false)
+        return
+      }
+
+      router.push("/")
+      router.refresh()
+    } catch {
+      setDeleteError(authErrorMessage(null))
+      setDeleting(false)
+    }
+  }
 
   return (
     <AccountCard
@@ -94,7 +153,10 @@ function DeleteAccountCard() {
         open={open}
         onOpenChange={(next) => {
           setOpen(next)
-          if (!next) setConfirmation("")
+          if (!next) {
+            setConfirmation("")
+            setPassword("")
+          }
         }}
       >
         <AlertDialogTrigger
@@ -125,14 +187,39 @@ function DeleteAccountCard() {
             className={CONTROL}
           />
 
+          {account.provider === "credential" && (
+            <Input
+              type="password"
+              aria-label="Kata sandi saat ini"
+              autoComplete="current-password"
+              placeholder="Kata sandi saat ini"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className={CONTROL}
+            />
+          )}
+
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
+
           <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={confirmation.trim() !== CONFIRM_PHRASE}
-              onClick={() => setOpen(false)}
+              disabled={
+                deleting ||
+                confirmation.trim() !== CONFIRM_PHRASE ||
+                (account.provider === "credential" && password.length === 0)
+              }
+              onClick={(event) => {
+                event.preventDefault()
+                void deleteAccount()
+              }}
             >
-              Ya, Hapus Akun
+              {deleting ? "Menghapus..." : "Ya, Hapus Akun"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -157,7 +244,7 @@ function SecurityTab({ account }: { account: Account }) {
         </AccountCard>
       )}
 
-      <DeleteAccountCard />
+      <DeleteAccountCard account={account} />
     </div>
   )
 }

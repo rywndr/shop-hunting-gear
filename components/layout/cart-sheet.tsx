@@ -35,7 +35,9 @@ function CartSheet({ className }: CartSheetProps) {
   const {
     items,
     itemCount,
+    error,
     open,
+    pending,
     removeItem,
     setItemQuantity,
     setOpen,
@@ -75,7 +77,17 @@ function CartSheet({ className }: CartSheetProps) {
           </SheetDescription>
         </SheetHeader>
 
-        {items.length === 0 ? (
+        {error && (
+          <p role="alert" className="px-6 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        {pending && items.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center px-6 text-sm text-muted-foreground">
+            Memuat keranjang...
+          </div>
+        ) : items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
             <ShoppingCartIcon
               className="size-10 text-muted-foreground"
@@ -127,9 +139,9 @@ function CartSheet({ className }: CartSheetProps) {
                           variant="ghost"
                           size="icon-sm"
                           aria-label={`Kurangi jumlah ${item.product.name}`}
-                          disabled={item.quantity <= 1}
+                          disabled={pending || item.quantity <= 1}
                           onClick={() =>
-                            setItemQuantity({
+                            void setItemQuantity({
                               itemId: item.id,
                               quantity: item.quantity - 1,
                             })
@@ -148,9 +160,11 @@ function CartSheet({ className }: CartSheetProps) {
                           variant="ghost"
                           size="icon-sm"
                           aria-label={`Tambah jumlah ${item.product.name}`}
-                          disabled={item.quantity >= item.product.stock}
+                          disabled={
+                            pending || item.quantity >= item.product.stock
+                          }
                           onClick={() =>
-                            setItemQuantity({
+                            void setItemQuantity({
                               itemId: item.id,
                               quantity: item.quantity + 1,
                             })
@@ -165,7 +179,8 @@ function CartSheet({ className }: CartSheetProps) {
                         size="icon-sm"
                         aria-label={`Hapus ${item.product.name} dari keranjang`}
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => removeItem(item.id)}
+                        disabled={pending}
+                        onClick={() => void removeItem(item.id)}
                       >
                         <TrashIcon />
                       </Button>

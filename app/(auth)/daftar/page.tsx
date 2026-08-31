@@ -1,7 +1,10 @@
+import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
 import { AuthCard } from "@/components/auth/auth-card"
 import { RegisterForm } from "@/components/auth/register-form"
+import { safeAuthRedirect } from "@/lib/auth/redirect"
+import { getCurrentSession } from "@/lib/auth/session"
 import { AUTH_ROUTES, SITE } from "@/lib/site/config"
 
 export const metadata: Metadata = {
@@ -9,7 +12,17 @@ export const metadata: Metadata = {
   description: "Buat akun untuk belanja perlengkapan outdoor lebih cepat.",
 }
 
-export default function Page() {
+export default async function Page({ searchParams }: PageProps<"/daftar">) {
+  const { callbackURL } = await searchParams
+  const redirectTo = safeAuthRedirect(
+    typeof callbackURL === "string" ? callbackURL : undefined
+  )
+  const session = await getCurrentSession()
+
+  if (session) {
+    redirect(redirectTo)
+  }
+
   return (
     <AuthCard
       title="Daftar"
@@ -20,7 +33,7 @@ export default function Page() {
         href: AUTH_ROUTES.signIn,
       }}
     >
-      <RegisterForm />
+      <RegisterForm callbackURL={redirectTo} />
     </AuthCard>
   )
 }

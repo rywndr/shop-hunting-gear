@@ -61,12 +61,18 @@ function AccountCard({
 type AccountFormCardProps = Omit<AccountCardProps, "footer" | "tone"> & {
   onSubmit: React.FormEventHandler<HTMLFormElement>
   submitLabel: string
+  pending?: boolean | undefined
+  error?: string | undefined
+  success?: string | undefined
   secondaryAction?: React.ReactNode
 }
 
 function AccountFormCard({
   onSubmit,
   submitLabel,
+  pending = false,
+  error,
+  success,
   secondaryAction,
   children,
   ...props
@@ -77,14 +83,26 @@ function AccountFormCard({
         {...props}
         footer={
           <>
-            <Button type="submit" className="h-10">
-              {submitLabel}
+            <Button type="submit" disabled={pending} className="h-10">
+              {pending ? "Menyimpan..." : submitLabel}
             </Button>
             {secondaryAction}
           </>
         }
       >
-        <FieldGroup className="gap-4">{children}</FieldGroup>
+        <FieldGroup className="gap-4">
+          {children}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {success}
+            </p>
+          )}
+        </FieldGroup>
       </AccountCard>
     </form>
   )

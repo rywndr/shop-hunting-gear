@@ -36,6 +36,25 @@ export const addressSchema = z.object({
 
 export type AddressValues = z.infer<typeof addressSchema>
 
+export const createAddressRequestSchema = addressSchema
+
+export const updateAddressRequestSchema = z.object({
+  id: z.string().uuid(),
+  values: addressSchema,
+})
+
+export const addressIdRequestSchema = z.object({
+  id: z.string().uuid(),
+})
+
+export const addressesResponseSchema = z.object({
+  addresses: z.array(
+    addressSchema.extend({
+      id: z.string().uuid(),
+    })
+  ),
+})
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Kata sandi saat ini wajib diisi."),

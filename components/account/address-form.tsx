@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
@@ -17,16 +18,19 @@ type AddressFormProps = {
   submitLabel: string
   defaultValues?: AddressValues
   onCancel: () => void
+  onSubmit: (values: AddressValues) => Promise<string | undefined>
 }
 
 function AddressForm({
   submitLabel,
   defaultValues = EMPTY_ADDRESS,
   onCancel,
+  onSubmit,
 }: AddressFormProps) {
+  const [serverError, setServerError] = useState<string>()
   const {
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     handleSubmit,
     register,
   } = useForm<AddressValues>({
@@ -34,12 +38,20 @@ function AddressForm({
     defaultValues,
   })
 
+  const submit = handleSubmit(async (values) => {
+    setServerError(undefined)
+    const error = await onSubmit(values)
+
+    if (error) {
+      setServerError(error)
+      return
+    }
+
+    onCancel()
+  })
+
   return (
-    <form
-      noValidate
-      onSubmit={handleSubmit(() => {})}
-      className="flex min-h-0 flex-1 flex-col"
-    >
+    <form noValidate onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
       <FieldGroup className="flex-1 gap-4 overflow-y-auto px-6 py-5">
         <TextField
           id="alamat-label"
@@ -139,15 +151,22 @@ function AddressForm({
             Jadikan alamat utama
           </FieldLabel>
         </Field>
+
+        {serverError && (
+          <p role="alert" className="text-sm text-destructive">
+            {serverError}
+          </p>
+        )}
       </FieldGroup>
 
       <div className="flex flex-wrap gap-3 border-t border-border px-6 py-4">
-        <Button type="submit" className="h-10">
-          {submitLabel}
+        <Button type="submit" disabled={isSubmitting} className="h-10">
+          {isSubmitting ? "Menyimpan..." : submitLabel}
         </Button>
         <Button
           type="button"
           variant="ghost"
+          disabled={isSubmitting}
           onClick={onCancel}
           className="h-10"
         >

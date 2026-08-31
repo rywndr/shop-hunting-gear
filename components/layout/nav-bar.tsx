@@ -6,17 +6,20 @@ import { CartSheet } from "@/components/layout/cart-sheet"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { SearchForm } from "@/components/layout/search-form"
 import { accountMenuLinks } from "@/lib/admin/config"
-import { IS_ADMIN, IS_LOGGED_IN } from "@/lib/site/config"
+import { canAccessAdmin, getCurrentSession } from "@/lib/auth/session"
 
 const SEARCH_CLASS = "order-last w-full md:order-none md:w-64 lg:w-72"
 
-function NavBar({
+async function NavBar({
   className,
   search = true,
 }: {
   className?: string
   search?: boolean
 }) {
+  const session = await getCurrentSession()
+  const isAdmin = canAccessAdmin(session)
+
   return (
     <div className={className}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 md:gap-x-4 md:pt-0 md:pb-3">
@@ -32,7 +35,7 @@ function NavBar({
           </Suspense>
         )}
         <CartSheet />
-        {IS_LOGGED_IN && <AccountMenu links={accountMenuLinks(IS_ADMIN)} />}
+        {session && <AccountMenu links={accountMenuLinks(isAdmin)} />}
       </div>
     </div>
   )

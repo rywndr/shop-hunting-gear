@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
@@ -8,15 +10,20 @@ import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldLabel } from "@/components/ui/field"
+import { authClient } from "@/lib/auth/client"
+import { authErrorMessage } from "@/lib/auth/errors"
 import { signInSchema, type SignInValues } from "@/lib/auth/schema"
 import { AUTH_ROUTES } from "@/lib/site/config"
 
 const REMEMBER_ID = "sign-in-remember"
 
-function SignInForm() {
+function SignInForm({ callbackURL }: { callbackURL: string }) {
+  const router = useRouter()
+  const [authError, setAuthError] = useState<string>()
+  const [googlePending, setGooglePending] = useState(false)
   const {
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     handleSubmit,
     register,
   } = useForm<SignInValues>({
@@ -24,13 +31,57 @@ function SignInForm() {
     defaultValues: { email: "", password: "", rememberMe: true },
   })
 
-  const onSubmit = handleSubmit(() => {})
+  const onSubmit = handleSubmit(async (values) => {
+    setAuthError(undefined)
+
+    try {
+      const { error } = await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
+        rememberMe: values.rememberMe,
+      })
+
+      if (error) {
+        setAuthError(authErrorMessage(error))
+        return
+      }
+
+      router.push(callbackURL)
+      router.refresh()
+    } catch {
+      setAuthError(authErrorMessage(null))
+    }
+  })
+
+  async function signInWithGoogle() {
+    setAuthError(undefined)
+    setGooglePending(true)
+
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+      })
+
+      if (error) {
+        setAuthError(authErrorMessage(error))
+        setGooglePending(false)
+      }
+    } catch {
+      setAuthError(authErrorMessage(null))
+      setGooglePending(false)
+    }
+  }
 
   return (
     <AuthForm
       onSubmit={onSubmit}
+      onGoogle={signInWithGoogle}
       submitLabel="Masuk"
       googleLabel="Masuk dengan Google"
+      error={authError}
+      pending={isSubmitting}
+      googlePending={googlePending}
     >
       <TextField
         id="sign-in-email"

@@ -87,6 +87,8 @@ export const CATEGORIES = [
   },
 ] as const satisfies readonly Category[]
 
+export const CATEGORY_SLUGS = CATEGORIES.map((category) => category.slug)
+
 export type CategorySlug = (typeof CATEGORIES)[number]["slug"]
 
 export function findCategory(slug: string | undefined) {
@@ -136,10 +138,6 @@ export const ACCOUNT_LINKS = [
   { label: "Masuk", href: AUTH_ROUTES.signIn },
   { label: "Daftar", href: AUTH_ROUTES.register },
 ] as const satisfies readonly NavLink[]
-
-export const IS_LOGGED_IN = true
-
-export const IS_ADMIN = true
 
 export const USER_LINKS = {
   account: { label: "Akun", href: "/akun" },

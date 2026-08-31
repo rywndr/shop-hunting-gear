@@ -3,15 +3,7 @@
  */
 
 import type { AddressValues } from "@/lib/account/schema"
-
-export type AccountProvider = "credential" | "google"
-
-export type Account = {
-  readonly name: string
-  readonly email: string
-  readonly provider: AccountProvider
-  readonly joinedAt: string
-}
+import type { Account, Address } from "@/lib/account/types"
 
 export const MOCK_ACCOUNT = {
   name: "Bagas Prakoso",
@@ -19,8 +11,6 @@ export const MOCK_ACCOUNT = {
   provider: "credential",
   joinedAt: "2025-03-18",
 } as const satisfies Account
-
-export type Address = AddressValues & { readonly id: string }
 
 export const MOCK_ADDRESSES = [
   {

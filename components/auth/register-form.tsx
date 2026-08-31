@@ -1,19 +1,26 @@
 "use client"
 
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
 import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
+import { authClient } from "@/lib/auth/client"
+import { authErrorMessage } from "@/lib/auth/errors"
 import {
   MIN_PASSWORD_LENGTH,
   registerSchema,
   type RegisterValues,
 } from "@/lib/auth/schema"
 
-function RegisterForm() {
+function RegisterForm({ callbackURL }: { callbackURL: string }) {
+  const router = useRouter()
+  const [authError, setAuthError] = useState<string>()
+  const [googlePending, setGooglePending] = useState(false)
   const {
-    formState: { errors },
+    formState: { errors, isSubmitting },
     handleSubmit,
     register,
   } = useForm<RegisterValues>({
@@ -26,13 +33,57 @@ function RegisterForm() {
     },
   })
 
-  const onSubmit = handleSubmit(() => {})
+  const onSubmit = handleSubmit(async (values) => {
+    setAuthError(undefined)
+
+    try {
+      const { error } = await authClient.signUp.email({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+      })
+
+      if (error) {
+        setAuthError(authErrorMessage(error))
+        return
+      }
+
+      router.push(callbackURL)
+      router.refresh()
+    } catch {
+      setAuthError(authErrorMessage(null))
+    }
+  })
+
+  async function registerWithGoogle() {
+    setAuthError(undefined)
+    setGooglePending(true)
+
+    try {
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL,
+      })
+
+      if (error) {
+        setAuthError(authErrorMessage(error))
+        setGooglePending(false)
+      }
+    } catch {
+      setAuthError(authErrorMessage(null))
+      setGooglePending(false)
+    }
+  }
 
   return (
     <AuthForm
       onSubmit={onSubmit}
+      onGoogle={registerWithGoogle}
       submitLabel="Daftar"
       googleLabel="Daftar dengan Google"
+      error={authError}
+      pending={isSubmitting}
+      googlePending={googlePending}
     >
       <TextField
         id="register-name"
