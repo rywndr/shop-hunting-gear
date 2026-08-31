@@ -2,7 +2,14 @@ import type { Product } from "@/lib/products/config"
 
 type CartProduct = Pick<
   Product,
-  "category" | "compareAtPrice" | "name" | "price" | "slug" | "stock" | "weight"
+  | "category"
+  | "compareAtPrice"
+  | "images"
+  | "name"
+  | "price"
+  | "slug"
+  | "stock"
+  | "weight"
 >
 
 export type CartVariant = {

@@ -7,6 +7,12 @@ export const cartVariantSchema = z.object({
   value: z.string().trim().min(1),
 })
 
+const cartImageSchema = z.object({
+  id: z.string(),
+  alt: z.string(),
+  url: z.string().optional(),
+})
+
 export const cartItemsResponseSchema = z.object({
   items: z.array(
     z.object({
@@ -14,6 +20,7 @@ export const cartItemsResponseSchema = z.object({
       product: z.object({
         category: z.enum(CATEGORY_SLUGS),
         compareAtPrice: z.int().nonnegative().nullable(),
+        images: z.tuple([cartImageSchema]).rest(cartImageSchema),
         name: z.string(),
         price: z.int().nonnegative(),
         slug: z.string(),

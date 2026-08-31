@@ -112,6 +112,7 @@ function CartSheet({ className }: CartSheetProps) {
                     onClick={() => setOpen(false)}
                   >
                     <ProductThumbnail
+                      src={item.product.images[0].url}
                       label={`Gambar ${item.product.name}`}
                       className="size-16"
                     />
@@ -206,6 +207,7 @@ function CartSheet({ className }: CartSheetProps) {
               </div>
               <Button
                 render={<Link href="/checkout" />}
+                nativeButton={false}
                 onClick={() => setOpen(false)}
                 className="h-10 font-bold tracking-wide uppercase"
               >

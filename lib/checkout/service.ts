@@ -20,6 +20,7 @@ function checkoutProduct(product: Product): CartItem["product"] {
   return {
     category: product.category,
     compareAtPrice: product.compareAtPrice,
+    images: product.images,
     name: product.name,
     price: product.price,
     slug: product.slug,
