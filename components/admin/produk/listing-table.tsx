@@ -158,7 +158,6 @@ function ListingTable({
             params.set("tab", listingTab(next))
             params.delete("page")
             window.history.pushState(null, "", `?${params.toString()}`)
-            pagination.setPage(1)
             selection.clear()
           }}
         />

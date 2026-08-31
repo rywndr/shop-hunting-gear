@@ -32,7 +32,7 @@ export default async function AdminProductsPage(
 ) {
   const { tab } = await props.searchParams
   if (tab === undefined) {
-    redirect("/admin/produk?tab=all")
+    redirect("/admin/produk?tab=active")
   }
 
   return (
