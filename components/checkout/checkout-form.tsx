@@ -323,6 +323,7 @@ function CheckoutForm({
                   className="flex gap-3 border-b border-border pb-4"
                 >
                   <ProductThumbnail
+                    src={item.product.images[0].url}
                     label={`Gambar ${item.product.name}`}
                     className="size-14 shrink-0"
                   />
