@@ -3,9 +3,13 @@ import { notFound } from "next/navigation"
 
 import { AdminPage } from "@/components/admin/admin-page"
 import { ProductEditForm } from "@/components/admin/produk/product-edit-form"
+import { EDIT_PRODUCT_PAGE } from "@/lib/admin/product-form"
 import { adminProductForEdit } from "@/lib/products/service"
 
-export const metadata: Metadata = { title: "Ubah Produk" }
+export const metadata: Metadata = {
+  title: EDIT_PRODUCT_PAGE.label,
+  description: EDIT_PRODUCT_PAGE.description,
+}
 
 export default async function AdminEditProductPage(props: {
   params: Promise<{ productId: string }>
@@ -16,7 +20,7 @@ export default async function AdminEditProductPage(props: {
 
   return (
     <AdminPage
-      title="Ubah Produk"
+      title={EDIT_PRODUCT_PAGE.label}
       description={`Perbarui informasi ${product.name}.`}
     >
       <ProductEditForm product={product} />

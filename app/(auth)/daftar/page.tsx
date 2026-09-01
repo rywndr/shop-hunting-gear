@@ -5,10 +5,10 @@ import { AuthCard } from "@/components/auth/auth-card"
 import { RegisterForm } from "@/components/auth/register-form"
 import { safeAuthRedirect } from "@/lib/auth/redirect"
 import { getCurrentSession } from "@/lib/auth/session"
-import { AUTH_ROUTES, SITE } from "@/lib/site/config"
+import { AUTH_ROUTES } from "@/lib/site/config"
 
 export const metadata: Metadata = {
-  title: `Daftar | ${SITE.alternateName}`,
+  title: "Daftar",
   description: "Buat akun untuk belanja perlengkapan outdoor lebih cepat.",
 }
 

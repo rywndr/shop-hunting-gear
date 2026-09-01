@@ -1,8 +1,12 @@
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 
 import { BrandLogo } from "@/components/layout/brand-logo"
 import { AUTH_SHOWCASE, INFO_LINKS, SITE } from "@/lib/site/config"
+import { PRIVATE_ROBOTS } from "@/lib/site/metadata"
+
+export const metadata: Metadata = { robots: PRIVATE_ROBOTS }
 
 export default function AuthLayout({
   children,

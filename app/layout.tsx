@@ -1,8 +1,10 @@
+import type { Metadata } from "next"
 import { Geist_Mono, Roboto, Roboto_Slab } from "next/font/google"
 
 import "./globals.css"
 import { CartProvider } from "@/components/cart/cart-provider"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ROOT_METADATA } from "@/lib/site/metadata"
 import { cn } from "@/lib/utils"
 
 const robotoSlabHeading = Roboto_Slab({
@@ -16,6 +18,8 @@ const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+
+export const metadata: Metadata = ROOT_METADATA
 
 export default function RootLayout({
   children,

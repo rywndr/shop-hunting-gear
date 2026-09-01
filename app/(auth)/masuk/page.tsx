@@ -5,10 +5,10 @@ import { AuthCard } from "@/components/auth/auth-card"
 import { SignInForm } from "@/components/auth/sign-in-form"
 import { safeAuthRedirect } from "@/lib/auth/redirect"
 import { getCurrentSession } from "@/lib/auth/session"
-import { AUTH_ROUTES, SITE } from "@/lib/site/config"
+import { AUTH_ROUTES } from "@/lib/site/config"
 
 export const metadata: Metadata = {
-  title: `Masuk | ${SITE.alternateName}`,
+  title: "Masuk",
   description: "Masuk ke akun Anda untuk melanjutkan belanja.",
 }
 

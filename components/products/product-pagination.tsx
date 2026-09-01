@@ -1,8 +1,10 @@
 "use client"
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { usePathname, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
+import { PAGE_QUERY } from "@/lib/site/config"
 import { formatNumber } from "@/utils/format/intl"
 
 function ProductPagination({
@@ -15,15 +17,37 @@ function ProductPagination({
   readonly total: number
 }) {
   const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
-  function goTo(nextPage: number) {
+  function hrefFor(nextPage: number) {
     const params = new URLSearchParams(searchParams.toString())
-    if (nextPage > 1) params.set("page", String(nextPage))
-    else params.delete("page")
-    router.push(`${pathname}?${params.toString()}#produk`)
+
+    if (nextPage > 1) params.set(PAGE_QUERY, String(nextPage))
+    else params.delete(PAGE_QUERY)
+
+    const query = params.toString()
+    return `${pathname}${query ? `?${query}` : ""}#produk`
+  }
+
+  function step(nextPage: number, label: string) {
+    if (nextPage < 1 || nextPage > pageCount) {
+      return (
+        <Button variant="outline" size="sm" disabled>
+          {label}
+        </Button>
+      )
+    }
+
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        render={<Link href={hrefFor(nextPage)} />}
+      >
+        {label}
+      </Button>
+    )
   }
 
   return (
@@ -37,22 +61,8 @@ function ProductPagination({
         {formatNumber(total)}
       </span>
       <div className="flex gap-1">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page === 1}
-          onClick={() => goTo(page - 1)}
-        >
-          Sebelumnya
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page === pageCount}
-          onClick={() => goTo(page + 1)}
-        >
-          Berikutnya
-        </Button>
+        {step(page - 1, "Sebelumnya")}
+        {step(page + 1, "Berikutnya")}
       </div>
     </nav>
   )

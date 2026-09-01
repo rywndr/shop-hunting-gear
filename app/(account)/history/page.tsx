@@ -18,7 +18,7 @@ type HistoryTab = "semua" | OrderStatus
 
 export const metadata: Metadata = {
   title: "History",
-  description: "Riwayat pesanan Anda.",
+  description: "Lacak pembayaran, pengiriman, dan riwayat pesanan Anda.",
 }
 
 function isOrderStatus(value: string): value is OrderStatus {

@@ -16,6 +16,11 @@ export const NEW_PRODUCT_PAGE = {
   description: "Lengkapi foto, informasi, harga, dan stok produk baru.",
 } as const satisfies { label: string; description: string }
 
+export const EDIT_PRODUCT_PAGE = {
+  label: "Ubah Produk",
+  description: "Perbarui foto, informasi, harga, varian, dan stok produk.",
+} as const satisfies { label: string; description: string }
+
 export const MAX_PRODUCT_IMAGES = 6
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 export const MAX_VARIANTS = 2

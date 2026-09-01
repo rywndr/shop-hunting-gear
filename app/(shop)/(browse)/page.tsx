@@ -1,42 +1,197 @@
+import { cache } from "react"
+import type { Metadata } from "next"
+import { redirect } from "next/navigation"
+
 import { HeroCarousel } from "@/components/layout/hero-carousel"
 import { CategoryFilterList } from "@/components/products/category-filter-list"
 import { ProductGrid } from "@/components/products/product-grid"
 import { ProductPagination } from "@/components/products/product-pagination"
 import { ProductSection } from "@/components/products/product-section"
-import { productsInCategories, productsMatching } from "@/lib/products/config"
+import {
+  productsInCategories,
+  productsMatching,
+  type Product,
+} from "@/lib/products/config"
 import { storefrontProducts } from "@/lib/products/service"
-import { CATEGORY_QUERY, SEARCH_QUERY, findCategories } from "@/lib/site/config"
+import {
+  browsePageCount,
+  normalizeBrowseQuery,
+  resolveBrowseRequest,
+  type BrowseQuery,
+  type BrowseSelection,
+} from "@/lib/site/browse"
+import { SITE, findCategories, type CategorySlug } from "@/lib/site/config"
+import { pageMetadata } from "@/lib/site/metadata"
 
 const PAGE_SIZE = 10
 
 export const dynamic = "force-dynamic"
 
-function positiveInteger(value: string | undefined) {
-  const parsed = Number(value)
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1
+type SelectedCategory = ReturnType<typeof findCategories>[number]
+
+type BrowseFilter =
+  | {
+      readonly kind: "search"
+      readonly search: string
+      readonly categories: readonly SelectedCategory[]
+    }
+  | {
+      readonly kind: "category"
+      readonly categories: readonly SelectedCategory[]
+    }
+  | { readonly kind: "all" }
+
+const browseProducts = cache(storefrontProducts)
+
+function browseFilter(selection: BrowseSelection): BrowseFilter {
+  const categories = findCategories(selection.categories)
+
+  if (selection.search) {
+    return { kind: "search", search: selection.search, categories }
+  }
+
+  if (categories.length > 0) {
+    return { kind: "category", categories }
+  }
+
+  return { kind: "all" }
+}
+
+function filterCategories(filter: BrowseFilter): readonly SelectedCategory[] {
+  switch (filter.kind) {
+    case "search":
+    case "category":
+      return filter.categories
+    case "all":
+      return []
+    default: {
+      const _exhaustive: never = filter
+      return _exhaustive
+    }
+  }
+}
+
+function categorySlugs(
+  categories: readonly SelectedCategory[]
+): readonly CategorySlug[] {
+  return categories.map((category) => category.slug)
+}
+
+function categoryLabels(categories: readonly SelectedCategory[]) {
+  return categories.map((category) => category.label).join(" & ")
+}
+
+function filteredProducts(
+  products: readonly Product[],
+  selection: BrowseSelection
+): readonly Product[] {
+  const inCategories = productsInCategories(products, selection.categories)
+
+  return selection.search
+    ? productsMatching(inCategories, selection.search)
+    : inCategories
+}
+
+function sectionCopy(filter: BrowseFilter): {
+  readonly title: string
+  readonly description: string
+} {
+  switch (filter.kind) {
+    case "search":
+      return {
+        title: categoryLabels(filter.categories) || "Semua Produk",
+        description: `Hasil pencarian untuk "${filter.search}".`,
+      }
+    case "category":
+      return {
+        title: categoryLabels(filter.categories),
+        description: "Produk dari kategori yang dipilih.",
+      }
+    case "all":
+      return {
+        title: "Semua Produk",
+        description: "Seluruh katalog dari empat kategori dalam satu daftar.",
+      }
+    default: {
+      const _exhaustive: never = filter
+      return _exhaustive
+    }
+  }
+}
+
+async function resolveBrowsePage(query: BrowseQuery) {
+  const products = filteredProducts(
+    await browseProducts(),
+    normalizeBrowseQuery(query)
+  )
+  const resolution = resolveBrowseRequest({
+    query,
+    pageCount: browsePageCount(products.length, PAGE_SIZE),
+  })
+
+  return { ...resolution, products }
+}
+
+export async function generateMetadata({
+  searchParams,
+}: PageProps<"/">): Promise<Metadata> {
+  const { selection, canonical, index } = await resolveBrowsePage(
+    await searchParams
+  )
+  const filter = browseFilter(selection)
+  const suffix = selection.page > 1 ? ` · Halaman ${selection.page}` : ""
+
+  switch (filter.kind) {
+    case "search":
+      return pageMetadata({
+        title: `Pencarian "${filter.search}"${suffix}`,
+        description: `Hasil pencarian "${filter.search}" di katalog ${SITE.alternateName}.`,
+        path: canonical,
+        index,
+      })
+    case "category": {
+      const labels = categoryLabels(filter.categories)
+
+      return pageMetadata({
+        title: `Produk ${labels}${suffix}`,
+        description: `Belanja perlengkapan ${labels} di ${SITE.alternateName}. Stok siap kirim ke seluruh Indonesia.`,
+        path: canonical,
+        index,
+      })
+    }
+    case "all":
+      return pageMetadata({
+        title: `${SITE.tagline}${suffix}`,
+        description: SITE.description,
+        path: canonical,
+        index,
+      })
+    default: {
+      const _exhaustive: never = filter
+      return _exhaustive
+    }
+  }
 }
 
 export default async function Page({ searchParams }: PageProps<"/">) {
-  const savedProducts = await storefrontProducts()
-  const query = await searchParams
-  const categoryQuery = query[CATEGORY_QUERY]
-  const categories = findCategories(
-    typeof categoryQuery === "string" ? [categoryQuery] : (categoryQuery ?? [])
-  )
-  const search =
-    typeof query[SEARCH_QUERY] === "string" ? query[SEARCH_QUERY].trim() : ""
-  const categorySlugs = categories.map((category) => category.slug)
-  const categoryProducts = productsInCategories(savedProducts, categorySlugs)
-  const matchingProducts = productsMatching(categoryProducts, search)
-  const pageCount = Math.max(1, Math.ceil(matchingProducts.length / PAGE_SIZE))
-  const requestedPage = positiveInteger(
-    typeof query.page === "string" ? query.page : undefined
-  )
-  const page = Math.min(requestedPage, pageCount)
+  const {
+    selection,
+    redirectTo,
+    products: matchingProducts,
+  } = await resolveBrowsePage(await searchParams)
+
+  if (redirectTo) {
+    redirect(redirectTo)
+  }
+
+  const page = selection.page
   const products = matchingProducts.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE
   )
+  const filter = browseFilter(selection)
+  const copy = sectionCopy(filter)
+  const selectedCategories = filterCategories(filter)
 
   return (
     <>
@@ -44,24 +199,14 @@ export default async function Page({ searchParams }: PageProps<"/">) {
 
       <ProductSection
         id="produk"
-        title={
-          categories.length > 0
-            ? categories.map((category) => category.label).join(" & ")
-            : "Semua Produk"
-        }
-        description={
-          search
-            ? `Hasil pencarian untuk "${search}".`
-            : categories.length > 0
-              ? "Produk dari kategori yang dipilih."
-              : "Seluruh katalog dari empat kategori dalam satu daftar."
-        }
+        title={copy.title}
+        description={copy.description}
         action={
-          categories.length > 0 ? (
+          selectedCategories.length > 0 ? (
             <CategoryFilterList
-              key={categorySlugs.join(",")}
-              categories={categories}
-              search={search}
+              key={categorySlugs(selectedCategories).join(",")}
+              categories={selectedCategories}
+              search={filter.kind === "search" ? filter.search : ""}
             />
           ) : undefined
         }

@@ -18,13 +18,16 @@ export type Category = NavLink & {
 
 export const CATEGORY_QUERY = "kategori"
 export const SEARCH_QUERY = "q"
+export const PAGE_QUERY = "page"
 
 export function shopHref({
   categories = [],
   search,
+  page,
 }: {
   categories?: readonly string[]
   search?: string
+  page?: number
 } = {}) {
   const query = new URLSearchParams()
 
@@ -36,6 +39,10 @@ export function shopHref({
     query.set(SEARCH_QUERY, search)
   }
 
+  if (page !== undefined && page > 1) {
+    query.set(PAGE_QUERY, String(page))
+  }
+
   const value = query.toString()
   return value ? `/?${value}` : "/"
 }
@@ -43,10 +50,29 @@ export function shopHref({
 export const SITE = {
   name: "HUNTING-GEAR.NET",
   alternateName: "Hunting Gear",
+  url: "https://hunting-gear.net",
+  locale: "id_ID",
+  tagline: "Perlengkapan Outdoor dan Hobby",
+  description:
+    "Toko perlengkapan outdoor Indonesia. Kamuflase dan tas berburu, joran dan reel pancing, sparepart, serta aksesori hobi dengan pengiriman ke seluruh Indonesia.",
+  keywords: [
+    "perlengkapan hunting",
+    "alat pancing",
+    "joran dan reel",
+    "sparepart outdoor",
+    "aksesori hobi outdoor",
+    "toko perlengkapan outdoor Indonesia",
+  ],
   logo: {
     src: "/app-logo.png",
     width: 516,
     height: 483,
+  },
+  socialImage: {
+    src: "/social-card.jpg",
+    width: 1200,
+    height: 630,
+    alt: "Dua pemburu berkamuflase berdiri di rawa saat matahari terbit.",
   },
   phone: {
     display: "0812-3456-7890",
@@ -59,7 +85,13 @@ export const SITE = {
 } as const satisfies {
   name: string
   alternateName: string
+  url: string
+  locale: string
+  tagline: string
+  description: string
+  keywords: readonly string[]
   logo: { src: string; width: number; height: number }
+  socialImage: { src: string; width: number; height: number; alt: string }
   phone: ContactLink
   email: ContactLink
 }
