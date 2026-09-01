@@ -8,6 +8,7 @@ import { RadioGroup } from "@base-ui/react/radio-group"
 import { CheckCircleIcon, MapPinIcon, PackageIcon } from "@phosphor-icons/react"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { useCart } from "@/components/cart/cart-provider"
 import { SnapPaymentButton } from "@/components/checkout/snap-payment-button"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,7 @@ function CheckoutForm({
     preferredAddress ? { kind: "loading" } : { kind: "idle" }
   )
   const [shippingId, setShippingId] = useState("")
+  const { clearCart } = useCart()
   const subtotal = cartSubtotal(items)
 
   useEffect(() => {
@@ -378,6 +380,9 @@ function CheckoutForm({
                   : undefined
               }
               source={source}
+              onOrderCreated={async () => {
+                if (source.kind === "cart") await clearCart()
+              }}
             />
           </CardContent>
         </Card>

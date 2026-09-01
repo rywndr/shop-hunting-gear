@@ -45,6 +45,7 @@ function SnapPaymentButton({
   browserConfig,
   shipping,
   source,
+  onOrderCreated,
 }: {
   addressId: string
   browserConfig: MidtransBrowserConfig
@@ -55,6 +56,7 @@ function SnapPaymentButton({
       }
     | undefined
   source: CheckoutSource
+  onOrderCreated: () => Promise<void>
 }) {
   const router = useRouter()
   const [scriptState, setScriptState] = useState<SnapScriptState>("loading")
@@ -182,6 +184,7 @@ function SnapPaymentButton({
       }
 
       openSnap(result, checkoutKey)
+      void onOrderCreated()
     } catch {
       setPaymentState({
         kind: "error",

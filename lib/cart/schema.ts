@@ -44,8 +44,9 @@ export const updateCartItemSchema = z.object({
   quantity: z.int().positive(),
 })
 
-export const removeCartItemSchema = z.object({
-  itemId: z.string().uuid(),
-})
+export const removeCartItemSchema = z.union([
+  z.object({ itemId: z.string().uuid() }),
+  z.object({ clear: z.literal(true) }),
+])
 
 export type AddCartItemRequest = z.infer<typeof addCartItemSchema>

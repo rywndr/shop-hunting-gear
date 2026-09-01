@@ -26,6 +26,7 @@ type CartContextValue = {
   readonly error: string | undefined
   readonly addItem: (input: AddToCartInput) => Promise<void>
   readonly removeItem: (itemId: string) => Promise<void>
+  readonly clearCart: () => Promise<void>
   readonly setItemQuantity: (input: {
     readonly itemId: string
     readonly quantity: number
@@ -170,6 +171,9 @@ function CartProvider({ children }: { children: ReactNode }) {
       },
       async removeItem(itemId) {
         await mutateCart({ method: "DELETE", body: { itemId } })
+      },
+      async clearCart() {
+        await mutateCart({ method: "DELETE", body: { clear: true } })
       },
       async setItemQuantity({ itemId, quantity }) {
         await mutateCart({ method: "PATCH", body: { itemId, quantity } })

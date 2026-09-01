@@ -185,3 +185,7 @@ export async function removeCartItemForUser({
     .delete(cartItem)
     .where(and(eq(cartItem.id, itemId), eq(cartItem.userId, userId)))
 }
+
+export async function clearCartForUser(userId: string) {
+  await db.delete(cartItem).where(eq(cartItem.userId, userId))
+}

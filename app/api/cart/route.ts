@@ -7,6 +7,7 @@ import {
 import {
   addCartItemForUser,
   cartItemsForUser,
+  clearCartForUser,
   removeCartItemForUser,
   updateCartItemForUser,
 } from "@/lib/cart/service"
@@ -101,10 +102,14 @@ export async function DELETE(request: Request) {
     return invalidRequest()
   }
 
-  await removeCartItemForUser({
-    userId: session.user.id,
-    itemId: parsed.data.itemId,
-  })
+  if ("clear" in parsed.data) {
+    await clearCartForUser(session.user.id)
+  } else {
+    await removeCartItemForUser({
+      userId: session.user.id,
+      itemId: parsed.data.itemId,
+    })
+  }
 
   return Response.json({ items: await cartItemsForUser(session.user.id) })
 }
