@@ -23,16 +23,11 @@ export default function AuthLayout({
         </div>
 
         <aside className="relative hidden overflow-hidden bg-navbar lg:block">
-          {/*
-            Note on auth page img, the panel is taller than it is wide, so `object-cover` scales a 16:9
-            source by its height. `sizes` has to describe that scaled width, not
-            the 50vw column, or Next serves a candidate it then upscales which results in poopy res.
-          */}
           <Image
             src={AUTH_SHOWCASE.image}
             alt={AUTH_SHOWCASE.alt}
             fill
-            sizes="100vw"
+            sizes="50vw"
             className="object-cover"
             style={{ objectPosition: AUTH_SHOWCASE.focus }}
           />
