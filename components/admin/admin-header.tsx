@@ -7,7 +7,7 @@ function AdminHeader() {
   return (
     <header className="sticky top-0 z-30 h-admin-header shrink-0 border-b border-navbar-border bg-navbar text-navbar-foreground">
       <div className="flex h-full items-center gap-1 px-2 sm:gap-2 sm:px-4">
-        <BrandLogo layout="inline" />
+        <BrandLogo href="/admin" layout="inline" />
         <SidebarTrigger
           size="icon-lg"
           className="mr-auto text-navbar-foreground hover:bg-navbar-foreground/10 hover:text-navbar-foreground"

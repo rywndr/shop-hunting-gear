@@ -6,12 +6,14 @@ import { cn } from "@/lib/utils"
 
 type BrandLogoProps = {
   className?: string
+  href?: string
   tone?: "dark" | "light"
   layout?: "lockup" | "inline"
 }
 
 function BrandLogo({
   className,
+  href = "/",
   tone = "dark",
   layout = "lockup",
 }: BrandLogoProps) {
@@ -19,7 +21,7 @@ function BrandLogo({
 
   return (
     <Link
-      href="/"
+      href={href}
       className={cn(
         "inline-flex items-center gap-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
         isLockup && "md:flex-col md:items-start md:gap-1",

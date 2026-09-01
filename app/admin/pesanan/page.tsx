@@ -89,7 +89,7 @@ export default async function AdminOrdersPage(
   )
 
   if (tab === undefined) {
-    redirect("/admin/pesanan?tab=all")
+    redirect("/admin/pesanan?tab=unpaid")
   }
 
   return (
