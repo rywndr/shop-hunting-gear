@@ -18,12 +18,20 @@ export type BrowseSelection = {
   readonly page: number
 }
 
-export type BrowseResolution = {
+type BrowseResolutionBase = {
   readonly selection: BrowseSelection
   readonly canonical: string
-  readonly redirectTo: string | null
   readonly index: boolean
 }
+
+export type BrowseResolution = BrowseResolutionBase &
+  (
+    | { readonly redirectType: null; readonly redirectTo: null }
+    | {
+        readonly redirectType: "permanent" | "temporary"
+        readonly redirectTo: string
+      }
+  )
 
 const MAX_INDEXABLE_CATEGORIES = 1
 
@@ -122,11 +130,27 @@ export function resolveBrowseRequest({
     page: Math.min(normalized.page, lastPage),
   }
   const canonical = browseHref(selection)
-
-  return {
+  const resolution = {
     selection,
     canonical,
-    redirectTo: requestedBrowseHref(query) === canonical ? null : canonical,
     index: browseIndexable(selection),
   }
+
+  if (normalized.page > lastPage) {
+    return {
+      ...resolution,
+      redirectType: "temporary",
+      redirectTo: canonical,
+    }
+  }
+
+  if (requestedBrowseHref(query) !== canonical) {
+    return {
+      ...resolution,
+      redirectType: "permanent",
+      redirectTo: canonical,
+    }
+  }
+
+  return { ...resolution, redirectType: null, redirectTo: null }
 }

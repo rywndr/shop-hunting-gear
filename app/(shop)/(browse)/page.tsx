@@ -1,6 +1,6 @@
 import { cache } from "react"
 import type { Metadata } from "next"
-import { redirect } from "next/navigation"
+import { permanentRedirect, redirect } from "next/navigation"
 
 import { HeroCarousel } from "@/components/layout/hero-carousel"
 import { CategoryFilterList } from "@/components/products/category-filter-list"
@@ -174,16 +174,22 @@ export async function generateMetadata({
 }
 
 export default async function Page({ searchParams }: PageProps<"/">) {
-  const {
-    selection,
-    redirectTo,
-    products: matchingProducts,
-  } = await resolveBrowsePage(await searchParams)
+  const resolution = await resolveBrowsePage(await searchParams)
 
-  if (redirectTo) {
-    redirect(redirectTo)
+  switch (resolution.redirectType) {
+    case "permanent":
+      permanentRedirect(resolution.redirectTo)
+    case "temporary":
+      redirect(resolution.redirectTo)
+    case null:
+      break
+    default: {
+      const _exhaustive: never = resolution
+      return _exhaustive
+    }
   }
 
+  const { selection, products: matchingProducts } = resolution
   const page = selection.page
   const products = matchingProducts.slice(
     (page - 1) * PAGE_SIZE,
