@@ -283,6 +283,9 @@ export const MOCK_TRANSACTIONS: readonly Transaction[] =
         method,
         shipping,
         discount,
+        paymentStatus: "paid",
+        refundAmount: 0,
+        chargebackAmount: 0,
         items: [toItem(firstItem), ...otherItems.map(toItem)],
       }
     }
@@ -490,9 +493,22 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
       order: {
         id: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
         status,
+        paymentStatus:
+          status === "unpaid"
+            ? "pending"
+            : status === "cancelled"
+              ? "cancelled"
+              : "paid",
+        fulfillmentStatus:
+          status === "unpaid"
+            ? "awaiting_payment"
+            : status === "cancelled"
+              ? "cancelled"
+              : status,
         placedAt: `${date}T${PLACED_TIME}`,
         courier,
         shipping,
+        paymentToken: null,
         tracking: trackingNumber(courier, status, index),
         items: items.map(toItem),
       },

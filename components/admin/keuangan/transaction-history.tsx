@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { ReceiptIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
@@ -20,11 +21,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { transactionsByDate, type Transaction } from "@/lib/admin/finance"
-import { usePagination } from "@/hooks/use-pagination"
+import type { Pagination } from "@/hooks/use-pagination"
+import type { Transaction } from "@/lib/admin/finance"
 import { cn } from "@/lib/utils"
-
-const DEFAULT_PAGE_SIZE = 10
 
 const COLUMNS = [
   { label: "Pesanan", className: TABLE_EDGE },
@@ -33,14 +32,65 @@ const COLUMNS = [
   { label: "Penghasilan", className: cn(TABLE_EDGE, "text-right") },
 ] as const satisfies readonly { label: string; className: string }[]
 
+function serverPagination({
+  items,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  readonly items: readonly Transaction[]
+  readonly page: number
+  readonly pageSize: number
+  readonly total: number
+  readonly onPageChange: (page: number) => void
+  readonly onPageSizeChange: (pageSize: number) => void
+}): Pagination<Transaction> {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize))
+  const currentPage = Math.min(Math.max(page, 1), pageCount)
+
+  return {
+    items,
+    page: currentPage,
+    pageCount,
+    pageSize,
+    total,
+    from: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    to: Math.min(currentPage * pageSize, total),
+    setPage: onPageChange,
+    setPageSize: onPageSizeChange,
+  }
+}
+
 function TransactionHistory({
   transactions,
+  total,
+  page,
+  pageSize,
 }: {
-  transactions: readonly Transaction[]
+  readonly transactions: readonly Transaction[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
 }) {
-  const pagination = usePagination({
-    items: transactionsByDate(transactions),
-    pageSize: DEFAULT_PAGE_SIZE,
+  const router = useRouter()
+  const pagination = serverPagination({
+    items: transactions,
+    page,
+    pageSize,
+    total,
+    onPageChange: (nextPage) => {
+      const params = new URLSearchParams()
+      if (nextPage > 1) params.set("page", String(nextPage))
+      if (pageSize !== 10) params.set("size", String(pageSize))
+      router.push(`/admin/keuangan?${params.toString()}`)
+    },
+    onPageSizeChange: (nextPageSize) => {
+      const params = new URLSearchParams()
+      if (nextPageSize !== 10) params.set("size", String(nextPageSize))
+      router.push(`/admin/keuangan?${params.toString()}`)
+    },
   })
 
   return (

@@ -78,7 +78,8 @@ function cartProduct(product: Product): CartItem["product"] {
 }
 
 export async function cartItemsForUser(
-  userId: string
+  userId: string,
+  { preserveQuantity = false }: { readonly preserveQuantity?: boolean } = {}
 ): Promise<readonly CartItem[]> {
   const rows = await db
     .select({
@@ -99,7 +100,9 @@ export async function cartItemsForUser(
         ? {
             id: row.id,
             product: cartProduct(product),
-            quantity: Math.min(row.quantity, product.stock),
+            quantity: preserveQuantity
+              ? row.quantity
+              : Math.min(row.quantity, product.stock),
             variants: row.variants,
           }
         : null

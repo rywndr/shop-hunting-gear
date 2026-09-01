@@ -38,13 +38,12 @@ export async function checkoutItemsForUser({
 }): Promise<readonly CartItem[]> {
   switch (source.kind) {
     case "cart":
-      return cartItemsForUser(userId)
+      return cartItemsForUser(userId, { preserveQuantity: true })
     case "product": {
       const product = await storefrontProductBySlug(source.productSlug)
 
       if (
         !product ||
-        product.stock === 0 ||
         source.variants.length !== product.variants.length ||
         !product.variants.every((variant, index) =>
           validVariant(source.variants[index], variant)
@@ -57,7 +56,7 @@ export async function checkoutItemsForUser({
         {
           id: `checkout-${product.slug}`,
           product: checkoutProduct(product),
-          quantity: Math.min(source.quantity, product.stock),
+          quantity: source.quantity,
           variants: source.variants,
         },
       ]

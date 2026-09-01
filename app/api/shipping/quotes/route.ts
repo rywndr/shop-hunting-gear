@@ -29,7 +29,9 @@ export async function GET(request: Request) {
 
   const weight =
     parsed.data.source === "cart"
-      ? await cartItemsForUser(session.user.id).then(cartWeight)
+      ? await cartItemsForUser(session.user.id, {
+          preserveQuantity: true,
+        }).then(cartWeight)
       : await storefrontQuoteWeight({
           productSlug: parsed.data.productSlug,
           quantity: parsed.data.quantity,
@@ -76,9 +78,9 @@ async function storefrontQuoteWeight({
 }) {
   const product = await storefrontProductBySlug(productSlug)
 
-  if (!product || product.stock === 0) {
+  if (!product) {
     return 0
   }
 
-  return product.weight * Math.min(quantity, product.stock)
+  return product.weight * quantity
 }

@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { PackageIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
@@ -27,12 +26,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { usePagination } from "@/hooks/use-pagination"
+import type { Pagination } from "@/hooks/use-pagination"
 import { useSelection } from "@/hooks/use-selection"
 import {
-  listingFilterFromTab,
+  listingSortKey,
   listingTab,
-  queryListings,
   type Listing,
   type ListingCategoryFilter,
   type ListingSort,
@@ -43,11 +41,6 @@ import { ALL_FILTER } from "@/lib/admin/config"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_PAGE_SIZE = 10
-
-function positiveInteger(value: string | null, fallback: number) {
-  const parsed = Number(value)
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
-}
 
 type Column =
   | { readonly kind: "select"; readonly className: string }
@@ -79,62 +72,98 @@ const COLUMNS = [
   { kind: "plain", label: "Aksi", className: cn(TABLE_EDGE, "text-right") },
 ] as const satisfies readonly Column[]
 
+function serverPagination({
+  items,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  readonly items: readonly Listing[]
+  readonly page: number
+  readonly pageSize: number
+  readonly total: number
+  readonly onPageChange: (page: number) => void
+  readonly onPageSizeChange: (pageSize: number) => void
+}): Pagination<Listing> {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize))
+  const currentPage = Math.min(Math.max(page, 1), pageCount)
+
+  return {
+    items,
+    page: currentPage,
+    pageCount,
+    pageSize,
+    total,
+    from: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    to: Math.min(currentPage * pageSize, total),
+    setPage: onPageChange,
+    setPageSize: onPageSizeChange,
+  }
+}
+
 function ListingTable({
   listings,
+  counts,
+  total,
+  page,
+  pageSize,
+  state,
+  category,
+  sort,
+  search,
   now,
 }: {
-  listings: readonly Listing[]
-  now: string
+  readonly listings: readonly Listing[]
+  readonly counts: Readonly<Record<ListingStateFilter, number>>
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly state: ListingStateFilter
+  readonly category: ListingCategoryFilter
+  readonly sort: ListingSort | null
+  readonly search: string
+  readonly now: string
 }) {
-  const searchParams = useSearchParams()
-  const state = listingFilterFromTab(searchParams.get("tab"))
-  const [category, setCategory] = useState<ListingCategoryFilter>(ALL_FILTER)
-  const search = searchParams.get("q") ?? ""
-  const [sort, setSort] = useState<ListingSort | null>(null)
+  const router = useRouter()
+  const selection = useSelection({
+    ids: listings.map((listing) => listing.id),
+  })
 
-  function updateUrl(updates: Readonly<Record<string, string | null>>) {
-    const params = new URLSearchParams(searchParams.toString())
-    for (const [key, value] of Object.entries(updates)) {
-      if (value === null || value === "") params.delete(key)
-      else params.set(key, value)
-    }
-    window.history.replaceState(null, "", `?${params.toString()}`)
+  function navigate({
+    nextPage,
+    nextPageSize = pageSize,
+    nextState = state,
+    nextCategory = category,
+    nextSort = sort,
+    nextSearch = search,
+  }: {
+    readonly nextPage: number
+    readonly nextPageSize?: number
+    readonly nextState?: ListingStateFilter
+    readonly nextCategory?: ListingCategoryFilter
+    readonly nextSort?: ListingSort | null
+    readonly nextSearch?: string
+  }) {
+    const params = new URLSearchParams()
+    params.set("tab", listingTab(nextState))
+    if (nextSearch.trim()) params.set("q", nextSearch.trim())
+    if (nextCategory !== ALL_FILTER) params.set("category", nextCategory)
+    if (nextSort !== null) params.set("sort", listingSortKey(nextSort))
+    if (nextPage > 1) params.set("page", String(nextPage))
+    if (nextPageSize !== DEFAULT_PAGE_SIZE)
+      params.set("size", String(nextPageSize))
+    router.push(`/admin/produk?${params.toString()}`)
   }
 
-  const countForState = (filter: ListingStateFilter) =>
-    queryListings(listings, {
-      state: filter,
-      category: ALL_FILTER,
-      search: "",
-      sort: null,
-    }).length
-  const stateCounts = {
-    all: countForState(ALL_FILTER),
-    active: countForState("active"),
-    inactive: countForState("inactive"),
-    draft: countForState("draft"),
-    deleted: countForState("deleted"),
-  } satisfies Record<ListingStateFilter, number>
-
-  const matched = queryListings(listings, { state, category, search, sort })
-  const pagination = usePagination({
-    items: matched,
-    pageSize: DEFAULT_PAGE_SIZE,
-    controlledPage: positiveInteger(searchParams.get("page"), 1),
-    controlledPageSize: positiveInteger(
-      searchParams.get("perPage"),
-      DEFAULT_PAGE_SIZE
-    ),
-    onPageChange: (page) =>
-      updateUrl({ page: page === 1 ? null : String(page) }),
-    onPageSizeChange: (pageSize) =>
-      updateUrl({
-        page: null,
-        perPage: pageSize === DEFAULT_PAGE_SIZE ? null : String(pageSize),
-      }),
-  })
-  const selection = useSelection({
-    ids: pagination.items.map((listing) => listing.id),
+  const pagination = serverPagination({
+    items: listings,
+    page,
+    pageSize,
+    total,
+    onPageChange: (nextPage) => navigate({ nextPage }),
+    onPageSizeChange: (nextPageSize) => navigate({ nextPage: 1, nextPageSize }),
   })
 
   return (
@@ -152,29 +181,22 @@ function ListingTable({
       <div className="flex flex-col gap-4 px-(--card-spacing) pb-4">
         <ListingStateToggle
           state={state}
-          counts={stateCounts}
+          counts={counts}
           onStateChange={(next) => {
-            const params = new URLSearchParams(searchParams.toString())
-            params.set("tab", listingTab(next))
-            params.delete("page")
-            window.history.pushState(null, "", `?${params.toString()}`)
             selection.clear()
+            navigate({ nextPage: 1, nextState: next })
           }}
         />
 
         <ListingToolbar
           search={search}
-          onSearchChange={(next) => {
-            pagination.setPage(1)
-            updateUrl({ page: null, q: next })
-          }}
+          onSearchChange={(next) => navigate({ nextPage: 1, nextSearch: next })}
           category={category}
-          onCategoryChange={(next) => {
-            setCategory(next)
-            pagination.setPage(1)
-          }}
+          onCategoryChange={(next) =>
+            navigate({ nextPage: 1, nextCategory: next })
+          }
           sort={sort}
-          onSortChange={setSort}
+          onSortChange={(next) => navigate({ nextPage: 1, nextSort: next })}
         />
       </div>
 
@@ -203,7 +225,9 @@ function ListingTable({
                       key={column.column}
                       column={column.column}
                       sort={sort}
-                      onSortChange={setSort}
+                      onSortChange={(next) =>
+                        navigate({ nextPage: 1, nextSort: next })
+                      }
                       className={column.className}
                     />
                   )

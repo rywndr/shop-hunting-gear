@@ -3,10 +3,24 @@ import { defineRelations } from "drizzle-orm"
 import { address } from "./schema/account"
 import { user } from "./schema/auth"
 import { cartItem } from "./schema/cart"
+import {
+  customerOrder,
+  customerOrderItem,
+  orderInventoryReservation,
+} from "./schema/order"
 import { product, productListing } from "./schema/product"
 
 export const applicationRelations = defineRelations(
-  { user, address, cartItem, product, productListing },
+  {
+    user,
+    address,
+    cartItem,
+    customerOrder,
+    customerOrderItem,
+    orderInventoryReservation,
+    product,
+    productListing,
+  },
   (relations) => ({
     user: {
       addresses: relations.many.address({
@@ -16,6 +30,10 @@ export const applicationRelations = defineRelations(
       cartItems: relations.many.cartItem({
         from: relations.user.id,
         to: relations.cartItem.userId,
+      }),
+      orders: relations.many.customerOrder({
+        from: relations.user.id,
+        to: relations.customerOrder.userId,
       }),
     },
     address: {
@@ -28,6 +46,32 @@ export const applicationRelations = defineRelations(
       user: relations.one.user({
         from: relations.cartItem.userId,
         to: relations.user.id,
+      }),
+    },
+    customerOrder: {
+      user: relations.one.user({
+        from: relations.customerOrder.userId,
+        to: relations.user.id,
+      }),
+      items: relations.many.customerOrderItem({
+        from: relations.customerOrder.id,
+        to: relations.customerOrderItem.orderId,
+      }),
+      inventoryReservations: relations.many.orderInventoryReservation({
+        from: relations.customerOrder.id,
+        to: relations.orderInventoryReservation.orderId,
+      }),
+    },
+    customerOrderItem: {
+      order: relations.one.customerOrder({
+        from: relations.customerOrderItem.orderId,
+        to: relations.customerOrder.id,
+      }),
+    },
+    orderInventoryReservation: {
+      order: relations.one.customerOrder({
+        from: relations.orderInventoryReservation.orderId,
+        to: relations.customerOrder.id,
       }),
     },
     product: {

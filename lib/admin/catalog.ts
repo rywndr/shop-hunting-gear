@@ -1,7 +1,11 @@
 import { ALL_FILTER } from "@/lib/admin/config"
 import type { OrderStatusMeta } from "@/lib/orders/config"
 import type { Product } from "@/lib/products/config"
-import { categoryBySlug, type CategorySlug } from "@/lib/site/config"
+import {
+  categoryBySlug,
+  isCategorySlug,
+  type CategorySlug,
+} from "@/lib/site/config"
 
 type BadgeVariant = OrderStatusMeta["badge"]
 
@@ -183,6 +187,12 @@ export function listingCategoryFilterLabel(filter: ListingCategoryFilter) {
   return filter === ALL_FILTER ? "Semua Kategori" : categoryBySlug(filter).label
 }
 
+export function listingCategoryFromParam(
+  value: string | undefined
+): ListingCategoryFilter {
+  return isCategorySlug(value) ? value : ALL_FILTER
+}
+
 export const SORT_DIRECTIONS = {
   asc: "terendah",
   desc: "tertinggi",
@@ -193,24 +203,20 @@ export type SortDirection = keyof typeof SORT_DIRECTIONS
 export type ListingSortColumnMeta = {
   readonly label: string
   readonly directionLabels: Readonly<Record<SortDirection, string>>
-  readonly value: (listing: Listing) => number
 }
 
 export const LISTING_SORT_COLUMNS = {
   status: {
     label: "Status",
     directionLabels: { asc: "terlama", desc: "terbaru" },
-    value: (listing) => Date.parse(listing.updatedAt),
   },
   price: {
     label: "Harga",
     directionLabels: SORT_DIRECTIONS,
-    value: (listing) => listing.product.price,
   },
   stock: {
     label: "Stok",
     directionLabels: SORT_DIRECTIONS,
-    value: (listing) => listing.product.stock,
   },
 } as const satisfies Record<string, ListingSortColumnMeta>
 
@@ -245,10 +251,22 @@ export function listingSortKey(sort: ListingSort): ListingSortKey {
   return `${sort.column}-${sort.direction}`
 }
 
+function isListingSortKey(value: string): value is ListingSortKey {
+  return Object.hasOwn(LISTING_SORTS, value)
+}
+
 export function listingSortLabel(sort: ListingSort) {
   const { label, directionLabels } = LISTING_SORT_COLUMNS[sort.column]
 
   return `${label} ${directionLabels[sort.direction]}`
+}
+
+export function listingSortFromKey(
+  value: string | undefined
+): ListingSort | null {
+  return value !== undefined && isListingSortKey(value)
+    ? LISTING_SORTS[value]
+    : null
 }
 
 export type ListingQuery = {
@@ -256,39 +274,6 @@ export type ListingQuery = {
   readonly category: ListingCategoryFilter
   readonly search: string
   readonly sort: ListingSort | null
-}
-
-function matchesState(listing: Listing, filter: ListingStateFilter) {
-  return filter === ALL_FILTER
-    ? listing.state !== "deleted"
-    : listing.state === filter
-}
-
-function sortListings(
-  listings: readonly Listing[],
-  sort: ListingSort
-): readonly Listing[] {
-  const { value } = LISTING_SORT_COLUMNS[sort.column]
-  const direction = sort.direction === "asc" ? 1 : -1
-
-  return [...listings].sort((a, b) => (value(a) - value(b)) * direction)
-}
-
-export function queryListings(
-  listings: readonly Listing[],
-  query: ListingQuery
-): readonly Listing[] {
-  const search = query.search.trim().toLocaleLowerCase("id-ID")
-  const matched = listings.filter(
-    (listing) =>
-      matchesState(listing, query.state) &&
-      (query.category === ALL_FILTER ||
-        listing.product.category === query.category) &&
-      (listing.product.name.toLocaleLowerCase("id-ID").includes(search) ||
-        listing.id.toLocaleLowerCase("id-ID").includes(search))
-  )
-
-  return query.sort === null ? matched : sortListings(matched, query.sort)
 }
 
 export function listingForTable(

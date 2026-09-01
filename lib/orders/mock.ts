@@ -8,9 +8,12 @@ export const MOCK_ORDERS = [
   {
     id: "INV/20260826/HG/0184",
     status: "unpaid",
+    paymentStatus: "pending",
+    fulfillmentStatus: "awaiting_payment",
     placedAt: "2026-08-26T09:14:00+07:00",
     courier: "JNE Reguler",
     shipping: 24000,
+    paymentToken: null,
     tracking: null,
     items: [
       {
@@ -30,9 +33,12 @@ export const MOCK_ORDERS = [
   {
     id: "INV/20260821/HG/0177",
     status: "processing",
+    paymentStatus: "paid",
+    fulfillmentStatus: "processing",
     placedAt: "2026-08-21T16:02:00+07:00",
     courier: "SiCepat BEST",
     shipping: 32000,
+    paymentToken: null,
     tracking: null,
     items: [
       {
@@ -46,9 +52,12 @@ export const MOCK_ORDERS = [
   {
     id: "INV/20260814/HG/0162",
     status: "shipped",
+    paymentStatus: "paid",
+    fulfillmentStatus: "shipped",
     placedAt: "2026-08-14T11:38:00+07:00",
     courier: "J&T Express",
     shipping: 28000,
+    paymentToken: null,
     tracking: "JT4820193857",
     items: [
       {
@@ -68,9 +77,12 @@ export const MOCK_ORDERS = [
   {
     id: "INV/20260802/HG/0139",
     status: "completed",
+    paymentStatus: "paid",
+    fulfillmentStatus: "completed",
     placedAt: "2026-08-02T08:20:00+07:00",
     courier: "JNE YES",
     shipping: 41000,
+    paymentToken: null,
     tracking: "JNE0099213847",
     items: [
       {
@@ -84,9 +96,12 @@ export const MOCK_ORDERS = [
   {
     id: "INV/20260729/HG/0128",
     status: "cancelled",
+    paymentStatus: "cancelled",
+    fulfillmentStatus: "cancelled",
     placedAt: "2026-07-29T19:45:00+07:00",
     courier: "AnterAja Reguler",
     shipping: 22000,
+    paymentToken: null,
     tracking: null,
     items: [
       {

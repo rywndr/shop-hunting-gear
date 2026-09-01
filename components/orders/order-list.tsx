@@ -2,7 +2,7 @@ import Link from "next/link"
 import { PackageIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
-import { InfiniteScrollList } from "@/components/infinite-scroll-list"
+import { OrderPagination } from "@/components/orders/order-pagination"
 import { OrderCard } from "@/components/orders/order-card"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,17 +14,23 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import type { Order } from "@/lib/orders/config"
+import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
-
-const INITIAL_ORDER_COUNT = 3
-const ORDERS_PER_LOAD = 3
 
 function OrderList({
   orders,
   emptyMessage,
+  midtrans,
+  page,
+  pageSize,
+  total,
 }: {
-  orders: readonly Order[]
-  emptyMessage: string
+  readonly orders: readonly Order[]
+  readonly emptyMessage: string
+  readonly midtrans: MidtransBrowserConfig
+  readonly page: number
+  readonly pageSize: number
+  readonly total: number
 }) {
   if (orders.length === 0) {
     return (
@@ -50,18 +56,18 @@ function OrderList({
   }
 
   return (
-    <InfiniteScrollList
-      aria-label="Daftar riwayat pesanan"
-      initialItemCount={INITIAL_ORDER_COUNT}
-      loadMoreItemCount={ORDERS_PER_LOAD}
-      className="flex flex-col gap-4"
-    >
-      {orders.map((order) => (
-        <li key={order.id}>
-          <OrderCard order={order} />
-        </li>
-      ))}
-    </InfiniteScrollList>
+    <div className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-4" aria-label="Daftar riwayat pesanan">
+        {orders.map((order) => (
+          <li key={order.id}>
+            <OrderCard order={order} midtrans={midtrans} />
+          </li>
+        ))}
+      </ul>
+      {total > pageSize && (
+        <OrderPagination page={page} pageSize={pageSize} total={total} />
+      )}
+    </div>
   )
 }
 

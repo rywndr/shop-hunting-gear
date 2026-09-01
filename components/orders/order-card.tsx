@@ -1,6 +1,8 @@
 import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { CancelOrderButton } from "@/components/orders/cancel-order-button"
+import { OrderPaymentButton } from "@/components/orders/order-payment-button"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
 import { ReturnOrderDialog } from "@/components/orders/return-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
@@ -14,6 +16,7 @@ import {
   type Order,
   type OrderItem,
 } from "@/lib/orders/config"
+import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
 
 function OrderItemRow({ item }: { item: OrderItem }) {
@@ -36,7 +39,13 @@ function OrderItemRow({ item }: { item: OrderItem }) {
   )
 }
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({
+  order,
+  midtrans,
+}: {
+  order: Order
+  midtrans: MidtransBrowserConfig
+}) {
   const { primaryAction, returnAction, secondaryAction } =
     ORDER_STATUSES[order.status]
 
@@ -87,18 +96,30 @@ function OrderCard({ order }: { order: Order }) {
         </p>
 
         <div className="ms-auto flex flex-wrap gap-2">
-          {secondaryAction && (
-            <Button type="button" variant="outline" className="h-10">
-              {secondaryAction}
-            </Button>
+          {order.status === "unpaid" ? (
+            <CancelOrderButton orderId={order.id} />
+          ) : (
+            secondaryAction && (
+              <Button type="button" variant="outline" className="h-10">
+                {secondaryAction}
+              </Button>
+            )
           )}
           {returnAction && (
             <ReturnOrderDialog order={order} triggerLabel={returnAction} />
           )}
-          {primaryAction && (
-            <Button type="button" className="h-10">
-              {primaryAction}
-            </Button>
+          {order.status === "unpaid" && order.paymentToken ? (
+            <OrderPaymentButton
+              browserConfig={midtrans}
+              orderId={order.id}
+              token={order.paymentToken}
+            />
+          ) : (
+            primaryAction && (
+              <Button type="button" className="h-10">
+                {primaryAction}
+              </Button>
+            )
           )}
         </div>
       </CardFooter>

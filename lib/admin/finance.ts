@@ -2,6 +2,7 @@ import {
   orderSubtotal,
   type OrderItem,
   type OrderStatusMeta,
+  type PaymentStatus,
 } from "@/lib/orders/config"
 
 type BadgeVariant = OrderStatusMeta["badge"]
@@ -34,6 +35,9 @@ type TransactionDetails = {
   readonly items: readonly [OrderItem, ...OrderItem[]]
   readonly shipping: number
   readonly discount: number
+  readonly paymentStatus: PaymentStatus
+  readonly refundAmount: number
+  readonly chargebackAmount: number
 }
 
 export type Transaction = TransactionDetails & {
@@ -65,6 +69,37 @@ function nonZeroLines(lines: readonly EarningsLine[]): readonly EarningsLine[] {
   return lines.filter((line) => line.amount !== 0)
 }
 
+function totalCharged(transaction: Transaction) {
+  return (
+    orderSubtotal(transaction) + transaction.shipping - transaction.discount
+  )
+}
+
+function reversalLines(transaction: Transaction): readonly EarningsLine[] {
+  const fullAmount = totalCharged(transaction)
+  const refundAmount =
+    transaction.paymentStatus === "refunded"
+      ? transaction.refundAmount || fullAmount
+      : transaction.refundAmount
+  const chargebackAmount =
+    transaction.paymentStatus === "chargeback"
+      ? transaction.chargebackAmount || fullAmount
+      : transaction.chargebackAmount
+
+  return [
+    {
+      label: "Pengembalian pembayaran",
+      amount: refundAmount,
+      kind: "debit",
+    },
+    {
+      label: "Chargeback",
+      amount: chargebackAmount,
+      kind: "debit",
+    },
+  ]
+}
+
 export function paymentLines(
   transaction: Transaction
 ): readonly EarningsLine[] {
@@ -80,6 +115,7 @@ export function paymentLines(
       kind: "credit",
     },
     { label: "Diskon toko", amount: transaction.discount, kind: "debit" },
+    ...reversalLines(transaction),
   ])
 }
 

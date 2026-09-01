@@ -1,12 +1,18 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Script from "next/script"
 
 import {
+  confirmPaymentAction,
   createPaymentAction,
   type CreatePaymentResult,
 } from "@/app/(account)/checkout/actions"
+import {
+  paymentNoticeForConfirmation,
+  type PaymentNotice,
+} from "@/components/checkout/payment-notice"
 import { Button } from "@/components/ui/button"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
@@ -15,14 +21,10 @@ import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 type SnapTransaction = Extract<CreatePaymentResult, { readonly kind: "ready" }>
 
-type PaymentNotice = {
-  readonly kind: "info" | "success" | "error"
-  readonly message: string
-}
-
 type PaymentState =
   | { readonly kind: "idle" }
   | { readonly kind: "requesting" }
+  | { readonly kind: "confirming"; readonly orderId: string }
   | {
       readonly kind: "prepared"
       readonly transaction: SnapTransaction
@@ -54,11 +56,33 @@ function SnapPaymentButton({
     | undefined
   source: CheckoutSource
 }) {
+  const router = useRouter()
   const [scriptState, setScriptState] = useState<SnapScriptState>("loading")
   const [paymentState, setPaymentState] = useState<PaymentState>({
     kind: "idle",
   })
   const checkoutKey = JSON.stringify({ addressId, shipping, source })
+
+  async function finishPayment(orderId: string) {
+    setPaymentState({ kind: "confirming", orderId })
+
+    let notice: PaymentNotice
+
+    try {
+      const result = await confirmPaymentAction({ orderId })
+      notice = paymentNoticeForConfirmation(result)
+    } catch {
+      notice = {
+        kind: "info",
+        message:
+          "Pembayaran selesai di Midtrans. Status pesanan akan diperbarui setelah konfirmasi.",
+      }
+    }
+
+    setPaymentState({ kind: "snap-completed", orderId, notice })
+    router.push(`/history?pesanan=${encodeURIComponent(orderId)}`)
+    router.refresh()
+  }
 
   function openSnap(
     transaction: SnapTransaction,
@@ -79,14 +103,7 @@ function SnapPaymentButton({
     })
     window.snap.pay(transaction.token, {
       onSuccess() {
-        setPaymentState({
-          kind: "snap-completed",
-          orderId: transaction.orderId,
-          notice: {
-            kind: "success",
-            message: `Proses pembayaran di Midtrans selesai. Status pesanan akan dikonfirmasi. Nomor referensi ${transaction.orderId}.`,
-          },
-        })
+        void finishPayment(transaction.orderId)
       },
       onPending() {
         setPaymentState({
@@ -112,14 +129,24 @@ function SnapPaymentButton({
         })
       },
       onClose() {
-        setPaymentState({
-          kind: "prepared",
-          transaction,
-          checkoutKey: transactionCheckoutKey,
-          notice: {
-            kind: "info",
-            message: "Jendela pembayaran ditutup. Anda dapat membukanya lagi.",
-          },
+        setPaymentState((current) => {
+          if (
+            current.kind === "confirming" ||
+            current.kind === "snap-completed"
+          ) {
+            return current
+          }
+
+          return {
+            kind: "prepared",
+            transaction,
+            checkoutKey: transactionCheckoutKey,
+            notice: {
+              kind: "info",
+              message:
+                "Jendela pembayaran ditutup. Anda dapat membukanya lagi.",
+            },
+          }
         })
       },
     })
@@ -169,32 +196,40 @@ function SnapPaymentButton({
     scriptState === "ready" &&
     Boolean(addressId && shipping) &&
     paymentState.kind !== "requesting" &&
+    paymentState.kind !== "confirming" &&
     paymentState.kind !== "snap-completed"
   const hasReusableTransaction =
     paymentState.kind === "prepared" && paymentState.checkoutKey === checkoutKey
   const buttonLabel =
     paymentState.kind === "requesting"
       ? "Membuka pembayaran..."
-      : hasReusableTransaction
-        ? "Buka kembali pembayaran"
-        : paymentState.kind === "snap-completed"
-          ? "Proses pembayaran selesai"
-          : configured
-            ? "Bayar sekarang"
-            : "Pembayaran belum tersedia"
+      : paymentState.kind === "confirming"
+        ? "Memastikan pembayaran..."
+        : hasReusableTransaction
+          ? "Buka kembali pembayaran"
+          : paymentState.kind === "snap-completed"
+            ? "Proses pembayaran selesai"
+            : configured
+              ? "Bayar sekarang"
+              : "Pembayaran belum tersedia"
   const notice =
     paymentState.kind === "error"
       ? { kind: "error" as const, message: paymentState.message }
       : (paymentState.kind === "prepared" && hasReusableTransaction) ||
           paymentState.kind === "snap-completed"
         ? paymentState.notice
-        : scriptState === "error"
+        : paymentState.kind === "confirming"
           ? {
-              kind: "error" as const,
-              message:
-                "Layanan pembayaran tidak dapat dimuat. Muat ulang halaman.",
+              kind: "info" as const,
+              message: "Memastikan status pembayaran...",
             }
-          : undefined
+          : scriptState === "error"
+            ? {
+                kind: "error" as const,
+                message:
+                  "Layanan pembayaran tidak dapat dimuat. Muat ulang halaman.",
+              }
+            : undefined
 
   return (
     <>

@@ -1,5 +1,7 @@
 "use client"
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
@@ -15,11 +17,39 @@ type SectionTabsProps = {
   label: string
   tabs: readonly SectionTab[]
   className?: string
+  activeValue?: string
+  queryParam?: string
 }
 
-function SectionTabs({ label, tabs, className }: SectionTabsProps) {
+function SectionTabs({
+  label,
+  tabs,
+  className,
+  activeValue,
+  queryParam,
+}: SectionTabsProps) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  function changeTab(value: string | null) {
+    if (!queryParam || value === null) return
+
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === tabs[0]?.value) params.delete(queryParam)
+    else params.set(queryParam, value)
+    params.delete("page")
+    const query = params.toString()
+    router.push(query ? `${pathname}?${query}` : pathname)
+  }
+
   return (
-    <Tabs defaultValue={tabs[0]?.value} className={cn("gap-5", className)}>
+    <Tabs
+      defaultValue={activeValue === undefined ? tabs[0]?.value : undefined}
+      value={activeValue}
+      onValueChange={changeTab}
+      className={cn("gap-5", className)}
+    >
       <div className="-mx-4 [scrollbar-width:none] overflow-x-auto px-4 [&::-webkit-scrollbar]:hidden">
         <TabsList
           aria-label={label}

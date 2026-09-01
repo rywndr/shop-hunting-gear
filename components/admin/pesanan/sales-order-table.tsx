@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { ShoppingBagIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
@@ -24,17 +24,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { usePagination } from "@/hooks/use-pagination"
-import {
-  orderFilterFromTab,
-  orderQueueCounts,
-  orderTab,
-  querySalesOrders,
-  type SalesOrder,
+import type { Pagination } from "@/hooks/use-pagination"
+import type {
+  OrderQueue,
+  OrderQueueFilter,
+  SalesOrder,
 } from "@/lib/admin/orders"
+import { orderTab } from "@/lib/admin/orders"
 import { cn } from "@/lib/utils"
 
-const DEFAULT_PAGE_SIZE = 10
+const SEARCH_DEBOUNCE_MS = 350
 
 const COLUMNS = [
   { label: "Pesanan", className: TABLE_EDGE },
@@ -45,15 +44,116 @@ const COLUMNS = [
   { label: "Aksi", className: cn(TABLE_EDGE, "text-right") },
 ] as const satisfies readonly { label: string; className: string }[]
 
-function SalesOrderTable({ orders }: { orders: readonly SalesOrder[] }) {
-  const searchParams = useSearchParams()
-  const queue = orderFilterFromTab(searchParams.get("tab"))
-  const [search, setSearch] = useState("")
+function serverPagination({
+  items,
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  readonly items: readonly SalesOrder[]
+  readonly page: number
+  readonly pageSize: number
+  readonly total: number
+  readonly onPageChange: (page: number) => void
+  readonly onPageSizeChange: (pageSize: number) => void
+}): Pagination<SalesOrder> {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize))
+  const currentPage = Math.min(Math.max(page, 1), pageCount)
 
-  const matched = querySalesOrders(orders, { queue, search })
-  const pagination = usePagination({
-    items: matched,
-    pageSize: DEFAULT_PAGE_SIZE,
+  return {
+    items,
+    page: currentPage,
+    pageCount,
+    pageSize,
+    total,
+    from: total === 0 ? 0 : (currentPage - 1) * pageSize + 1,
+    to: Math.min(currentPage * pageSize, total),
+    setPage: onPageChange,
+    setPageSize: onPageSizeChange,
+  }
+}
+
+function DebouncedOrderSearch({
+  initialValue,
+  onValueChange,
+}: {
+  readonly initialValue: string
+  readonly onValueChange: (value: string) => void
+}) {
+  const [value, setValue] = useState(initialValue)
+  const timeout = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (timeout.current !== null) window.clearTimeout(timeout.current)
+    },
+    []
+  )
+
+  return (
+    <SearchField
+      label="Cari pesanan"
+      value={value}
+      onValueChange={(next) => {
+        setValue(next)
+        if (timeout.current !== null) window.clearTimeout(timeout.current)
+        timeout.current = window.setTimeout(
+          () => onValueChange(next),
+          SEARCH_DEBOUNCE_MS
+        )
+      }}
+      className="sm:w-72"
+    />
+  )
+}
+
+function SalesOrderTable({
+  orders,
+  counts,
+  total,
+  page,
+  pageSize,
+  queue,
+  search,
+}: {
+  readonly orders: readonly SalesOrder[]
+  readonly counts: Readonly<Record<OrderQueue, number>>
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly queue: OrderQueueFilter
+  readonly search: string
+}) {
+  const router = useRouter()
+
+  function navigate({
+    nextPage,
+    nextPageSize = pageSize,
+    nextQueue = queue,
+    nextSearch = search,
+  }: {
+    readonly nextPage: number
+    readonly nextPageSize?: number
+    readonly nextQueue?: OrderQueueFilter
+    readonly nextSearch?: string
+  }) {
+    const params = new URLSearchParams()
+    params.set("tab", orderTab(nextQueue))
+    if (nextSearch.trim()) params.set("q", nextSearch.trim())
+    if (nextPage > 1) params.set("page", String(nextPage))
+    if (nextPageSize !== 10) params.set("size", String(nextPageSize))
+    router.push(`/admin/pesanan?${params.toString()}`)
+  }
+
+  const pagination = serverPagination({
+    items: orders,
+    page,
+    pageSize,
+    total,
+    onPageChange: (nextPage) => navigate({ nextPage }),
+    onPageSizeChange: (nextPageSize) => navigate({ nextPage: 1, nextPageSize }),
   })
 
   return (
@@ -71,23 +171,13 @@ function SalesOrderTable({ orders }: { orders: readonly SalesOrder[] }) {
       <div className="flex flex-col gap-4 px-(--card-spacing) pb-4">
         <OrderQueueToggle
           queue={queue}
-          counts={orderQueueCounts(orders)}
-          onQueueChange={(next) => {
-            const params = new URLSearchParams(searchParams.toString())
-            params.set("tab", orderTab(next))
-            window.history.pushState(null, "", `?${params.toString()}`)
-            pagination.setPage(1)
-          }}
+          counts={counts}
+          onQueueChange={(next) => navigate({ nextPage: 1, nextQueue: next })}
         />
 
-        <SearchField
-          label="Cari pesanan"
-          value={search}
-          onValueChange={(next) => {
-            setSearch(next)
-            pagination.setPage(1)
-          }}
-          className="sm:w-72"
+        <DebouncedOrderSearch
+          initialValue={search}
+          onValueChange={(next) => navigate({ nextPage: 1, nextSearch: next })}
         />
       </div>
 

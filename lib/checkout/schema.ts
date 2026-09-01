@@ -8,14 +8,14 @@ export const checkoutSourceSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("product"),
     productSlug: z.string().trim().min(1),
-    quantity: z.number().int().positive(),
+    quantity: z.number().int().positive().safe(),
     variants: z.array(cartVariantSchema).readonly(),
   }),
 ]) satisfies z.ZodType<CheckoutSource>
 
 export const checkoutProductQuerySchema = z.object({
   produk: z.string().trim().min(1),
-  jumlah: z.coerce.number().int().positive(),
+  jumlah: z.coerce.number().int().positive().safe(),
   pilihan: z.string().transform((value, context) => {
     try {
       const parsed: unknown = JSON.parse(value)
@@ -39,6 +39,6 @@ export const shippingQuoteRequestSchema = z.discriminatedUnion("source", [
     source: z.literal("product"),
     addressId: z.string().uuid(),
     productSlug: z.string().trim().min(1),
-    quantity: z.coerce.number().int().positive(),
+    quantity: z.coerce.number().int().positive().safe(),
   }),
 ])

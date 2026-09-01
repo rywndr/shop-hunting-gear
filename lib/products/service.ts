@@ -1,12 +1,21 @@
 import "server-only"
 
-import { and, asc, eq, inArray } from "drizzle-orm"
+import "server-only"
+
+import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
 
 import {
   isListingState,
   type Listing,
+  type ListingCategoryFilter,
+  type ListingQuery,
+  type ListingSort,
+  type ListingSortColumn,
   type ListingState,
+  type ListingStateFilter,
 } from "../admin/catalog"
+import { ALL_FILTER } from "../admin/config"
+import { canAccessAdmin, getCurrentSession } from "../auth/session"
 import { db } from "../db/client"
 import {
   product as productTable,
@@ -26,6 +35,12 @@ const EMPTY_RATINGS = {
 } as const satisfies RatingBreakdown
 
 type ProductRow = typeof productTable.$inferSelect
+
+async function assertAdminAccess() {
+  if (!canAccessAdmin(await getCurrentSession())) {
+    throw new Error("Unauthorized admin product access.")
+  }
+}
 
 export type EditableProduct = Pick<
   ProductRow,
@@ -171,6 +186,8 @@ export async function storefrontProductBySlug(
 export async function adminProductListings(): Promise<
   readonly Listing<Product>[]
 > {
+  await assertAdminAccess()
+
   const rows = await readProductTables({
     query: () =>
       db
@@ -193,9 +210,163 @@ export async function adminProductListings(): Promise<
   }))
 }
 
+function listingFilter({
+  state,
+  category,
+  search,
+}: {
+  readonly state: ListingStateFilter
+  readonly category: ListingCategoryFilter
+  readonly search: string
+}) {
+  const stateCondition =
+    state === ALL_FILTER
+      ? ne(productListing.state, "deleted")
+      : eq(productListing.state, state)
+  const categoryCondition =
+    category === ALL_FILTER ? undefined : eq(productTable.category, category)
+  const normalizedSearch = search.trim()
+  const searchCondition = normalizedSearch
+    ? or(
+        ilike(productTable.name, `%${normalizedSearch}%`),
+        ilike(productTable.id, `%${normalizedSearch}%`)
+      )
+    : undefined
+
+  return and(stateCondition, categoryCondition, searchCondition)
+}
+
+function listingSortColumn(column: ListingSortColumn) {
+  switch (column) {
+    case "status":
+      return productListing.updatedAt
+    case "price":
+      return productTable.price
+    case "stock":
+      return productTable.stock
+    default: {
+      const _exhaustive: never = column
+      return _exhaustive
+    }
+  }
+}
+
+function listingOrder(sort: ListingSort | null) {
+  if (sort === null) {
+    return [asc(productListing.uploadedAt)]
+  }
+
+  const column = listingSortColumn(sort.column)
+
+  return [
+    sort.direction === "asc" ? asc(column) : desc(column),
+    asc(productListing.uploadedAt),
+  ]
+}
+
+function emptyListingStateCounts() {
+  return {
+    all: 0,
+    active: 0,
+    inactive: 0,
+    draft: 0,
+    deleted: 0,
+  } satisfies Record<ListingStateFilter, number>
+}
+
+export type ListingPage = {
+  readonly listings: readonly Listing<Product>[]
+  readonly counts: Readonly<Record<ListingStateFilter, number>>
+  readonly total: number
+}
+
+export async function adminListingPage({
+  state,
+  category,
+  search,
+  sort,
+  page,
+  pageSize,
+}: ListingQuery & {
+  readonly page: number
+  readonly pageSize: number
+}): Promise<ListingPage> {
+  await assertAdminAccess()
+
+  const where = listingFilter({ state, category, search })
+  const safePage = Math.max(1, Math.floor(page))
+  const safePageSize = Math.max(1, Math.floor(pageSize))
+  const { totalRows, countRows, rows } = await readProductTables({
+    query: async () => {
+      const [totalRows, countRows, rows] = await Promise.all([
+        db
+          .select({ total: sql<number>`count(*)` })
+          .from(productTable)
+          .innerJoin(
+            productListing,
+            eq(productListing.productId, productTable.id)
+          )
+          .where(where),
+        db
+          .select({
+            state: productListing.state,
+            total: sql<number>`count(*)`,
+          })
+          .from(productListing)
+          .groupBy(productListing.state),
+        db
+          .select({ product: productTable, listing: productListing })
+          .from(productTable)
+          .innerJoin(
+            productListing,
+            eq(productListing.productId, productTable.id)
+          )
+          .where(where)
+          .orderBy(...listingOrder(sort))
+          .limit(safePageSize)
+          .offset((safePage - 1) * safePageSize),
+      ])
+
+      return { totalRows, countRows, rows }
+    },
+    missingTableValue: {
+      totalRows: [] as { total: number }[],
+      countRows: [] as { state: ListingState; total: number }[],
+      rows: [] as {
+        product: ProductRow
+        listing: typeof productListing.$inferSelect
+      }[],
+    },
+  })
+  const counts = emptyListingStateCounts()
+
+  for (const row of countRows) {
+    const total = Number(row.total)
+    counts[row.state] += total
+
+    if (row.state !== "deleted") {
+      counts.all += total
+    }
+  }
+
+  return {
+    listings: rows.map(({ product, listing }) => ({
+      id: product.id,
+      product: domainProduct(product),
+      state: listing.state,
+      uploadedAt: listing.uploadedAt.toISOString(),
+      updatedAt: listing.updatedAt.toISOString(),
+    })),
+    counts,
+    total: Number(totalRows[0]?.total ?? 0),
+  }
+}
+
 export async function adminProductForEdit(
   productId: string
 ): Promise<EditableProduct | undefined> {
+  await assertAdminAccess()
+
   const rows = await readProductTables({
     query: () =>
       db
@@ -247,6 +418,8 @@ export async function updateProductDetails({
     readonly weight: number
   }
 }) {
+  await assertAdminAccess()
+
   await db
     .update(productTable)
     .set({ ...values, updatedAt: new Date() })
@@ -322,6 +495,8 @@ export async function createProduct({
   weight: number
   state: Extract<ListingState, "active" | "draft">
 }) {
+  await assertAdminAccess()
+
   await db.batch([
     db.insert(productTable).values({
       id,
@@ -351,6 +526,8 @@ export async function updateProductListingState({
   productIds: readonly string[]
   state: ListingState
 }) {
+  await assertAdminAccess()
+
   if (productIds.length === 0) return
 
   await db
@@ -368,6 +545,8 @@ export async function updateProductInventory({
   field: "price" | "stock"
   value: number
 }) {
+  await assertAdminAccess()
+
   await db
     .update(productTable)
     .set(field === "price" ? { price: value } : { stock: value })

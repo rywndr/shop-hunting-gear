@@ -46,6 +46,26 @@ export type OrderStatusMeta = {
 
 export type OrderStatus = keyof typeof ORDER_STATUSES
 
+export const PAYMENT_STATUSES = {
+  pending: "pending",
+  authorized: "authorized",
+  paid: "paid",
+  failed: "failed",
+  denied: "denied",
+  cancelled: "cancelled",
+  expired: "expired",
+  partialRefund: "partial_refund",
+  refunded: "refunded",
+  partialChargeback: "partial_chargeback",
+  chargeback: "chargeback",
+} as const
+
+export type PaymentStatus =
+  (typeof PAYMENT_STATUSES)[keyof typeof PAYMENT_STATUSES]
+
+export type FulfillmentStatus =
+  "awaiting_payment" | "processing" | "shipped" | "completed" | "cancelled"
+
 export const ORDER_STATUS_ORDER = [
   "unpaid",
   "processing",
@@ -64,10 +84,13 @@ export type OrderItem = {
 export type Order = {
   readonly id: string
   readonly status: OrderStatus
+  readonly paymentStatus: PaymentStatus
+  readonly fulfillmentStatus: FulfillmentStatus
   readonly placedAt: string
   readonly courier: string
   readonly shipping: number
   readonly tracking: string | null
+  readonly paymentToken: string | null
   readonly items: readonly OrderItem[]
 }
 
