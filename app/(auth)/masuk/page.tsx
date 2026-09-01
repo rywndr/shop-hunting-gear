@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function Page({ searchParams }: PageProps<"/masuk">) {
   const { callbackURL } = await searchParams
   const redirectTo = safeAuthRedirect(
-    typeof callbackURL === "string" ? callbackURL : undefined
+    typeof callbackURL === "string" ? callbackURL : "/"
   )
   const session = await getCurrentSession()
 
