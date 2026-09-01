@@ -51,8 +51,10 @@ export function parseNumberInput(value: string) {
   return value === "" ? undefined : Number(value)
 }
 
-export function parseOptionalNumberInput(value: string) {
-  return parseNumberInput(value) ?? null
+export function parseOptionalNumberInput(value: unknown) {
+  return value === "" || value === null || value === undefined
+    ? null
+    : Number(value)
 }
 
 const newImageDraftSchema = z.object({
