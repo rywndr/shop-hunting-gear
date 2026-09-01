@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useId, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { PencilSimpleIcon } from "@phosphor-icons/react"
 
@@ -20,6 +20,7 @@ function ListingQuickEdit({
   productId,
   field,
   id,
+  compareAtPrice,
 }: {
   label: string
   value: number
@@ -27,7 +28,9 @@ function ListingQuickEdit({
   productId: string
   field: "price" | "stock"
   id?: string
+  compareAtPrice?: number | null
 }) {
+  const compareAtPriceId = useId()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +59,11 @@ function ListingQuickEdit({
             event.preventDefault()
             const data = new FormData(event.currentTarget)
             const next = Number(data.get("value"))
+            const compareAtPriceValue = data.get("compareAtPrice")
+            const nextCompareAtPrice =
+              typeof compareAtPriceValue === "string" && compareAtPriceValue
+                ? Number(compareAtPriceValue)
+                : null
             setError(null)
             startTransition(async () => {
               const { quickEditListing } =
@@ -64,6 +72,8 @@ function ListingQuickEdit({
                 productId,
                 field,
                 value: next,
+                compareAtPrice:
+                  field === "price" ? nextCompareAtPrice : undefined,
               })
               if (result.kind === "error") setError(result.message)
               else {
@@ -88,6 +98,26 @@ function ListingQuickEdit({
               className={prefix ? "pl-8" : undefined}
             />
           </div>
+          {field === "price" && (
+            <div className="space-y-1">
+              <label htmlFor={compareAtPriceId} className="text-sm font-medium">
+                Harga sebelum diskon
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-muted-foreground">
+                  Rp
+                </span>
+                <Input
+                  id={compareAtPriceId}
+                  type="number"
+                  name="compareAtPrice"
+                  min={0}
+                  defaultValue={compareAtPrice ?? ""}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+          )}
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}

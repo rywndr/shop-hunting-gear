@@ -9,6 +9,7 @@ import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { ListingActions } from "@/components/admin/produk/listing-actions"
 import { ListingQuickEdit } from "@/components/admin/produk/listing-quick-edit"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -18,7 +19,7 @@ import {
   LISTING_STATES,
   type Listing,
 } from "@/lib/admin/catalog"
-import { productHref } from "@/lib/products/config"
+import { productDiscount, productHref } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 import {
   formatNumber,
@@ -44,6 +45,7 @@ function ListingRow({
   const [expanded, setExpanded] = useState(false)
   const variantsId = useId()
   const variantNames = listingVariantNames(listing)
+  const discount = productDiscount(product)
 
   return (
     <Fragment>
@@ -95,13 +97,29 @@ function ListingRow({
               </div>
 
               <div className="flex items-center gap-1 text-xs font-medium tabular-nums md:hidden">
-                {formatRupiah(product.price)}
+                <span>
+                  {formatRupiah(product.price)}
+                  {discount && (
+                    <span className="ml-2 inline-flex items-center gap-1">
+                      <Badge
+                        variant="destructive"
+                        className="font-bold tabular-nums"
+                      >
+                        {discount.percent}%
+                      </Badge>
+                      <s className="text-destructive/70">
+                        {formatRupiah(discount.compareAtPrice)}
+                      </s>
+                    </span>
+                  )}
+                </span>
                 {editable && (
                   <ListingQuickEdit
                     productId={listing.id}
                     field="price"
                     label="Harga jual"
                     value={product.price}
+                    compareAtPrice={product.compareAtPrice}
                     prefix="Rp"
                   />
                 )}
@@ -132,13 +150,29 @@ function ListingRow({
           )}
         >
           <div className="flex items-center justify-end gap-1">
-            {formatRupiah(product.price)}
+            <span>
+              {formatRupiah(product.price)}
+              {discount && (
+                <span className="flex items-center justify-end gap-1 text-xs">
+                  <Badge
+                    variant="destructive"
+                    className="font-bold tabular-nums"
+                  >
+                    {discount.percent}%
+                  </Badge>
+                  <s className="text-destructive/70">
+                    {formatRupiah(discount.compareAtPrice)}
+                  </s>
+                </span>
+              )}
+            </span>
             {editable && (
               <ListingQuickEdit
                 productId={listing.id}
                 field="price"
                 label="Harga jual"
                 value={product.price}
+                compareAtPrice={product.compareAtPrice}
                 prefix="Rp"
               />
             )}

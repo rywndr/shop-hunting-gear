@@ -75,15 +75,20 @@ export async function quickEditListing({
   productId,
   field,
   value,
+  compareAtPrice,
 }: {
   productId: string
   field: "price" | "stock"
   value: number
+  compareAtPrice?: number | null
 }): Promise<ProductMutationResult> {
   if (
     !Number.isSafeInteger(value) ||
     value < 0 ||
-    (field === "price" && value === 0)
+    (field === "price" && value === 0) ||
+    (compareAtPrice !== undefined &&
+      compareAtPrice !== null &&
+      (!Number.isSafeInteger(compareAtPrice) || compareAtPrice <= value))
   ) {
     return { kind: "error", message: "Nilai yang dimasukkan tidak valid." }
   }
@@ -92,7 +97,7 @@ export async function quickEditListing({
   }
 
   try {
-    await updateProductInventory({ productId, field, value })
+    await updateProductInventory({ productId, field, value, compareAtPrice })
     revalidatePath("/")
     revalidatePath("/admin/produk")
     return { kind: "success" }

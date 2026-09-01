@@ -540,15 +540,21 @@ export async function updateProductInventory({
   productId,
   field,
   value,
+  compareAtPrice,
 }: {
   productId: string
   field: "price" | "stock"
   value: number
+  compareAtPrice?: number | null
 }) {
   await assertAdminAccess()
 
   await db
     .update(productTable)
-    .set(field === "price" ? { price: value } : { stock: value })
+    .set(
+      field === "price"
+        ? { price: value, compareAtPrice: compareAtPrice ?? null }
+        : { stock: value }
+    )
     .where(eq(productTable.id, productId))
 }

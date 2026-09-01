@@ -60,7 +60,14 @@ export function isListingState(value: unknown): value is ListingState {
 
 export type ListingProduct = Pick<
   Product,
-  "category" | "images" | "name" | "price" | "slug" | "stock" | "variants"
+  | "category"
+  | "compareAtPrice"
+  | "images"
+  | "name"
+  | "price"
+  | "slug"
+  | "stock"
+  | "variants"
 >
 
 export type Listing<TProduct extends ListingProduct = ListingProduct> = {
@@ -279,14 +286,31 @@ export type ListingQuery = {
 export function listingForTable(
   listing: Listing<Product>
 ): Listing<ListingProduct> {
-  const { category, images, name, price, slug, stock, variants } =
-    listing.product
+  const {
+    category,
+    compareAtPrice,
+    images,
+    name,
+    price,
+    slug,
+    stock,
+    variants,
+  } = listing.product
 
   return {
     id: listing.id,
     uploadedAt: listing.uploadedAt,
     updatedAt: listing.updatedAt,
     state: listing.state,
-    product: { category, images, name, price, slug, stock, variants },
+    product: {
+      category,
+      compareAtPrice,
+      images,
+      name,
+      price,
+      slug,
+      stock,
+      variants,
+    },
   }
 }
