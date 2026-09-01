@@ -225,7 +225,7 @@ function ProductPurchase({
             variant="outline"
             disabled={!available || sessionPending}
             onClick={handleAddToCart}
-            className="h-11 flex-1 font-bold tracking-wide uppercase"
+            className="h-11 font-bold tracking-wide uppercase sm:flex-1"
           >
             Masukkan Keranjang
           </Button>
@@ -233,7 +233,7 @@ function ProductPurchase({
             type="button"
             disabled={!available || sessionPending}
             onClick={handleBuyNow}
-            className="h-11 flex-1 font-bold tracking-wide uppercase"
+            className="h-11 font-bold tracking-wide uppercase sm:flex-1"
           >
             Beli Langsung
           </Button>
