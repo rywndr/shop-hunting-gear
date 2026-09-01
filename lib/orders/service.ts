@@ -162,6 +162,7 @@ function variantLabel(variants: readonly { label: string; value: string }[]) {
 
 function orderItemFromRow(row: OrderItemRow): OrderItem {
   return {
+    productSlug: row.productSlug,
     name: row.name,
     variant: variantLabel(row.variants),
     quantity: row.quantity,

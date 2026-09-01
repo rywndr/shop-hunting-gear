@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
@@ -17,15 +18,45 @@ import {
   type OrderItem,
 } from "@/lib/orders/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
+import { productHref } from "@/lib/products/config"
+import { storefrontProductBySlug } from "@/lib/products/service"
 import { cn } from "@/lib/utils"
 
-function OrderItemRow({ item }: { item: OrderItem }) {
+async function OrderItemRow({ item }: { item: OrderItem }) {
+  const product = await storefrontProductBySlug(item.productSlug)
+
   return (
     <li className="flex gap-3">
-      <ProductThumbnail className="size-16 shrink-0 sm:size-18" />
+      {product ? (
+        <Link
+          href={productHref(product)}
+          aria-label={`Lihat ${item.name}`}
+          className="shrink-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          <ProductThumbnail
+            src={product.images[0].url}
+            label={`Gambar ${item.name}`}
+            className="size-16 sm:size-18"
+          />
+        </Link>
+      ) : (
+        <ProductThumbnail
+          label={`Gambar ${item.name}`}
+          className="size-16 shrink-0 sm:size-18"
+        />
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="text-sm font-medium">{item.name}</p>
+        {product ? (
+          <Link
+            href={productHref(product)}
+            className="text-sm font-medium underline-offset-4 hover:text-primary hover:underline"
+          >
+            {item.name}
+          </Link>
+        ) : (
+          <p className="text-sm font-medium">{item.name}</p>
+        )}
         <p className="text-xs text-muted-foreground">{item.variant}</p>
         <p className="mt-auto text-xs text-muted-foreground">
           {item.quantity} x {formatRupiah(item.price)}

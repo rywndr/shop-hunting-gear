@@ -17,12 +17,14 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        productSlug: "jaket-kamuflase-bottomland",
         name: "Jaket Kamuflase Bottomland",
         variant: "Ukuran L",
         quantity: 1,
         price: 685000,
       },
       {
+        productSlug: "sarung-tangan-taktis",
         name: "Sarung Tangan Taktis",
         variant: "Hitam / M",
         quantity: 2,
@@ -42,6 +44,7 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        productSlug: "reel-spinning-4000-series",
         name: "Reel Spinning 4000 Series",
         variant: "Gear ratio 5.2:1",
         quantity: 1,
@@ -61,12 +64,14 @@ export const MOCK_ORDERS = [
     tracking: "JT4820193857",
     items: [
       {
+        productSlug: "joran-carbon-fiber-210-cm",
         name: "Joran Carbon Fiber 210 cm",
         variant: "Medium action",
         quantity: 1,
         price: 780000,
       },
       {
+        productSlug: "kotak-umpan-6-sekat",
         name: "Kotak Umpan 6 Sekat",
         variant: "Bening",
         quantity: 1,
@@ -86,6 +91,7 @@ export const MOCK_ORDERS = [
     tracking: "JNE0099213847",
     items: [
       {
+        productSlug: "tenda-dome-2-orang",
         name: "Tenda Dome 2 Orang",
         variant: "Olive",
         quantity: 1,
@@ -105,6 +111,7 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        productSlug: "sparepart-piston-set",
         name: "Sparepart Piston Set",
         variant: "Kaliber 5.5 mm",
         quantity: 1,

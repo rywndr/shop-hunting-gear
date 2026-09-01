@@ -97,7 +97,7 @@ function OrderPaymentButton({
   const disabled = scriptState !== "ready" || paying
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex w-44 flex-col items-stretch gap-2">
       <Script
         src={browserConfig.snapScriptUrl}
         data-client-key={browserConfig.clientKey}
@@ -121,10 +121,10 @@ function OrderPaymentButton({
           }
           className={
             notice?.kind === "error" || scriptState === "error"
-              ? "max-w-60 text-right text-xs text-destructive"
+              ? "text-right text-xs text-destructive"
               : notice?.kind === "success"
-                ? "max-w-60 text-right text-xs text-primary"
-                : "max-w-60 text-right text-xs text-muted-foreground"
+                ? "text-right text-xs text-primary"
+                : "text-right text-xs text-muted-foreground"
           }
         >
           {scriptState === "error"
