@@ -22,6 +22,38 @@ function readOptionalEnvironmentVariable(name: string): string | undefined {
   return value.trim()
 }
 
+function readMidtransConfig():
+  | {
+      environment: "sandbox" | "production"
+      serverKey: string
+      clientKey: string
+    }
+  | undefined {
+  const serverKey = readOptionalEnvironmentVariable("MIDTRANS_SERVER_KEY")
+  const clientKey = readOptionalEnvironmentVariable("MIDTRANS_CLIENT_KEY")
+
+  if (!serverKey && !clientKey) {
+    return undefined
+  }
+
+  if (!serverKey || !clientKey) {
+    throw new Error("Incomplete Midtrans configuration.")
+  }
+
+  const environmentValue = readOptionalEnvironmentVariable(
+    "MIDTRANS_ENVIRONMENT"
+  )?.toLowerCase()
+  const environment = z
+    .enum(["sandbox", "production"])
+    .safeParse(environmentValue)
+
+  if (!environment.success) {
+    throw new Error("Invalid MIDTRANS_ENVIRONMENT.")
+  }
+
+  return { environment: environment.data, serverKey, clientKey }
+}
+
 function readGoogleCredentials():
   { clientId: string; clientSecret: string } | undefined {
   const clientId = readOptionalEnvironmentVariable("GOOGLE_CLIENT_ID")
@@ -103,5 +135,8 @@ export const serverEnv = {
     }
 
     return result.data
+  },
+  get midtrans() {
+    return readMidtransConfig()
   },
 }

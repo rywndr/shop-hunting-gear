@@ -1,6 +1,17 @@
 import { z } from "zod"
 
 import { cartVariantSchema } from "@/lib/cart/schema"
+import type { CheckoutSource } from "@/lib/checkout/config"
+
+export const checkoutSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cart") }),
+  z.object({
+    kind: z.literal("product"),
+    productSlug: z.string().trim().min(1),
+    quantity: z.number().int().positive(),
+    variants: z.array(cartVariantSchema).readonly(),
+  }),
+]) satisfies z.ZodType<CheckoutSource>
 
 export const checkoutProductQuerySchema = z.object({
   produk: z.string().trim().min(1),

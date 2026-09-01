@@ -1,10 +1,9 @@
-import { addressesForUser } from "@/lib/account/service"
 import { getRequestSession } from "@/lib/auth/request"
 import { cartWeight } from "@/lib/cart/config"
 import { shippingQuoteRequestSchema } from "@/lib/checkout/schema"
 import { cartItemsForUser } from "@/lib/cart/service"
 import { storefrontProductBySlug } from "@/lib/products/service"
-import { rajaOngkirShippingOptions } from "@/lib/shipping/rajaongkir"
+import { shippingOptionsForUser } from "@/lib/shipping/service"
 
 export async function GET(request: Request) {
   const session = await getRequestSession(request)
@@ -28,39 +27,38 @@ export async function GET(request: Request) {
     )
   }
 
-  const [addresses, weight] = await Promise.all([
-    addressesForUser(session.user.id),
+  const weight =
     parsed.data.source === "cart"
-      ? cartItemsForUser(session.user.id).then(cartWeight)
-      : storefrontQuoteWeight({
+      ? await cartItemsForUser(session.user.id).then(cartWeight)
+      : await storefrontQuoteWeight({
           productSlug: parsed.data.productSlug,
           quantity: parsed.data.quantity,
-        }),
-  ])
-  const selectedAddress = addresses.find(
-    (address) => address.id === parsed.data.addressId
-  )
-  if (!selectedAddress) {
-    return Response.json({ error: "Address not found." }, { status: 404 })
-  }
-
-  if (!selectedAddress.subdistrictId) {
-    return Response.json(
-      { error: "Address needs a RajaOngkir destination." },
-      { status: 409 }
-    )
-  }
-
-  if (weight <= 0) {
-    return Response.json({ error: "Checkout is empty." }, { status: 400 })
-  }
+        })
 
   try {
-    const options = await rajaOngkirShippingOptions({
-      destinationId: selectedAddress.subdistrictId,
+    const result = await shippingOptionsForUser({
+      userId: session.user.id,
+      addressId: parsed.data.addressId,
       weight,
     })
-    return Response.json({ weight, options })
+
+    switch (result.kind) {
+      case "ready":
+        return Response.json({ weight, options: result.options })
+      case "address-not-found":
+        return Response.json({ error: "Address not found." }, { status: 404 })
+      case "address-incomplete":
+        return Response.json(
+          { error: "Address needs a RajaOngkir destination." },
+          { status: 409 }
+        )
+      case "empty-checkout":
+        return Response.json({ error: "Checkout is empty." }, { status: 400 })
+      default: {
+        const _exhaustive: never = result
+        return _exhaustive
+      }
+    }
   } catch {
     return Response.json(
       { error: "RajaOngkir shipping costs are unavailable." },

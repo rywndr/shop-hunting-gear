@@ -5,20 +5,18 @@ import Image from "next/image"
 import Link from "next/link"
 import { Radio } from "@base-ui/react/radio"
 import { RadioGroup } from "@base-ui/react/radio-group"
-import {
-  CheckCircleIcon,
-  MapPinIcon,
-  PackageIcon,
-} from "@phosphor-icons/react"
+import { CheckCircleIcon, MapPinIcon, PackageIcon } from "@phosphor-icons/react"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { SnapPaymentButton } from "@/components/checkout/snap-payment-button"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Address } from "@/lib/account/types"
 import { cartSubtotal, type CartItem } from "@/lib/cart/config"
 import type { CheckoutSource } from "@/lib/checkout/config"
-import { SHIPPING_COURIERS } from "@/lib/shipping/config"
+import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
+import { shippingOptionId, SHIPPING_COURIERS } from "@/lib/shipping/config"
 import {
   shippingQuotesResponseSchema,
   type ShippingOption,
@@ -36,10 +34,6 @@ type AvailableShippingOption = Extract<
   { readonly kind: "available" }
 >
 
-function shippingOptionId(option: AvailableShippingOption) {
-  return `${option.courier}:${option.service}`
-}
-
 function addressLine(address: Address) {
   return `${address.street}, ${address.subdistrict}, ${address.district}, ${address.city}, ${address.province} ${address.postalCode}`
 }
@@ -47,10 +41,12 @@ function addressLine(address: Address) {
 function CheckoutForm({
   addresses,
   items,
+  midtrans,
   source,
 }: {
   addresses: readonly Address[]
   items: readonly CartItem[]
+  midtrans: MidtransBrowserConfig
   source: CheckoutSource
 }) {
   const usableAddresses = addresses.filter(
@@ -370,13 +366,19 @@ function CheckoutForm({
               </div>
             </dl>
 
-            <Button
-              type="button"
-              disabled
-              className="h-11 font-bold tracking-wide uppercase"
-            >
-              ...
-            </Button>
+            <SnapPaymentButton
+              addressId={addressId}
+              browserConfig={midtrans}
+              shipping={
+                selectedShipping
+                  ? {
+                      courier: selectedShipping.courier,
+                      service: selectedShipping.service,
+                    }
+                  : undefined
+              }
+              source={source}
+            />
           </CardContent>
         </Card>
       </aside>

@@ -9,6 +9,7 @@ import { getCurrentSession } from "@/lib/auth/session"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import { checkoutProductQuerySchema } from "@/lib/checkout/schema"
 import { checkoutItemsForUser } from "@/lib/checkout/service"
+import { midtransBrowserConfig } from "@/lib/payments/midtrans/config"
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -81,7 +82,12 @@ export default async function CheckoutPage({
       description="Pilih alamat dan layanan pengiriman sebelum melanjutkan ke pembayaran."
       className="max-w-7xl"
     >
-      <CheckoutForm addresses={addresses} items={items} source={source} />
+      <CheckoutForm
+        addresses={addresses}
+        items={items}
+        midtrans={midtransBrowserConfig()}
+        source={source}
+      />
     </AccountShell>
   )
 }

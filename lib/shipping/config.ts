@@ -12,6 +12,16 @@ export const SHIPPING_COURIERS = [
 
 export type ShippingCourierCode = (typeof SHIPPING_COURIERS)[number]["code"]
 
+export function shippingOptionId({
+  courier,
+  service,
+}: {
+  courier: ShippingCourierCode
+  service: string
+}) {
+  return `${courier}:${service}`
+}
+
 export function isExcludedShippingService({
   courier,
   service,
