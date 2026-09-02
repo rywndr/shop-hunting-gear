@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 type SectionTab = {
   readonly value: string
   readonly label: string
-  readonly count?: number
+  readonly count?: React.ReactNode
   readonly panel: React.ReactNode
 }
 

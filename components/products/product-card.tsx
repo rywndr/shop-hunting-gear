@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ProductPrice } from "@/components/products/product-price"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { RatingStars } from "@/components/products/rating-stars"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   averageRating,
   productHref,
@@ -51,4 +52,32 @@ function ProductCard({ product }: { product: Product }) {
   )
 }
 
-export { ProductCard }
+function ProductCardSkeleton() {
+  return (
+    <div
+      aria-hidden
+      className="flex h-full flex-col border border-border bg-card"
+    >
+      <Skeleton className="aspect-square w-full rounded-none" />
+
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="min-h-10 space-y-1.5 py-0.5">
+          <Skeleton className="h-3.5 w-full rounded-none" />
+          <Skeleton className="h-3.5 w-3/4 rounded-none" />
+        </div>
+
+        <div className="flex min-h-12 flex-col justify-end gap-1.5">
+          <Skeleton className="h-3 w-2/5 rounded-none" />
+          <Skeleton className="h-5 w-3/5 rounded-none" />
+        </div>
+
+        <div className="mt-auto flex items-center gap-1.5 pt-1">
+          <Skeleton className="h-3 w-20 rounded-none" />
+          <Skeleton className="h-3 w-14 rounded-none" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export { ProductCard, ProductCardSkeleton }
