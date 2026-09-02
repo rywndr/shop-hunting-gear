@@ -1,10 +1,16 @@
 import "server-only"
 
 import type { CartItem, CartVariant } from "@/lib/cart/config"
-import { cartItemsForUser } from "@/lib/cart/service"
+import {
+  cartItemsForUser,
+  cartItemsWithThumbnailsForUser,
+} from "@/lib/cart/service"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import type { Product, ProductVariant } from "@/lib/products/config"
-import { storefrontProductBySlug } from "@/lib/products/service"
+import {
+  storefrontProductCardBySlug,
+  storefrontProductDataBySlug,
+} from "@/lib/products/service"
 
 function validVariant(
   input: CartVariant | undefined,
@@ -29,6 +35,39 @@ function checkoutProduct(product: Product): CartItem["product"] {
   }
 }
 
+type ProductCheckoutSource = Extract<CheckoutSource, { kind: "product" }>
+
+type ProductBySlug = (slug: string) => Promise<Product | undefined>
+
+async function checkoutProductItem({
+  source,
+  productBySlug,
+}: {
+  readonly source: ProductCheckoutSource
+  readonly productBySlug: ProductBySlug
+}): Promise<readonly CartItem[]> {
+  const product = await productBySlug(source.productSlug)
+
+  if (
+    !product ||
+    source.variants.length !== product.variants.length ||
+    !product.variants.every((variant, index) =>
+      validVariant(source.variants[index], variant)
+    )
+  ) {
+    return []
+  }
+
+  return [
+    {
+      id: `checkout-${product.slug}`,
+      product: checkoutProduct(product),
+      quantity: source.quantity,
+      variants: source.variants,
+    },
+  ]
+}
+
 export async function checkoutItemsForUser({
   userId,
   source,
@@ -39,28 +78,35 @@ export async function checkoutItemsForUser({
   switch (source.kind) {
     case "cart":
       return cartItemsForUser(userId, { preserveQuantity: true })
-    case "product": {
-      const product = await storefrontProductBySlug(source.productSlug)
-
-      if (
-        !product ||
-        source.variants.length !== product.variants.length ||
-        !product.variants.every((variant, index) =>
-          validVariant(source.variants[index], variant)
-        )
-      ) {
-        return []
-      }
-
-      return [
-        {
-          id: `checkout-${product.slug}`,
-          product: checkoutProduct(product),
-          quantity: source.quantity,
-          variants: source.variants,
-        },
-      ]
+    case "product":
+      return checkoutProductItem({
+        source,
+        productBySlug: storefrontProductDataBySlug,
+      })
+    default: {
+      const _exhaustive: never = source
+      return _exhaustive
     }
+  }
+}
+
+export async function checkoutItemsWithThumbnailsForUser({
+  userId,
+  source,
+}: {
+  userId: string
+  source: CheckoutSource
+}): Promise<readonly CartItem[]> {
+  switch (source.kind) {
+    case "cart":
+      return cartItemsWithThumbnailsForUser(userId, {
+        preserveQuantity: true,
+      })
+    case "product":
+      return checkoutProductItem({
+        source,
+        productBySlug: storefrontProductCardBySlug,
+      })
     default: {
       const _exhaustive: never = source
       return _exhaustive

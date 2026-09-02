@@ -8,24 +8,11 @@ import {
   averageRating,
   productHref,
   reviewCount,
-  type Product,
-  type ProductImage,
+  type ProductCard as ProductCardData,
 } from "@/lib/products/config"
 import { formatCompactNumber, formatRating } from "@/utils/format/intl"
 
-function thumbnailUrl(image: ProductImage) {
-  if ("thumbnailUrl" in image && typeof image.thumbnailUrl === "string") {
-    const url = image.thumbnailUrl.trim()
-
-    if (url) {
-      return image.thumbnailUrl
-    }
-  }
-
-  return image.url
-}
-
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product }: { product: ProductCardData }) {
   const reviews = reviewCount(product)
   const rating = averageRating(product)
 
@@ -35,7 +22,7 @@ function ProductCard({ product }: { product: Product }) {
       className="group flex h-full flex-col border border-border bg-card transition-colors outline-none hover:border-primary/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
     >
       <ProductThumbnail
-        src={thumbnailUrl(product.images[0])}
+        src={product.images[0].thumbnailUrl}
         label={product.images[0].alt}
         className="aspect-square w-full"
         iconClassName="size-8"

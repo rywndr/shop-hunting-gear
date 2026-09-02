@@ -46,6 +46,38 @@ export type Product = {
   readonly reviews: readonly Review[]
 }
 
+type ProductCardImage = ProductImage & {
+  readonly url: string
+  readonly thumbnailUrl: string
+}
+
+type ProductDetailImage = ProductImage & {
+  readonly url: string
+  readonly thumbnailUrl: string
+  readonly detailUrl: string
+}
+
+type ProductMetadataImage = ProductImage & {
+  readonly url: string
+  readonly detailUrl: string
+}
+
+export type ProductData = Omit<Product, "images"> & {
+  readonly images: NonEmptyReadonlyArray<Pick<ProductImage, "id" | "alt">>
+}
+
+export type ProductCard = Omit<Product, "images"> & {
+  readonly images: readonly [ProductCardImage]
+}
+
+export type ProductDetail = Omit<Product, "images"> & {
+  readonly images: NonEmptyReadonlyArray<ProductDetailImage>
+}
+
+export type ProductMetadata = Omit<Product, "images"> & {
+  readonly images: NonEmptyReadonlyArray<ProductMetadataImage>
+}
+
 export function productHref(product: Pick<Product, "category" | "slug">) {
   return `/c/${product.category}/p/${product.slug}`
 }

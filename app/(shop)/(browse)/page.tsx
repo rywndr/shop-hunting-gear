@@ -15,7 +15,10 @@ import {
   productsMatching,
   type Product,
 } from "@/lib/products/config"
-import { storefrontProducts } from "@/lib/products/service"
+import {
+  storefrontProductCards,
+  storefrontProductData,
+} from "@/lib/products/service"
 import {
   browsePageCount,
   normalizeBrowseQuery,
@@ -44,7 +47,7 @@ type BrowseFilter =
     }
   | { readonly kind: "all" }
 
-const browseProducts = cache(storefrontProducts)
+const browseProducts = cache(storefrontProductData)
 
 function browseFilter(selection: BrowseSelection): BrowseFilter {
   const categories = findCategories(selection.categories)
@@ -198,10 +201,11 @@ async function BrowseCatalog({
 
   const { selection, products: matchingProducts } = resolution
   const page = selection.page
-  const products = matchingProducts.slice(
+  const visibleProductData = matchingProducts.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE
   )
+  const products = await storefrontProductCards(visibleProductData)
   const filter = browseFilter(selection)
   const copy = sectionCopy(filter)
   const selectedCategories = filterCategories(filter)

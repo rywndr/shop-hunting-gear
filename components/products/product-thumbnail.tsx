@@ -13,6 +13,7 @@ type ProductThumbnailProps = {
   className?: string
   iconClassName?: string
   sizes?: string
+  preload?: boolean
 }
 
 function ProductThumbnail({
@@ -21,6 +22,7 @@ function ProductThumbnail({
   className,
   iconClassName,
   sizes,
+  preload,
 }: ProductThumbnailProps) {
   const imageSrc = src?.trim() || undefined
   const imageRef = useRef<HTMLImageElement>(null)
@@ -73,6 +75,7 @@ function ProductThumbnail({
           fill
           ref={imageRef}
           unoptimized
+          preload={preload}
           sizes={
             sizes ?? "(min-width: 1280px) 20vw, (min-width: 640px) 33vw, 50vw"
           }

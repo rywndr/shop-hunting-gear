@@ -7,6 +7,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { unstable_cache } from "next/cache"
 import sharp from "sharp"
 
 import type { StoredProductImage } from "./schema"
@@ -46,10 +47,15 @@ function b2Config() {
   return config
 }
 
-function b2Client() {
-  const config = b2Config()
+let configuredB2Client: S3Client | undefined
 
-  return new S3Client({
+function b2Client() {
+  if (configuredB2Client) {
+    return configuredB2Client
+  }
+
+  const config = b2Config()
+  configuredB2Client = new S3Client({
     endpoint: `https://s3.${config.region}.backblazeb2.com`,
     region: config.region,
     credentials: {
@@ -57,6 +63,8 @@ function b2Client() {
       secretAccessKey: config.applicationKey,
     },
   })
+
+  return configuredB2Client
 }
 
 function imageObjectKeys({
@@ -296,6 +304,39 @@ export async function downloadProductImage(
   }
 }
 
+const STOREFRONT_URL_CACHE_TTL_SECONDS = 3 * 60 * 60
+
+function b2SigningIdentity(config: ReturnType<typeof b2Config>) {
+  return [config.keyId, config.bucket, config.region].join(":")
+}
+
+function cachedStorefrontProductImageUrl(
+  objectKey: string,
+  rendition: ProductImageRendition
+) {
+  const config = b2Config()
+  const cacheWindow = Math.floor(
+    Date.now() / (STOREFRONT_URL_CACHE_TTL_SECONDS * 1000)
+  )
+
+  return unstable_cache(
+    async () =>
+      getSignedUrl(
+        b2Client(),
+        new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
+        { expiresIn: PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS.storefront }
+      ),
+    [
+      "product-image-storefront-url",
+      b2SigningIdentity(config),
+      objectKey,
+      rendition,
+      String(cacheWindow),
+    ],
+    { revalidate: STOREFRONT_URL_CACHE_TTL_SECONDS }
+  )()
+}
+
 export async function presignedProductImageUrl({
   image,
   rendition,
@@ -305,14 +346,17 @@ export async function presignedProductImageUrl({
   readonly rendition: ProductImageRendition
   readonly access: ProductImageUrlAccess
 }) {
+  const objectKey = productImageObjectKey(image, rendition)
+
+  if (access === "storefront") {
+    return cachedStorefrontProductImageUrl(objectKey, rendition)
+  }
+
   const config = b2Config()
 
   return getSignedUrl(
     b2Client(),
-    new GetObjectCommand({
-      Bucket: config.bucket,
-      Key: productImageObjectKey(image, rendition),
-    }),
+    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
     { expiresIn: PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS[access] }
   )
 }

@@ -21,6 +21,10 @@ export async function GET(
   request: Request,
   context: RouteContext<"/images/products/[productId]/[imageId]">
 ) {
+  if (!canAccessAdmin(await getRequestSession(request))) {
+    return notFoundResponse()
+  }
+
   const parsedParams = imageParamsSchema.safeParse(await context.params)
 
   if (!parsedParams.success) {
@@ -33,14 +37,6 @@ export async function GET(
     return notFoundResponse()
   }
 
-  if (stored.state !== "active") {
-    const session = await getRequestSession(request)
-
-    if (!canAccessAdmin(session)) {
-      return notFoundResponse()
-    }
-  }
-
   const download = await downloadProductImage(stored.image.objectKey)
 
   if (download.kind === "not-found") {
@@ -48,10 +44,7 @@ export async function GET(
   }
 
   const headers = new Headers({
-    "Cache-Control":
-      stored.state === "active"
-        ? "public, max-age=300, s-maxage=300"
-        : "private, no-store",
+    "Cache-Control": "private, no-store",
     "Content-Type": download.mime,
     "X-Content-Type-Options": "nosniff",
   })

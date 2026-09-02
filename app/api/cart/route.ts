@@ -6,7 +6,7 @@ import {
 } from "@/lib/cart/schema"
 import {
   addCartItemForUser,
-  cartItemsForUser,
+  cartItemsWithThumbnailsForUser,
   clearCartForUser,
   removeCartItemForUser,
   updateCartItemForUser,
@@ -35,7 +35,9 @@ export async function GET(request: Request) {
     return unauthorized()
   }
 
-  return Response.json({ items: await cartItemsForUser(session.user.id) })
+  return Response.json({
+    items: await cartItemsWithThumbnailsForUser(session.user.id),
+  })
 }
 
 export async function POST(request: Request) {
@@ -60,7 +62,9 @@ export async function POST(request: Request) {
     return Response.json({ error: result.message }, { status: 400 })
   }
 
-  return Response.json({ items: await cartItemsForUser(session.user.id) })
+  return Response.json({
+    items: await cartItemsWithThumbnailsForUser(session.user.id),
+  })
 }
 
 export async function PATCH(request: Request) {
@@ -86,7 +90,9 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Cart item not found." }, { status: 404 })
   }
 
-  return Response.json({ items: await cartItemsForUser(session.user.id) })
+  return Response.json({
+    items: await cartItemsWithThumbnailsForUser(session.user.id),
+  })
 }
 
 export async function DELETE(request: Request) {
@@ -111,5 +117,7 @@ export async function DELETE(request: Request) {
     })
   }
 
-  return Response.json({ items: await cartItemsForUser(session.user.id) })
+  return Response.json({
+    items: await cartItemsWithThumbnailsForUser(session.user.id),
+  })
 }

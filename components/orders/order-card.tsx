@@ -19,11 +19,11 @@ import {
 } from "@/lib/orders/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { productHref } from "@/lib/products/config"
-import { storefrontProductBySlug } from "@/lib/products/service"
+import { storefrontProductCardBySlug } from "@/lib/products/service"
 import { cn } from "@/lib/utils"
 
 async function OrderItemRow({ item }: { item: OrderItem }) {
-  const product = await storefrontProductBySlug(item.productSlug)
+  const product = await storefrontProductCardBySlug(item.productSlug)
 
   return (
     <li className="flex gap-3">

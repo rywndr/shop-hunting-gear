@@ -2,7 +2,7 @@ import { getRequestSession } from "@/lib/auth/request"
 import { cartWeight } from "@/lib/cart/config"
 import { shippingQuoteRequestSchema } from "@/lib/checkout/schema"
 import { cartItemsForUser } from "@/lib/cart/service"
-import { storefrontProductBySlug } from "@/lib/products/service"
+import { storefrontProductDataBySlug } from "@/lib/products/service"
 import { shippingOptionsForUser } from "@/lib/shipping/service"
 
 export async function GET(request: Request) {
@@ -76,7 +76,7 @@ async function storefrontQuoteWeight({
   productSlug: string
   quantity: number
 }) {
-  const product = await storefrontProductBySlug(productSlug)
+  const product = await storefrontProductDataBySlug(productSlug)
 
   if (!product) {
     return 0

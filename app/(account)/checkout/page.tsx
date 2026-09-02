@@ -8,7 +8,7 @@ import { addressesForUser } from "@/lib/account/service"
 import { getCurrentSession } from "@/lib/auth/session"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import { checkoutProductQuerySchema } from "@/lib/checkout/schema"
-import { checkoutItemsForUser } from "@/lib/checkout/service"
+import { checkoutItemsWithThumbnailsForUser } from "@/lib/checkout/service"
 import { midtransBrowserConfig } from "@/lib/payments/midtrans/config"
 
 export const metadata: Metadata = {
@@ -53,7 +53,7 @@ export default async function CheckoutPage({
       : { kind: "cart" }
   const [addresses, items] = await Promise.all([
     addressesForUser(session.user.id),
-    checkoutItemsForUser({ userId: session.user.id, source }),
+    checkoutItemsWithThumbnailsForUser({ userId: session.user.id, source }),
   ])
 
   if ((hasProduct && !parsedProduct?.success) || items.length === 0) {

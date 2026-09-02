@@ -6,7 +6,10 @@ import type { AddCartItemRequest } from "./schema"
 import { db } from "../db/client"
 import { cartItem } from "../db/schema/cart"
 import type { Product, ProductVariant } from "../products/config"
-import { storefrontProductBySlug } from "../products/service"
+import {
+  storefrontProductCardBySlug,
+  storefrontProductDataBySlug,
+} from "../products/service"
 
 type CartInputResult =
   | {
@@ -29,7 +32,7 @@ function validVariant(
 }
 
 async function catalogProduct(slug: string) {
-  return storefrontProductBySlug(slug)
+  return storefrontProductDataBySlug(slug)
 }
 
 async function resolveCartInput(
@@ -77,11 +80,8 @@ function cartProduct(product: Product): CartItem["product"] {
   }
 }
 
-export async function cartItemsForUser(
-  userId: string,
-  { preserveQuantity = false }: { readonly preserveQuantity?: boolean } = {}
-): Promise<readonly CartItem[]> {
-  const rows = await db
+async function cartRowsForUser(userId: string) {
+  return db
     .select({
       id: cartItem.id,
       productSlug: cartItem.productSlug,
@@ -91,25 +91,75 @@ export async function cartItemsForUser(
     .from(cartItem)
     .where(eq(cartItem.userId, userId))
     .orderBy(asc(cartItem.createdAt))
+}
 
+type CartRow = Awaited<ReturnType<typeof cartRowsForUser>>[number]
+
+function cartItemForProduct({
+  row,
+  product,
+  preserveQuantity,
+}: {
+  readonly row: CartRow
+  readonly product: Product | undefined
+  readonly preserveQuantity: boolean
+}) {
+  if (!product) {
+    return null
+  }
+
+  return {
+    id: row.id,
+    product: cartProduct(product),
+    quantity: preserveQuantity
+      ? row.quantity
+      : Math.min(row.quantity, product.stock),
+    variants: row.variants,
+  } satisfies CartItem
+}
+
+async function cartItemsFromRows({
+  rows,
+  preserveQuantity,
+  productBySlug,
+}: {
+  readonly rows: readonly CartRow[]
+  readonly preserveQuantity: boolean
+  readonly productBySlug: (slug: string) => Promise<Product | undefined>
+}): Promise<readonly CartItem[]> {
   const items = await Promise.all(
-    rows.map(async (row) => {
-      const product = await catalogProduct(row.productSlug)
-
-      return product
-        ? {
-            id: row.id,
-            product: cartProduct(product),
-            quantity: preserveQuantity
-              ? row.quantity
-              : Math.min(row.quantity, product.stock),
-            variants: row.variants,
-          }
-        : null
-    })
+    rows.map(async (row) =>
+      cartItemForProduct({
+        row,
+        product: await productBySlug(row.productSlug),
+        preserveQuantity,
+      })
+    )
   )
 
   return items.filter((item): item is CartItem => item !== null)
+}
+
+export async function cartItemsForUser(
+  userId: string,
+  { preserveQuantity = false }: { readonly preserveQuantity?: boolean } = {}
+): Promise<readonly CartItem[]> {
+  return cartItemsFromRows({
+    rows: await cartRowsForUser(userId),
+    preserveQuantity,
+    productBySlug: catalogProduct,
+  })
+}
+
+export async function cartItemsWithThumbnailsForUser(
+  userId: string,
+  { preserveQuantity = false }: { readonly preserveQuantity?: boolean } = {}
+): Promise<readonly CartItem[]> {
+  return cartItemsFromRows({
+    rows: await cartRowsForUser(userId),
+    preserveQuantity,
+    productBySlug: storefrontProductCardBySlug,
+  })
 }
 
 export async function addCartItemForUser({

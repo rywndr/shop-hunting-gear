@@ -14,8 +14,10 @@ import {
   reviewCount,
 } from "@/lib/products/config"
 import {
-  storefrontProductBySlug,
-  storefrontProducts,
+  storefrontProductCards,
+  storefrontProductData,
+  storefrontProductDetailBySlug,
+  storefrontProductMetadataBySlug,
 } from "@/lib/products/service"
 import { categoryBySlug, isCategorySlug } from "@/lib/site/config"
 import { pageMetadata, PRIVATE_ROBOTS } from "@/lib/site/metadata"
@@ -23,15 +25,17 @@ import { formatRating, formatRupiah } from "@/utils/format/intl"
 
 export const revalidate = 21600
 
-export function generateStaticParams() {
-  return []
+export async function generateStaticParams() {
+  const products = await storefrontProductData()
+
+  return products.map(({ category, slug }) => ({ category, slug }))
 }
 
 export async function generateMetadata({
   params,
 }: PageProps<"/c/[category]/p/[slug]">): Promise<Metadata> {
   const { category, slug } = await params
-  const product = await storefrontProductBySlug(slug)
+  const product = await storefrontProductMetadataBySlug(slug)
 
   if (!product || product.category !== category) {
     return { title: "Produk tidak ditemukan", robots: PRIVATE_ROBOTS }
@@ -72,20 +76,19 @@ async function ProductContent({
   readonly slug: string
 }) {
   const [product, products] = await Promise.all([
-    storefrontProductBySlug(slug),
-    storefrontProducts(),
+    storefrontProductDetailBySlug(slug),
+    storefrontProductData(),
   ])
 
   if (!product || product.category !== category) {
     notFound()
   }
 
-  return (
-    <ProductDetail
-      product={product}
-      related={relatedProducts(products, product)}
-    />
+  const related = await storefrontProductCards(
+    relatedProducts(products, product)
   )
+
+  return <ProductDetail product={product} related={related} />
 }
 
 export default async function CategoryProductPage({

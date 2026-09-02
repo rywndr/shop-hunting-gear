@@ -13,11 +13,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import type { Product } from "@/lib/products/config"
+import type { ProductCard as ProductCardData } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 
 type ProductGridProps = {
-  products: readonly Product[]
+  products: readonly ProductCardData[]
   emptyMessage: string
   className?: string
 }

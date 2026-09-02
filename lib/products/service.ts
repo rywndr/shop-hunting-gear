@@ -24,7 +24,11 @@ import {
 import {
   productImageHref,
   type Product,
+  type ProductCard,
+  type ProductData,
+  type ProductDetail,
   type ProductImage,
+  type ProductMetadata,
   type RatingBreakdown,
 } from "./config"
 import { presignedProductImageUrl } from "./storage"
@@ -39,6 +43,9 @@ const EMPTY_RATINGS = {
 } as const satisfies RatingBreakdown
 
 type ProductRow = typeof productTable.$inferSelect
+type StorefrontProductRow = { product: ProductRow }
+
+const EMPTY_PRODUCT_ROWS: StorefrontProductRow[] = []
 
 async function assertAdminAccess() {
   if (!canAccessAdmin(await getCurrentSession())) {
@@ -101,7 +108,7 @@ async function readProductTables<T>({
   }
 }
 
-type ProductImageContext = "storefront-card" | "storefront-detail" | "admin"
+type ProductImageContext = "data" | "card" | "detail" | "metadata" | "admin"
 
 async function domainProductImage({
   productId,
@@ -112,44 +119,83 @@ async function domainProductImage({
   readonly image: StoredProductImage
   readonly context: ProductImageContext
 }): Promise<ProductImage> {
-  if (context === "admin") {
-    return {
-      id: image.id,
-      alt: image.alt,
-      url: productImageHref({ productId, imageId: image.id }),
+  switch (context) {
+    case "data":
+      return { id: image.id, alt: image.alt }
+    case "admin":
+      return {
+        id: image.id,
+        alt: image.alt,
+        url: productImageHref({ productId, imageId: image.id }),
+      }
+    case "card": {
+      const thumbnailUrl = await presignedProductImageUrl({
+        image,
+        rendition: "thumbnail",
+        access: "storefront",
+      })
+
+      return {
+        id: image.id,
+        alt: image.alt,
+        url: thumbnailUrl,
+        thumbnailUrl,
+      }
     }
-  }
+    case "detail": {
+      const [thumbnailUrl, detailUrl] = await Promise.all([
+        presignedProductImageUrl({
+          image,
+          rendition: "thumbnail",
+          access: "storefront",
+        }),
+        presignedProductImageUrl({
+          image,
+          rendition: "detail",
+          access: "storefront",
+        }),
+      ])
 
-  const thumbnailUrl = await presignedProductImageUrl({
-    image,
-    rendition: "thumbnail",
-    access: "storefront",
-  })
-
-  if (context === "storefront-card") {
-    return {
-      id: image.id,
-      alt: image.alt,
-      url: thumbnailUrl,
-      thumbnailUrl,
+      return {
+        id: image.id,
+        alt: image.alt,
+        url: detailUrl,
+        thumbnailUrl,
+        detailUrl,
+      }
     }
-  }
+    case "metadata": {
+      const detailUrl = await presignedProductImageUrl({
+        image,
+        rendition: "detail",
+        access: "storefront",
+      })
 
-  const detailUrl = await presignedProductImageUrl({
-    image,
-    rendition: "detail",
-    access: "storefront",
-  })
-
-  return {
-    id: image.id,
-    alt: image.alt,
-    url: detailUrl,
-    thumbnailUrl,
-    detailUrl,
+      return {
+        id: image.id,
+        alt: image.alt,
+        url: detailUrl,
+        detailUrl,
+      }
+    }
+    default: {
+      const _exhaustive: never = context
+      return _exhaustive
+    }
   }
 }
 
+function domainProduct(row: ProductRow, context: "data"): Promise<ProductData>
+function domainProduct(row: ProductRow, context: "card"): Promise<ProductCard>
+function domainProduct(
+  row: ProductRow,
+  context: "detail"
+): Promise<ProductDetail>
+function domainProduct(
+  row: ProductRow,
+  context: "metadata"
+): Promise<ProductMetadata>
+function domainProduct(row: ProductRow, context: "admin"): Promise<Product>
 async function domainProduct(
   row: ProductRow,
   context: ProductImageContext
@@ -161,9 +207,23 @@ async function domainProduct(
   }
 
   const [firstDescription, ...otherDescriptions] = parsed.data.description
+  const [firstStoredImage, ...otherStoredImages] = parsed.data.images
+
+  if (!firstStoredImage) {
+    throw new Error("No stored product image.")
+  }
+
+  const sourceImages =
+    context === "card"
+      ? [firstStoredImage]
+      : [firstStoredImage, ...otherStoredImages]
   const images = await Promise.all(
-    parsed.data.images.map((image) =>
-      domainProductImage({ productId: row.id, image, context })
+    sourceImages.map((image) =>
+      domainProductImage({
+        productId: row.id,
+        image,
+        context,
+      })
     )
   )
   const [firstDomainImage, ...otherDomainImages] = images
@@ -196,8 +256,8 @@ async function domainProduct(
   }
 }
 
-export async function storefrontProducts(): Promise<readonly Product[]> {
-  const rows = await readProductTables({
+async function storefrontProductRows() {
+  return readProductTables({
     query: () =>
       db
         .select({ product: productTable })
@@ -208,18 +268,16 @@ export async function storefrontProducts(): Promise<readonly Product[]> {
         )
         .where(eq(productListing.state, "active"))
         .orderBy(asc(productTable.createdAt)),
-    missingTableValue: [],
+    missingTableValue: EMPTY_PRODUCT_ROWS,
   })
-
-  return Promise.all(
-    rows.map(({ product }) => domainProduct(product, "storefront-card"))
-  )
 }
 
-export async function storefrontProductBySlug(
-  slug: string
-): Promise<Product | undefined> {
-  const rows = await readProductTables({
+async function storefrontProductRowsBySlugs(slugs: readonly string[]) {
+  if (slugs.length === 0) {
+    return EMPTY_PRODUCT_ROWS
+  }
+
+  return readProductTables({
     query: () =>
       db
         .select({ product: productTable })
@@ -229,14 +287,72 @@ export async function storefrontProductBySlug(
           eq(productListing.productId, productTable.id)
         )
         .where(
-          and(eq(productTable.slug, slug), eq(productListing.state, "active"))
-        )
-        .limit(1),
-    missingTableValue: [],
+          and(
+            inArray(productTable.slug, slugs),
+            eq(productListing.state, "active")
+          )
+        ),
+    missingTableValue: EMPTY_PRODUCT_ROWS,
   })
-  const [row] = rows
+}
 
-  return row ? await domainProduct(row.product, "storefront-detail") : undefined
+async function storefrontProductRowBySlug(slug: string) {
+  const rows = await storefrontProductRowsBySlugs([slug])
+  return rows[0]?.product
+}
+
+export async function storefrontProductData(): Promise<readonly ProductData[]> {
+  const rows = await storefrontProductRows()
+  return Promise.all(rows.map(({ product }) => domainProduct(product, "data")))
+}
+
+export async function storefrontProductDataBySlug(
+  slug: string
+): Promise<ProductData | undefined> {
+  const row = await storefrontProductRowBySlug(slug)
+  return row ? domainProduct(row, "data") : undefined
+}
+
+export async function storefrontProductCardBySlug(
+  slug: string
+): Promise<ProductCard | undefined> {
+  const row = await storefrontProductRowBySlug(slug)
+  return row ? domainProduct(row, "card") : undefined
+}
+
+export async function storefrontProductDetailBySlug(
+  slug: string
+): Promise<ProductDetail | undefined> {
+  const row = await storefrontProductRowBySlug(slug)
+  return row ? domainProduct(row, "detail") : undefined
+}
+
+export async function storefrontProductMetadataBySlug(
+  slug: string
+): Promise<ProductMetadata | undefined> {
+  const row = await storefrontProductRowBySlug(slug)
+  return row ? domainProduct(row, "metadata") : undefined
+}
+
+export async function storefrontProductCards(
+  products: readonly Pick<ProductData, "slug">[]
+): Promise<readonly ProductCard[]> {
+  const rows = await storefrontProductRowsBySlugs(
+    products.map(({ slug }) => slug)
+  )
+  const productsBySlug = new Map(
+    rows.map(({ product }) => [product.slug, product])
+  )
+  const cards = await Promise.all(
+    products.map(async ({ slug }) => {
+      const row = productsBySlug.get(slug)
+      return row ? domainProduct(row, "card") : undefined
+    })
+  )
+
+  return cards.filter(
+    (product): product is ProductCard => product !== undefined
+  )
 }
 
 export async function adminProductListings(): Promise<

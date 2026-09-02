@@ -94,6 +94,7 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
           className="aspect-square w-full"
           iconClassName="size-12"
           sizes="(min-width: 1024px) 440px, 100vw"
+          preload={position === 0}
         />
         <span
           aria-hidden

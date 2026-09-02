@@ -12,7 +12,13 @@ import {
   REVIEWS_ANCHOR,
   ReviewSection,
 } from "@/components/products/review-section"
-import { averageRating, reviewCount, type Product } from "@/lib/products/config"
+import {
+  averageRating,
+  reviewCount,
+  type Product,
+  type ProductCard as ProductCardData,
+  type ProductDetail as ProductDetailData,
+} from "@/lib/products/config"
 import { categoryBySlug } from "@/lib/site/config"
 import {
   formatCompactNumber,
@@ -83,8 +89,8 @@ function ProductHeadline({ product }: { product: Product }) {
 }
 
 type ProductDetailProps = {
-  product: Product
-  related: readonly Product[]
+  product: ProductDetailData
+  related: readonly ProductCardData[]
 }
 
 function ProductDetailSkeleton() {

@@ -8,7 +8,7 @@ import { SalesOrderTable } from "@/components/admin/pesanan/sales-order-table"
 import { SalesOrderTableSkeleton } from "@/components/admin/pesanan/sales-order-table-skeleton"
 import { adminSection } from "@/lib/admin/config"
 import { salesOrderBuyers, salesOrderPage } from "@/lib/orders/service"
-import { storefrontProducts } from "@/lib/products/service"
+import { storefrontProductData } from "@/lib/products/service"
 import { orderFilterFromTab, type OrderQueueFilter } from "@/lib/admin/orders"
 
 const SECTION = adminSection("orders")
@@ -35,7 +35,7 @@ function pageSize(value: string | undefined) {
 
 async function ManualOrderAction() {
   const [products, buyers] = await Promise.all([
-    storefrontProducts(),
+    storefrontProductData(),
     salesOrderBuyers(),
   ])
 
