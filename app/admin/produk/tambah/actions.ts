@@ -21,6 +21,8 @@ import { createProduct } from "@/lib/products/service"
 import {
   deleteProductImages,
   isProductImageMime,
+  ProductImageUploadError,
+  productImageObjectKeys,
   uploadProductImage,
 } from "@/lib/products/storage"
 
@@ -146,6 +148,7 @@ export async function createProductAction(
 
   const id = productId()
   const uploaded = new Map<File, StoredProductImage>()
+  const uploadedObjectKeys = new Set<string>()
   let stage: ProductCreateStage = "upload"
 
   try {
@@ -160,6 +163,9 @@ export async function createProductAction(
         bytes: new Uint8Array(await file.arrayBuffer()),
       })
       uploaded.set(file, stored)
+      for (const objectKey of productImageObjectKeys(stored)) {
+        uploadedObjectKeys.add(objectKey)
+      }
     }
 
     for (const variant of resolved.data.variants) {
@@ -175,6 +181,9 @@ export async function createProductAction(
             bytes: new Uint8Array(await file.arrayBuffer()),
           })
           uploaded.set(file, stored)
+          for (const objectKey of productImageObjectKeys(stored)) {
+            uploadedObjectKeys.add(objectKey)
+          }
         }
       }
     }
@@ -243,10 +252,14 @@ export async function createProductAction(
   } catch (error) {
     reportCreateFailure({ error, productId: id, stage })
 
+    if (error instanceof ProductImageUploadError) {
+      for (const objectKey of error.uploadedObjectKeys) {
+        uploadedObjectKeys.add(objectKey)
+      }
+    }
+
     try {
-      await deleteProductImages(
-        [...uploaded.values()].map(({ objectKey }) => objectKey)
-      )
+      await deleteProductImages([...uploadedObjectKeys])
     } catch (cleanupError) {
       console.error(
         JSON.stringify({

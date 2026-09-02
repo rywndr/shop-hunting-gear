@@ -20,6 +20,8 @@ import type { StoredProductImage } from "@/lib/db/schema/product"
 import {
   deleteProductImages,
   isProductImageMime,
+  ProductImageUploadError,
+  productImageObjectKeys,
   uploadProductImage,
 } from "@/lib/products/storage"
 
@@ -187,7 +189,8 @@ export async function editProductAction({
   if (!values.success) {
     return { kind: "error", message: "Periksa kembali data dan foto produk." }
   }
-  const uploaded: StoredProductImage[] = []
+  const uploadedByFile = new Map<File, StoredProductImage>()
+  const uploadedObjectKeys = new Set<string>()
 
   async function resolveImage(
     reference: (typeof submission.images)[number],
@@ -197,6 +200,12 @@ export async function editProductAction({
     const file = formData.get(reference.field)
     if (!(file instanceof File) || !isProductImageMime(file.type))
       return undefined
+
+    const alreadyUploaded = uploadedByFile.get(file)
+    if (alreadyUploaded) {
+      return alreadyUploaded
+    }
+
     const stored = await uploadProductImage({
       id: randomUUID(),
       productId,
@@ -204,7 +213,10 @@ export async function editProductAction({
       mime: file.type,
       bytes: new Uint8Array(await file.arrayBuffer()),
     })
-    uploaded.push(stored)
+    uploadedByFile.set(file, stored)
+    for (const objectKey of productImageObjectKeys(stored)) {
+      uploadedObjectKeys.add(objectKey)
+    }
     return stored
   }
 
@@ -276,7 +288,7 @@ export async function editProductAction({
     const retainedIds = new Set(images.map(({ id }) => id))
     const removedKeys = current.images
       .filter(({ id }) => !retainedIds.has(id))
-      .map(({ objectKey }) => objectKey)
+      .flatMap((image) => productImageObjectKeys(image))
     if (removedKeys.length > 0) {
       try {
         await deleteProductImages(removedKeys)
@@ -291,10 +303,16 @@ export async function editProductAction({
       }
     }
     return { kind: "success" }
-  } catch {
-    if (uploaded.length > 0) {
+  } catch (error) {
+    if (error instanceof ProductImageUploadError) {
+      for (const objectKey of error.uploadedObjectKeys) {
+        uploadedObjectKeys.add(objectKey)
+      }
+    }
+
+    if (uploadedObjectKeys.size > 0) {
       try {
-        await deleteProductImages(uploaded.map(({ objectKey }) => objectKey))
+        await deleteProductImages([...uploadedObjectKeys])
       } catch {
         // The original error is more useful to the caller.
       }

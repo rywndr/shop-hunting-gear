@@ -2,11 +2,30 @@ import { z } from "zod"
 
 import { isCategorySlug, type CategorySlug } from "../site/config"
 
-export const storedProductImageSchema = z.object({
-  id: z.string().min(1),
-  objectKey: z.string().min(1),
-  alt: z.string().trim().min(1),
-})
+const legacyStoredProductImageSchema = z
+  .object({
+    id: z.string().min(1),
+    objectKey: z.string().min(1),
+    alt: z.string().trim().min(1),
+  })
+  .strict()
+
+const derivedStoredProductImageSchema = z
+  .object({
+    id: z.string().min(1),
+    objectKey: z.string().min(1),
+    thumbnailObjectKey: z.string().min(1),
+    detailObjectKey: z.string().min(1),
+    alt: z.string().trim().min(1),
+  })
+  .strict()
+
+// The required derivative keys discriminate new records without changing the
+// JSON shape of legacy records.
+export const storedProductImageSchema = z.union([
+  derivedStoredProductImageSchema,
+  legacyStoredProductImageSchema,
+])
 
 export type StoredProductImage = z.infer<typeof storedProductImageSchema>
 

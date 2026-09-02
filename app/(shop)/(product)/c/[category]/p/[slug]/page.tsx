@@ -1,7 +1,11 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { ProductDetail } from "@/components/products/product-detail"
+import {
+  ProductDetail,
+  ProductDetailSkeleton,
+} from "@/components/products/product-detail"
 import {
   averageRating,
   productDiscount,
@@ -16,6 +20,8 @@ import {
 import { categoryBySlug, isCategorySlug } from "@/lib/site/config"
 import { pageMetadata, PRIVATE_ROBOTS } from "@/lib/site/metadata"
 import { formatRating, formatRupiah } from "@/utils/format/intl"
+
+export const revalidate = 21600
 
 export async function generateStaticParams() {
   const products = await storefrontProducts()
@@ -52,16 +58,20 @@ export async function generateMetadata({
     title: `${product.name} — ${categoryLabel}`,
     description: `${product.description[0]} ${summary}.`,
     path: productHref(product),
-    images: product.images.flatMap(({ url, alt }) =>
-      url === undefined ? [] : [{ url, alt }]
-    ),
+    images: product.images.flatMap((image) => {
+      const url = image.detailUrl ?? image.url ?? image.thumbnailUrl
+      return url === undefined ? [] : [{ url, alt: image.alt }]
+    }),
   })
 }
 
-export default async function CategoryProductPage({
-  params,
-}: PageProps<"/c/[category]/p/[slug]">) {
-  const { category, slug } = await params
+async function ProductContent({
+  category,
+  slug,
+}: {
+  readonly category: string
+  readonly slug: string
+}) {
   const [product, products] = await Promise.all([
     storefrontProductBySlug(slug),
     storefrontProducts(),
@@ -76,5 +86,17 @@ export default async function CategoryProductPage({
       product={product}
       related={relatedProducts(products, product)}
     />
+  )
+}
+
+export default async function CategoryProductPage({
+  params,
+}: PageProps<"/c/[category]/p/[slug]">) {
+  const { category, slug } = await params
+
+  return (
+    <Suspense fallback={<ProductDetailSkeleton />}>
+      <ProductContent category={category} slug={slug} />
+    </Suspense>
   )
 }

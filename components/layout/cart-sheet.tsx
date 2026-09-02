@@ -112,7 +112,10 @@ function CartSheet({ className }: CartSheetProps) {
                     onClick={() => setOpen(false)}
                   >
                     <ProductThumbnail
-                      src={item.product.images[0].url}
+                      src={
+                        item.product.images[0].thumbnailUrl ??
+                        item.product.images[0].url
+                      }
                       label={`Gambar ${item.product.name}`}
                       className="size-16"
                     />

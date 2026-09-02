@@ -2,7 +2,10 @@ import { PackageIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
 import { InfiniteScrollList } from "@/components/infinite-scroll-list"
-import { ProductCard } from "@/components/products/product-card"
+import {
+  ProductCard,
+  ProductCardSkeleton,
+} from "@/components/products/product-card"
 import {
   Empty,
   EmptyDescription,
@@ -21,6 +24,24 @@ type ProductGridProps = {
 
 const INITIAL_PRODUCT_COUNT = 10
 const PRODUCTS_PER_LOAD = 10
+const PRODUCT_GRID_CLASS =
+  "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+
+function ProductGridSkeleton({ className }: { readonly className?: string }) {
+  return (
+    <ul
+      aria-label="Memuat daftar produk"
+      aria-busy="true"
+      className={cn(PRODUCT_GRID_CLASS, className)}
+    >
+      {Array.from({ length: INITIAL_PRODUCT_COUNT }, (_, index) => (
+        <li key={`produk-skeleton-${index}`}>
+          <ProductCardSkeleton />
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
   if (products.length === 0) {
@@ -42,10 +63,7 @@ function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
       aria-label="Daftar produk"
       initialItemCount={INITIAL_PRODUCT_COUNT}
       loadMoreItemCount={PRODUCTS_PER_LOAD}
-      className={cn(
-        "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
-        className
-      )}
+      className={cn(PRODUCT_GRID_CLASS, className)}
     >
       {products.map((product) => (
         <li key={product.slug}>
@@ -56,4 +74,4 @@ function ProductGrid({ products, emptyMessage, className }: ProductGridProps) {
   )
 }
 
-export { ProductGrid }
+export { ProductGrid, ProductGridSkeleton }

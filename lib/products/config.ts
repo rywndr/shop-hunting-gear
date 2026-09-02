@@ -12,6 +12,8 @@ export type ProductImage = {
   readonly id: string
   readonly alt: string
   readonly url?: string
+  readonly thumbnailUrl?: string
+  readonly detailUrl?: string
 }
 
 export type ProductVariant = {

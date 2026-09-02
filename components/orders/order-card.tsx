@@ -34,7 +34,7 @@ async function OrderItemRow({ item }: { item: OrderItem }) {
           className="shrink-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
         >
           <ProductThumbnail
-            src={product.images[0].url}
+            src={product.images[0].thumbnailUrl ?? product.images[0].url}
             label={`Gambar ${item.name}`}
             className="size-16 sm:size-18"
           />

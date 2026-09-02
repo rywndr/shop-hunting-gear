@@ -7,6 +7,7 @@ import { ProductPrice } from "@/components/products/product-price"
 import { ProductPurchase } from "@/components/products/product-purchase"
 import { ProductSection } from "@/components/products/product-section"
 import { RatingStars } from "@/components/products/rating-stars"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   REVIEWS_ANCHOR,
   ReviewSection,
@@ -86,6 +87,46 @@ type ProductDetailProps = {
   related: readonly Product[]
 }
 
+function ProductDetailSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      className="mx-auto w-full max-w-7xl px-4 py-6 md:pb-12"
+    >
+      <Skeleton className="h-3 w-40 rounded-none" />
+
+      <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-10">
+        <Skeleton className="aspect-square w-full rounded-none" />
+
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-3/4 rounded-none" />
+            <Skeleton className="h-4 w-1/2 rounded-none" />
+          </div>
+          <Skeleton className="h-10 w-44 rounded-none" />
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-10 w-full rounded-none" />
+            <Skeleton className="h-10 w-full rounded-none" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-10 flex flex-col gap-10 md:mt-12 md:gap-12">
+        <div className="flex max-w-3xl flex-col gap-3">
+          <Skeleton className="h-6 w-48 rounded-none" />
+          <Skeleton className="h-4 w-full rounded-none" />
+          <Skeleton className="h-4 w-5/6 rounded-none" />
+          <Skeleton className="h-4 w-2/3 rounded-none" />
+        </div>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-40 rounded-none" />
+          <Skeleton className="h-24 w-full max-w-3xl rounded-none" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProductDetail({ product, related }: ProductDetailProps) {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 md:pb-12">
@@ -129,4 +170,4 @@ function ProductDetail({ product, related }: ProductDetailProps) {
   )
 }
 
-export { ProductDetail }
+export { ProductDetail, ProductDetailSkeleton }

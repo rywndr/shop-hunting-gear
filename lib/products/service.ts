@@ -1,7 +1,5 @@
 import "server-only"
 
-import "server-only"
-
 import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
 
 import {
@@ -23,7 +21,13 @@ import {
   type StoredProductImage,
   type StoredProductVariant,
 } from "../db/schema/product"
-import { productImageHref, type Product, type RatingBreakdown } from "./config"
+import {
+  productImageHref,
+  type Product,
+  type ProductImage,
+  type RatingBreakdown,
+} from "./config"
+import { presignedProductImageUrl } from "./storage"
 import { storedProductDataSchema, storedProductImageSchema } from "./schema"
 
 const EMPTY_RATINGS = {
@@ -97,7 +101,59 @@ async function readProductTables<T>({
   }
 }
 
-function domainProduct(row: ProductRow): Product {
+type ProductImageContext = "storefront-card" | "storefront-detail" | "admin"
+
+async function domainProductImage({
+  productId,
+  image,
+  context,
+}: {
+  readonly productId: string
+  readonly image: StoredProductImage
+  readonly context: ProductImageContext
+}): Promise<ProductImage> {
+  if (context === "admin") {
+    return {
+      id: image.id,
+      alt: image.alt,
+      url: productImageHref({ productId, imageId: image.id }),
+    }
+  }
+
+  const thumbnailUrl = await presignedProductImageUrl({
+    image,
+    rendition: "thumbnail",
+    access: "storefront",
+  })
+
+  if (context === "storefront-card") {
+    return {
+      id: image.id,
+      alt: image.alt,
+      url: thumbnailUrl,
+      thumbnailUrl,
+    }
+  }
+
+  const detailUrl = await presignedProductImageUrl({
+    image,
+    rendition: "detail",
+    access: "storefront",
+  })
+
+  return {
+    id: image.id,
+    alt: image.alt,
+    url: detailUrl,
+    thumbnailUrl,
+    detailUrl,
+  }
+}
+
+async function domainProduct(
+  row: ProductRow,
+  context: ProductImageContext
+): Promise<Product> {
   const parsed = storedProductDataSchema.safeParse(row)
 
   if (!parsed.success) {
@@ -105,7 +161,16 @@ function domainProduct(row: ProductRow): Product {
   }
 
   const [firstDescription, ...otherDescriptions] = parsed.data.description
-  const [firstImage, ...otherImages] = parsed.data.images
+  const images = await Promise.all(
+    parsed.data.images.map((image) =>
+      domainProductImage({ productId: row.id, image, context })
+    )
+  )
+  const [firstDomainImage, ...otherDomainImages] = images
+
+  if (!firstDomainImage) {
+    throw new Error("No stored product image.")
+  }
 
   return {
     slug: row.slug,
@@ -117,18 +182,7 @@ function domainProduct(row: ProductRow): Product {
     sold: row.sold,
     weight: row.weight,
     description: [firstDescription, ...otherDescriptions],
-    images: [
-      {
-        id: firstImage.id,
-        alt: firstImage.alt,
-        url: productImageHref({ productId: row.id, imageId: firstImage.id }),
-      },
-      ...otherImages.map(({ id, alt }) => ({
-        id,
-        alt,
-        url: productImageHref({ productId: row.id, imageId: id }),
-      })),
-    ],
+    images: [firstDomainImage, ...otherDomainImages],
     variants: parsed.data.variants.map(({ label, options }) => {
       const [firstOption, ...otherOptions] = options
 
@@ -157,7 +211,9 @@ export async function storefrontProducts(): Promise<readonly Product[]> {
     missingTableValue: [],
   })
 
-  return rows.map(({ product }) => domainProduct(product))
+  return Promise.all(
+    rows.map(({ product }) => domainProduct(product, "storefront-card"))
+  )
 }
 
 export async function storefrontProductBySlug(
@@ -180,7 +236,7 @@ export async function storefrontProductBySlug(
   })
   const [row] = rows
 
-  return row ? domainProduct(row.product) : undefined
+  return row ? await domainProduct(row.product, "storefront-detail") : undefined
 }
 
 export async function adminProductListings(): Promise<
@@ -201,13 +257,15 @@ export async function adminProductListings(): Promise<
     missingTableValue: [],
   })
 
-  return rows.map(({ product, listing }) => ({
-    id: product.id,
-    product: domainProduct(product),
-    state: listing.state,
-    uploadedAt: listing.uploadedAt.toISOString(),
-    updatedAt: listing.updatedAt.toISOString(),
-  }))
+  return Promise.all(
+    rows.map(async ({ product, listing }) => ({
+      id: product.id,
+      product: await domainProduct(product, "admin"),
+      state: listing.state,
+      uploadedAt: listing.uploadedAt.toISOString(),
+      updatedAt: listing.updatedAt.toISOString(),
+    }))
+  )
 }
 
 function listingFilter({
@@ -350,13 +408,15 @@ export async function adminListingPage({
   }
 
   return {
-    listings: rows.map(({ product, listing }) => ({
-      id: product.id,
-      product: domainProduct(product),
-      state: listing.state,
-      uploadedAt: listing.uploadedAt.toISOString(),
-      updatedAt: listing.updatedAt.toISOString(),
-    })),
+    listings: await Promise.all(
+      rows.map(async ({ product, listing }) => ({
+        id: product.id,
+        product: await domainProduct(product, "admin"),
+        state: listing.state,
+        uploadedAt: listing.uploadedAt.toISOString(),
+        updatedAt: listing.updatedAt.toISOString(),
+      }))
+    ),
     counts,
     total: Number(totalRows[0]?.total ?? 0),
   }

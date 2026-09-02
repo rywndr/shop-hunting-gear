@@ -7,7 +7,7 @@ import { downloadProductImage } from "@/lib/products/storage"
 
 const imageParamsSchema = z.object({
   productId: z.union([z.uuid(), z.string().regex(/^\d+$/)]),
-  imageId: z.uuid(),
+  imageId: z.string().min(1),
 })
 
 function notFoundResponse() {
@@ -52,10 +52,13 @@ export async function GET(
       stored.state === "active"
         ? "public, max-age=300, s-maxage=300"
         : "private, no-store",
-    "Content-Length": String(download.bytes.byteLength),
     "Content-Type": download.mime,
     "X-Content-Type-Options": "nosniff",
   })
+
+  if (download.contentLength !== null) {
+    headers.set("Content-Length", String(download.contentLength))
+  }
 
   if (download.etag) {
     headers.set("ETag", download.etag)
@@ -65,5 +68,5 @@ export async function GET(
     headers.set("Last-Modified", download.lastModified)
   }
 
-  return new Response(download.bytes, { headers })
+  return new Response(download.body, { headers })
 }

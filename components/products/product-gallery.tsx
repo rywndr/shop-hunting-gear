@@ -24,6 +24,48 @@ const ARROW_STEPS = {
   ArrowRight: 1,
 } as const
 
+type ProductImageSize = "thumbnail" | "detail"
+
+function imageUrl(image: ProductImage, size: ProductImageSize) {
+  if (size === "thumbnail" && "thumbnailUrl" in image) {
+    const url = image.thumbnailUrl
+
+    if (typeof url === "string" && url.trim()) {
+      return url
+    }
+  }
+
+  if (size === "detail" && "detailUrl" in image) {
+    const url = image.detailUrl
+
+    if (typeof url === "string" && url.trim()) {
+      return url
+    }
+  }
+
+  if (typeof image.url === "string" && image.url.trim()) {
+    return image.url
+  }
+
+  if (size === "thumbnail" && "detailUrl" in image) {
+    const url = image.detailUrl
+
+    if (typeof url === "string" && url.trim()) {
+      return url
+    }
+  }
+
+  if (size === "detail" && "thumbnailUrl" in image) {
+    const url = image.thumbnailUrl
+
+    if (typeof url === "string" && url.trim()) {
+      return url
+    }
+  }
+
+  return undefined
+}
+
 function isArrowKey(key: string): key is keyof typeof ARROW_STEPS {
   return key in ARROW_STEPS
 }
@@ -47,10 +89,11 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
         className="group relative block w-full border border-border outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
       >
         <ProductThumbnail
-          src={active.url}
+          src={imageUrl(active, "detail")}
           label={active.alt}
           className="aspect-square w-full"
           iconClassName="size-12"
+          sizes="(min-width: 1024px) 440px, 100vw"
         />
         <span
           aria-hidden
@@ -75,10 +118,11 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
                 className="block border border-border outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-[current=true]:border-primary"
               >
                 <ProductThumbnail
-                  src={image.url}
+                  src={imageUrl(image, "thumbnail")}
                   label={image.alt}
                   className="size-16 sm:size-18"
                   iconClassName="size-5"
+                  sizes="72px"
                 />
               </button>
             </li>
@@ -98,10 +142,11 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
           className="w-full gap-0 p-0 sm:max-w-2xl"
         >
           <ProductThumbnail
-            src={active.url}
+            src={imageUrl(active, "detail")}
             label={active.alt}
             className="aspect-square w-full"
             iconClassName="size-16"
+            sizes="(min-width: 640px) 672px, 100vw"
           />
 
           {total > 1 && (

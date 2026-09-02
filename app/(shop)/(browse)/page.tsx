@@ -1,10 +1,13 @@
-import { cache } from "react"
+import { cache, Suspense } from "react"
 import type { Metadata } from "next"
 import { permanentRedirect, redirect } from "next/navigation"
 
 import { HeroCarousel } from "@/components/layout/hero-carousel"
 import { CategoryFilterList } from "@/components/products/category-filter-list"
-import { ProductGrid } from "@/components/products/product-grid"
+import {
+  ProductGrid,
+  ProductGridSkeleton,
+} from "@/components/products/product-grid"
 import { ProductPagination } from "@/components/products/product-pagination"
 import { ProductSection } from "@/components/products/product-section"
 import {
@@ -173,7 +176,11 @@ export async function generateMetadata({
   }
 }
 
-export default async function Page({ searchParams }: PageProps<"/">) {
+async function BrowseCatalog({
+  searchParams,
+}: {
+  readonly searchParams: Promise<BrowseQuery>
+}) {
   const resolution = await resolveBrowsePage(await searchParams)
 
   switch (resolution.redirectType) {
@@ -200,38 +207,61 @@ export default async function Page({ searchParams }: PageProps<"/">) {
   const selectedCategories = filterCategories(filter)
 
   return (
+    <ProductSection
+      id="produk"
+      title={copy.title}
+      description={copy.description}
+      action={
+        selectedCategories.length > 0 ? (
+          <CategoryFilterList
+            key={categorySlugs(selectedCategories).join(",")}
+            categories={selectedCategories}
+            search={filter.kind === "search" ? filter.search : ""}
+          />
+        ) : undefined
+      }
+      className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
+    >
+      <div className="flex flex-col gap-6">
+        <ProductGrid
+          products={products}
+          emptyMessage="Tidak ada produk yang cocok dengan filter ini."
+        />
+        {matchingProducts.length > PAGE_SIZE && (
+          <ProductPagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={matchingProducts.length}
+          />
+        )}
+      </div>
+    </ProductSection>
+  )
+}
+
+function BrowseCatalogSkeleton() {
+  return (
+    <ProductSection
+      id="produk"
+      title="Memuat produk"
+      description="Katalog sedang dimuat."
+      className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
+    >
+      <div className="flex flex-col gap-6">
+        <ProductGridSkeleton />
+      </div>
+    </ProductSection>
+  )
+}
+
+export default function Page({ searchParams }: PageProps<"/">) {
+  return (
     <>
       <HeroCarousel />
 
-      <ProductSection
-        id="produk"
-        title={copy.title}
-        description={copy.description}
-        action={
-          selectedCategories.length > 0 ? (
-            <CategoryFilterList
-              key={categorySlugs(selectedCategories).join(",")}
-              categories={selectedCategories}
-              search={filter.kind === "search" ? filter.search : ""}
-            />
-          ) : undefined
-        }
-        className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
-      >
-        <div className="flex flex-col gap-6">
-          <ProductGrid
-            products={products}
-            emptyMessage="Tidak ada produk yang cocok dengan filter ini."
-          />
-          {matchingProducts.length > PAGE_SIZE && (
-            <ProductPagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={matchingProducts.length}
-            />
-          )}
-        </div>
-      </ProductSection>
+      <Suspense fallback={<BrowseCatalogSkeleton />}>
+        <BrowseCatalog searchParams={searchParams} />
+      </Suspense>
     </>
   )
 }
