@@ -695,6 +695,121 @@ export async function createProduct({
   return id
 }
 
+export type BulkProductRow = {
+  readonly id: string
+  readonly name: string
+  readonly price: number
+  readonly compareAtPrice: number | null
+  readonly stock: number
+  readonly weight: number
+  readonly state: ListingState
+}
+
+export type BulkProduct = BulkProductRow & {
+  readonly images: readonly StoredProductImage[]
+  readonly variants: readonly StoredProductVariant[]
+}
+
+const BULK_PRODUCT_COLUMNS = {
+  id: productTable.id,
+  name: productTable.name,
+  price: productTable.price,
+  compareAtPrice: productTable.compareAtPrice,
+  stock: productTable.stock,
+  weight: productTable.weight,
+  state: productListing.state,
+} as const
+
+export async function adminBulkProductRows(): Promise<
+  readonly BulkProductRow[]
+> {
+  await assertAdminAccess()
+
+  return readProductTables({
+    query: () =>
+      db
+        .select(BULK_PRODUCT_COLUMNS)
+        .from(productTable)
+        .innerJoin(
+          productListing,
+          eq(productListing.productId, productTable.id)
+        )
+        .where(ne(productListing.state, "deleted"))
+        .orderBy(asc(productListing.uploadedAt)),
+    missingTableValue: [],
+  })
+}
+
+export async function adminBulkProductsByIds(
+  productIds: readonly string[]
+): Promise<ReadonlyMap<string, BulkProduct>> {
+  await assertAdminAccess()
+
+  if (productIds.length === 0) {
+    return new Map()
+  }
+
+  const rows = await readProductTables({
+    query: () =>
+      db
+        .select({
+          ...BULK_PRODUCT_COLUMNS,
+          images: productTable.images,
+          variants: productTable.variants,
+        })
+        .from(productTable)
+        .innerJoin(
+          productListing,
+          eq(productListing.productId, productTable.id)
+        )
+        .where(inArray(productTable.id, [...new Set(productIds)])),
+    missingTableValue: [],
+  })
+
+  return new Map(rows.map((row) => [row.id, row]))
+}
+
+export async function updateBulkProduct({
+  productId,
+  values,
+  state,
+}: {
+  productId: string
+  values: {
+    readonly name?: string
+    readonly price?: number
+    readonly compareAtPrice?: number | null
+    readonly stock?: number
+    readonly weight?: number
+    readonly images?: readonly [StoredProductImage, ...StoredProductImage[]]
+    readonly variants?: readonly StoredProductVariant[]
+  }
+  state?: ListingState
+}) {
+  await assertAdminAccess()
+
+  const productUpdate =
+    Object.keys(values).length > 0
+      ? db
+          .update(productTable)
+          .set({ ...values, updatedAt: new Date() })
+          .where(eq(productTable.id, productId))
+      : undefined
+  const listingUpdate = state
+    ? db
+        .update(productListing)
+        .set({ state, updatedAt: new Date() })
+        .where(eq(productListing.productId, productId))
+    : undefined
+
+  if (productUpdate && listingUpdate) {
+    await db.batch([productUpdate, listingUpdate])
+    return
+  }
+
+  await (productUpdate ?? listingUpdate)
+}
+
 export async function updateProductListingState({
   productIds,
   state,

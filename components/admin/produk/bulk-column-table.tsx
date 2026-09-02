@@ -1,4 +1,5 @@
 import { TABLE_EDGE } from "@/components/admin/admin-card"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -9,57 +10,42 @@ import {
 } from "@/components/ui/table"
 import {
   bulkColumnRequirement,
-  BULK_COLUMNS,
-  type BulkColumn,
-  type BulkColumnKey,
-} from "@/lib/admin/bulk"
+  bulkColumns,
+  type BulkColumnMode,
+} from "@/lib/admin/product-bulk/columns"
 import { cn } from "@/lib/utils"
 
-const EMPTY_CELL = "-"
-
-function columnClass(key: BulkColumnKey) {
-  return cn(TABLE_EDGE, BULK_COLUMNS[key].align === "end" && "text-right")
-}
-
-function BulkColumnTable({ columns }: { columns: readonly BulkColumn[] }) {
+function BulkColumnTable({ mode }: { mode: BulkColumnMode }) {
   return (
-    <div className="flex flex-col gap-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map(({ key, required }) => (
-              <TableHead
-                key={key}
-                className={cn(columnClass(key), "h-auto py-2 align-bottom")}
-              >
-                <span className="block">{BULK_COLUMNS[key].label}</span>
-                <span className="block text-xs font-normal text-muted-foreground">
-                  {bulkColumnRequirement(required)}
-                </span>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className={TABLE_EDGE}>Kolom</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className={TABLE_EDGE}>Keterangan</TableHead>
+        </TableRow>
+      </TableHeader>
 
-        <TableBody>
-          <TableRow className="hover:bg-transparent">
-            {columns.map(({ key }) => (
-              <TableCell
-                key={key}
-                className={cn(columnClass(key), "text-muted-foreground")}
-              >
-                {EMPTY_CELL}
-              </TableCell>
-            ))}
+      <TableBody>
+        {bulkColumns(mode).map((column) => (
+          <TableRow key={column.key} className="hover:bg-transparent">
+            <TableCell className={cn(TABLE_EDGE, "font-medium")}>
+              {column.label}
+            </TableCell>
+            <TableCell>
+              <Badge variant={column.required ? "default" : "outline"}>
+                {bulkColumnRequirement(column.required)}
+              </Badge>
+            </TableCell>
+            <TableCell
+              className={cn(TABLE_EDGE, "min-w-64 text-muted-foreground")}
+            >
+              {column.help}
+            </TableCell>
           </TableRow>
-        </TableBody>
-      </Table>
-
-      <p className="px-(--card-spacing) text-xs text-muted-foreground">
-        Belum ada file. Isi template sesuai kolom di atas, lalu unggah untuk
-        melihat pratinjau barisnya di sini.
-      </p>
-    </div>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 

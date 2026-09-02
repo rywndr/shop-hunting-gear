@@ -25,15 +25,15 @@ export const MAX_PRODUCT_IMAGES = 6
 export const MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 export const MAX_VARIANTS = 2
 export const MAX_VARIANT_OPTIONS = 12
-const MIN_PRICE = 100
-const MAX_PRICE = 500_000_000
+export const MIN_PRICE = 100
+export const MAX_PRICE = 500_000_000
 export const MAX_STOCK = 100_000
 export const MAX_WEIGHT = 1_000_000
-const MIN_NAME_LENGTH = 5
-const MAX_NAME_LENGTH = 150
-const MIN_DESCRIPTION_LENGTH = 30
-const MAX_DESCRIPTION_LENGTH = 2000
-const MAX_VARIANT_TEXT_LENGTH = 30
+export const MIN_NAME_LENGTH = 5
+export const MAX_NAME_LENGTH = 150
+export const MIN_DESCRIPTION_LENGTH = 30
+export const MAX_DESCRIPTION_LENGTH = 2000
+export const MAX_VARIANT_TEXT_LENGTH = 30
 
 const IMAGE_FORMATS = [
   { extension: "JPG", mime: "image/jpeg" },

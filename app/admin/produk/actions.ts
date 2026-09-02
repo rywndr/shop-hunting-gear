@@ -16,6 +16,7 @@ import {
   productSubmissionSchema,
 } from "@/lib/admin/product-submission"
 import { productEditFormSchema } from "@/lib/admin/product-form"
+import { productImageAlt } from "@/lib/products/identity"
 import type { StoredProductImage } from "@/lib/db/schema/product"
 import {
   deleteProductImages,
@@ -225,7 +226,7 @@ export async function editProductAction({
     for (const [index, reference] of submission.images.entries()) {
       const image = await resolveImage(
         reference,
-        `${values.data.name}, foto ${index + 1}`
+        productImageAlt({ name: values.data.name, index })
       )
       if (!image) throw new Error("Invalid product image reference.")
       images.push(image)
@@ -314,7 +315,7 @@ export async function editProductAction({
       try {
         await deleteProductImages([...uploadedObjectKeys])
       } catch {
-        // The original error is more useful to the caller.
+        // Keep the upload error instead of replacing it with a cleanup error.
       }
     }
     return {

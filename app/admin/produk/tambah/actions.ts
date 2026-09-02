@@ -1,6 +1,6 @@
 "use server"
 
-import { randomInt, randomUUID } from "node:crypto"
+import { randomUUID } from "node:crypto"
 import { revalidatePath } from "next/cache"
 
 import {
@@ -17,6 +17,12 @@ import {
   isProductSaveMode,
   type ProductImageDraft,
 } from "@/lib/admin/product-form"
+import {
+  descriptionParagraphs,
+  newProductId,
+  productImageAlt,
+  productSlug,
+} from "@/lib/products/identity"
 import { createProduct } from "@/lib/products/service"
 import {
   deleteProductImages,
@@ -39,32 +45,6 @@ export type CreateProductResult =
   | { readonly kind: "idle" }
   | { readonly kind: "error"; readonly message: string }
   | { readonly kind: "success"; readonly href: string }
-
-function slugify(name: string, suffix: string) {
-  const stem = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("id-ID")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-
-  return `${stem || "produk"}-${suffix}`
-}
-
-function productId() {
-  const randomSuffix = randomInt(1_000_000).toString().padStart(6, "0")
-  return `${Date.now()}${randomSuffix}`
-}
-
-function descriptionParagraphs(description: string): [string, ...string[]] {
-  const paragraphs = description
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-
-  const [first = description.trim(), ...others] = paragraphs
-  return [first, ...others]
-}
 
 function productFiles(formData: FormData) {
   return [...formData.values()].filter(
@@ -146,7 +126,7 @@ export async function createProductAction(
     return { kind: "error", message: "Ada format foto yang tidak didukung." }
   }
 
-  const id = productId()
+  const id = newProductId()
   const uploaded = new Map<File, StoredProductImage>()
   const uploadedObjectKeys = new Set<string>()
   let stage: ProductCreateStage = "upload"
@@ -158,7 +138,7 @@ export async function createProductAction(
       const stored = await uploadProductImage({
         id: imageId,
         productId: id,
-        alt: `${resolved.data.name}, foto ${index + 1}`,
+        alt: productImageAlt({ name: resolved.data.name, index }),
         mime: file.type,
         bytes: new Uint8Array(await file.arrayBuffer()),
       })
@@ -237,7 +217,7 @@ export async function createProductAction(
     stage = "database"
     await createProduct({
       id,
-      slug: slugify(resolved.data.name, id.slice(-8)),
+      slug: productSlug({ name: resolved.data.name, id }),
       name: resolved.data.name,
       category: resolved.data.category,
       description: descriptionParagraphs(resolved.data.description),

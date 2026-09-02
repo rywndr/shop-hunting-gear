@@ -1,12 +1,11 @@
-import { DownloadSimpleIcon } from "@phosphor-icons/react/ssr"
-
 import { AdminCard } from "@/components/admin/admin-card"
 import { AdminPage } from "@/components/admin/admin-page"
 import { BulkColumnTable } from "@/components/admin/produk/bulk-column-table"
+import { BulkDownloadButton } from "@/components/admin/produk/bulk-download-button"
 import { BulkFileDrop } from "@/components/admin/produk/bulk-file-drop"
+import { BulkGuideCard } from "@/components/admin/produk/bulk-guide-card"
 import { BulkStepToggle } from "@/components/admin/produk/bulk-step-toggle"
-import { Button } from "@/components/ui/button"
-import { BULK_STEPS, type BulkMode, type BulkStepKind } from "@/lib/admin/bulk"
+import type { BulkMode, BulkStepKind } from "@/lib/admin/bulk"
 
 function BulkStepCard({
   mode,
@@ -31,11 +30,22 @@ function BulkStepCards({ mode, step }: { mode: BulkMode; step: BulkStepKind }) {
   switch (step) {
     case "download":
       return (
-        <BulkStepCard mode={mode} step={step}>
-          <Button size="lg" className="w-full sm:w-auto">
-            {BULK_STEPS.download.label}
-          </Button>
-        </BulkStepCard>
+        <>
+          <BulkStepCard mode={mode} step={step}>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">
+                {mode.stepNotes.download}
+              </p>
+              <BulkDownloadButton mode={mode} />
+            </div>
+          </BulkStepCard>
+
+          <BulkGuideCard mode={mode.kind} />
+
+          <AdminCard title="Kolom File" contentClassName="px-0">
+            <BulkColumnTable mode={mode.kind} />
+          </AdminCard>
+        </>
       )
     case "upload":
       return (
@@ -45,12 +55,14 @@ function BulkStepCards({ mode, step }: { mode: BulkMode; step: BulkStepKind }) {
               <p className="text-sm text-muted-foreground">
                 {mode.stepNotes.upload}
               </p>
-              <BulkFileDrop />
+              <BulkFileDrop mode={mode} />
             </div>
           </BulkStepCard>
 
-          <AdminCard contentClassName="px-0">
-            <BulkColumnTable columns={mode.columns} />
+          <BulkGuideCard mode={mode.kind} />
+
+          <AdminCard title="Kolom File" contentClassName="px-0">
+            <BulkColumnTable mode={mode.kind} />
           </AdminCard>
         </>
       )

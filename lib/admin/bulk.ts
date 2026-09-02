@@ -1,8 +1,7 @@
 import type { Metadata } from "next"
 
-import type { Listing } from "@/lib/admin/catalog"
 import { adminSection } from "@/lib/admin/config"
-import type { Product } from "@/lib/products/config"
+import { XLSX_EXTENSION } from "@/lib/admin/product-bulk/limits"
 
 const CATALOG_HREF = adminSection("products").href
 
@@ -28,87 +27,43 @@ export function isBulkStep(value: unknown): value is BulkStepKind {
   return typeof value === "string" && Object.hasOwn(BULK_STEPS, value)
 }
 
-type ProductColumnKey = keyof Pick<
-  Product,
-  "name" | "category" | "price" | "compareAtPrice" | "stock" | "description"
->
-
-type ListingColumnKey = keyof Pick<Listing, "id" | "state">
-
-export type BulkColumnKey = ProductColumnKey | ListingColumnKey | "variant"
-
-export type BulkColumnMeta = {
-  readonly label: string
-  readonly align: "start" | "end"
-}
-
-export const BULK_COLUMNS = {
-  id: { label: "ID produk", align: "start" },
-  name: { label: "Nama produk", align: "start" },
-  category: { label: "Kategori", align: "start" },
-  variant: { label: "Varian", align: "start" },
-  price: { label: "Harga", align: "end" },
-  compareAtPrice: { label: "Diskon", align: "end" },
-  stock: { label: "Stok", align: "end" },
-  description: { label: "Deskripsi", align: "start" },
-  state: { label: "Status tayang", align: "start" },
-} as const satisfies Record<BulkColumnKey, BulkColumnMeta>
-
-export type BulkColumn = {
-  readonly key: BulkColumnKey
-  readonly required: boolean
-}
-
-export function bulkColumnRequirement(required: boolean) {
-  return required ? "Wajib" : "Opsional"
-}
-
 type BulkModeConfig = {
+  readonly kind: string
   readonly slug: string
   readonly label: string
   readonly description: string
+  readonly downloadLabel: string
+  readonly importLabel: string
   readonly stepNotes: Readonly<Record<BulkStepKind, string>>
-  readonly columns: readonly BulkColumn[]
 }
 
 export const BULK_MODES = {
   upload: {
+    kind: "upload",
     slug: "mass-upload",
     label: "Mass Upload",
     description: "Tambahkan banyak produk baru sekaligus dari satu file.",
+    downloadLabel: "Download Template",
+    importLabel: "Mulai Import",
     stepNotes: {
       download: "Isi satu baris template untuk setiap produk baru.",
       upload: "Setiap baris dalam file mewakili satu produk baru.",
     },
-    columns: [
-      { key: "name", required: true },
-      { key: "category", required: true },
-      { key: "variant", required: false },
-      { key: "price", required: true },
-      { key: "compareAtPrice", required: false },
-      { key: "stock", required: true },
-      { key: "description", required: true },
-    ],
   },
   update: {
+    kind: "update",
     slug: "mass-update",
     label: "Mass Update",
     description:
-      "Perbarui harga, stok, dan status tayang banyak produk sekaligus.",
+      "Perbarui harga, stok, berat, dan status tayang banyak produk sekaligus.",
+    downloadLabel: "Download Produk",
+    importLabel: "Mulai Update",
     stepNotes: {
       download:
-        "Template berisi produk yang sudah ada, ubah kolom yang perlu diperbarui.",
+        "File berisi produk yang sudah ada, ubah kolom yang perlu diperbarui.",
       upload:
         "ID produk menentukan produk yang diperbarui. Kolom kosong tidak mengubah data.",
     },
-    columns: [
-      { key: "id", required: true },
-      { key: "name", required: false },
-      { key: "variant", required: false },
-      { key: "price", required: false },
-      { key: "stock", required: false },
-      { key: "state", required: false },
-    ],
   },
 } as const satisfies Record<string, BulkModeConfig>
 
@@ -120,7 +75,33 @@ export const BULK_MODE_ORDER = [
   "update",
 ] as const satisfies readonly BulkModeKind[]
 
-export const BULK_FILE_FORMATS = [".xlsx", ".csv"] as const
+export function isBulkMode(value: unknown): value is BulkModeKind {
+  return typeof value === "string" && Object.hasOwn(BULK_MODES, value)
+}
+
+export const BULK_FILE_FORMATS = [XLSX_EXTENSION] as const
+
+export const BULK_IMPORT_FIELD = "file"
+
+const FILE_NAME_DATE = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Asia/Jakarta",
+})
+
+export function bulkFileName(mode: BulkModeKind) {
+  switch (mode) {
+    case "upload":
+      return `template-mass-upload-produk${XLSX_EXTENSION}`
+    case "update":
+      return `mass-update-produk-${FILE_NAME_DATE.format(new Date())}${XLSX_EXTENSION}`
+    default: {
+      const _exhaustive: never = mode
+      return _exhaustive
+    }
+  }
+}
 
 export function bulkHref({
   mode,
@@ -130,6 +111,14 @@ export function bulkHref({
   step: BulkStepKind
 }) {
   return `${CATALOG_HREF}/${mode.slug}/${step}`
+}
+
+export function bulkTemplateHref(mode: BulkMode) {
+  return `/api/admin/products/bulk/${mode.kind}/template`
+}
+
+export function bulkImportHref(mode: BulkMode) {
+  return `/api/admin/products/bulk/${mode.kind}/import`
 }
 
 export function bulkMetadata({
