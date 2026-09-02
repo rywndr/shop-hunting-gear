@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import type { CreateSnapPaymentInput } from "@/lib/payments/midtrans/schema"
-import type { ShippingCourierCode } from "@/lib/shipping/config"
+import type { RajaOngkirCourierCode } from "@/lib/shipping/config"
 
 type SnapTransaction = Extract<CreatePaymentResult, { readonly kind: "ready" }>
 
@@ -51,7 +51,7 @@ function SnapPaymentButton({
   browserConfig: MidtransBrowserConfig
   shipping:
     | {
-        readonly courier: ShippingCourierCode
+        readonly courier: RajaOngkirCourierCode
         readonly service: string
       }
     | undefined

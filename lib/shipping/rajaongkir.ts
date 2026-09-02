@@ -6,7 +6,7 @@ import { serverEnv } from "@/lib/env/server"
 import {
   isExcludedShippingService,
   SHIPPING_COURIERS,
-  type ShippingCourierCode,
+  type RajaOngkirCourierCode,
 } from "@/lib/shipping/config"
 import type { LocationLevel, ShippingLocation } from "@/lib/shipping/schema"
 
@@ -96,7 +96,7 @@ export async function rajaOngkirLocations({
   }))
 }
 
-function isShippingCourierCode(value: string): value is ShippingCourierCode {
+function isShippingCourierCode(value: string): value is RajaOngkirCourierCode {
   return SHIPPING_COURIERS.some((courier) => courier.code === value)
 }
 

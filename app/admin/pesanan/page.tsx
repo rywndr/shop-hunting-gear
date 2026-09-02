@@ -7,7 +7,7 @@ import { ManualOrderWizard } from "@/components/admin/pesanan/manual-order-wizar
 import { SalesOrderTable } from "@/components/admin/pesanan/sales-order-table"
 import { SalesOrderTableSkeleton } from "@/components/admin/pesanan/sales-order-table-skeleton"
 import { adminSection } from "@/lib/admin/config"
-import { salesOrderBuyers, salesOrderPage } from "@/lib/orders/service"
+import { manualOrderCustomers, salesOrderPage } from "@/lib/orders/service"
 import { storefrontProductData } from "@/lib/products/service"
 import { orderFilterFromTab, type OrderQueueFilter } from "@/lib/admin/orders"
 
@@ -34,12 +34,12 @@ function pageSize(value: string | undefined) {
 }
 
 async function ManualOrderAction() {
-  const [products, buyers] = await Promise.all([
+  const [products, customers] = await Promise.all([
     storefrontProductData(),
-    salesOrderBuyers(),
+    manualOrderCustomers(),
   ])
 
-  return <ManualOrderWizard buyers={buyers} products={products} />
+  return <ManualOrderWizard customers={customers} products={products} />
 }
 
 async function OrderTable({

@@ -66,6 +66,8 @@ export type PaymentStatus =
 export type FulfillmentStatus =
   "awaiting_payment" | "processing" | "shipped" | "completed" | "cancelled"
 
+export type OrderSourceKind = "cart" | "product" | "manual"
+
 export const ORDER_STATUS_ORDER = [
   "unpaid",
   "processing",
@@ -87,6 +89,7 @@ export type Order = {
   readonly status: OrderStatus
   readonly paymentStatus: PaymentStatus
   readonly fulfillmentStatus: FulfillmentStatus
+  readonly sourceKind: OrderSourceKind
   readonly placedAt: string
   readonly courier: string
   readonly shipping: number

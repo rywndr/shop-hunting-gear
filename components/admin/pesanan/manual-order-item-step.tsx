@@ -12,19 +12,21 @@ import {
   SelectField,
 } from "@/components/form/fields"
 import {
+  manualOrderCustomerLabel,
   manualOrderVariantOptions,
+  type ManualOrderCustomer,
   type ManualOrderProduct,
 } from "@/lib/admin/manual-order"
 
 type ManualOrderItemStepProps = {
-  buyers: readonly string[]
+  customers: readonly ManualOrderCustomer[]
   products: readonly ManualOrderProduct[]
   form: ManualOrderForm
   product: ManualOrderProduct | undefined
 }
 
 function ManualOrderItemStep({
-  buyers,
+  customers,
   products,
   form,
   product,
@@ -42,20 +44,23 @@ function ManualOrderItemStep({
     <div className="grid gap-4 sm:grid-cols-2">
       <Controller
         control={control}
-        name="buyer"
+        name="customerId"
         render={({ field }) => (
           <ComboboxField
-            id="manual-order-buyer"
+            id="manual-order-customer"
             label="Pelanggan"
             placeholder="Cari pelanggan"
             emptyText="Pelanggan tidak ditemukan."
-            options={buyers}
+            options={customers.map((customer) => ({
+              value: customer.id,
+              label: manualOrderCustomerLabel(customer),
+            }))}
             value={field.value}
             onValueChange={field.onChange}
             onBlur={field.onBlur}
             name={field.name}
             inputRef={field.ref}
-            error={fieldError(errors.buyer)}
+            error={fieldError(errors.customerId)}
           />
         )}
       />

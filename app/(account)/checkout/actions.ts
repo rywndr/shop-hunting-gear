@@ -253,6 +253,10 @@ export async function createPaymentAction(
       throw new Error("Payment order is no longer available.")
     }
 
+    if (!currentOrder.midtransCreateIdempotencyKey) {
+      throw new Error("No Midtrans create idempotency key.")
+    }
+
     if (currentOrder.snapToken) {
       if (
         currentOrder.paymentSessionExpiresAt !== null &&
@@ -281,7 +285,7 @@ export async function createPaymentAction(
     const grossAmount = cartSubtotal(items) + selectedShipping.cost
     const payment = await createSnapTransaction({
       orderId: localOrder.id,
-      idempotencyKey: localOrder.midtransCreateIdempotencyKey,
+      idempotencyKey: currentOrder.midtransCreateIdempotencyKey,
       grossAmount,
       items: [
         ...productDetails,

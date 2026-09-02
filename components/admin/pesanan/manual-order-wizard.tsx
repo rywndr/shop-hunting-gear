@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react"
 import { useForm, useWatch } from "react-hook-form"
@@ -25,6 +26,7 @@ import {
   MANUAL_ORDER_STEP_FIELDS,
   MANUAL_ORDER_STEP_ORDER,
   manualOrderSchema,
+  type ManualOrderCustomer,
   type ManualOrderInput,
   type ManualOrderProduct,
   type ManualOrderStep,
@@ -32,26 +34,33 @@ import {
 } from "@/lib/admin/manual-order"
 
 type ManualOrderWizardProps = {
-  buyers: readonly string[]
+  customers: readonly ManualOrderCustomer[]
   products: readonly ManualOrderProduct[]
 }
 
-function ManualOrderWizard({ buyers, products }: ManualOrderWizardProps) {
+function ManualOrderWizard({ customers, products }: ManualOrderWizardProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<ManualOrderStep>("item")
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
   const form = useForm<ManualOrderInput, unknown, ManualOrderValues>({
     resolver: zodResolver(manualOrderSchema),
     defaultValues: MANUAL_ORDER_DEFAULT_VALUES,
     mode: "onChange",
   })
   const values = useWatch({ control: form.control })
+  const customer = customers.find(({ id }) => id === values.customerId)
   const product = products.find(({ slug }) => slug === values.productSlug)
   const stepIndex = MANUAL_ORDER_STEP_ORDER.indexOf(step)
 
   function handleOpenChange(nextOpen: boolean) {
+    if (pending) return
+
     setOpen(nextOpen)
     if (!nextOpen) {
       setStep("item")
+      setError(null)
       form.reset(MANUAL_ORDER_DEFAULT_VALUES)
     }
   }
@@ -67,6 +76,25 @@ function ManualOrderWizard({ buyers, products }: ManualOrderWizardProps) {
   function goBack() {
     const previousStep = MANUAL_ORDER_STEP_ORDER[stepIndex - 1]
     if (previousStep) setStep(previousStep)
+  }
+
+  function submit(submitted: ManualOrderValues) {
+    setError(null)
+    startTransition(async () => {
+      const { createManualOrderAction } =
+        await import("@/app/admin/pesanan/actions")
+      const result = await createManualOrderAction(submitted)
+
+      if (result.kind === "error") {
+        setError(result.message)
+        return
+      }
+
+      setOpen(false)
+      setStep("item")
+      form.reset(MANUAL_ORDER_DEFAULT_VALUES)
+      router.refresh()
+    })
   }
 
   return (
@@ -86,10 +114,10 @@ function ManualOrderWizard({ buyers, products }: ManualOrderWizardProps) {
 
         <ManualOrderStepList current={step} />
 
-        <form onSubmit={form.handleSubmit(() => {})} className="grid gap-5">
+        <form onSubmit={form.handleSubmit(submit)} className="grid gap-5">
           {step === "item" && (
             <ManualOrderItemStep
-              buyers={buyers}
+              customers={customers}
               products={products}
               form={form}
               product={product}
@@ -97,21 +125,42 @@ function ManualOrderWizard({ buyers, products }: ManualOrderWizardProps) {
           )}
           {step === "shipping" && <ManualOrderShippingStep form={form} />}
           {step === "review" && (
-            <ManualOrderReviewStep values={values} product={product} />
+            <ManualOrderReviewStep
+              values={values}
+              customer={customer}
+              product={product}
+            />
+          )}
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
           )}
 
           <DialogFooter className="sm:flex-wrap">
-            <DialogClose render={<Button type="button" variant="outline" />}>
+            <DialogClose
+              render={
+                <Button type="button" variant="outline" disabled={pending} />
+              }
+            >
               Batal
             </DialogClose>
             {stepIndex > 0 && (
-              <Button type="button" variant="outline" onClick={goBack}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goBack}
+                disabled={pending}
+              >
                 <ArrowLeftIcon data-icon="inline-start" />
                 Kembali
               </Button>
             )}
             {step === "review" ? (
-              <Button type="submit">Buat pesanan</Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Membuat..." : "Buat pesanan"}
+              </Button>
             ) : (
               <Button type="button" onClick={goForward}>
                 Lanjut

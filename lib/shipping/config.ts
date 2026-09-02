@@ -10,7 +10,14 @@ export const SHIPPING_COURIERS = [
   { code: "pos", label: "POS Indonesia", logoSrc: "/logos/pos-indo.svg" },
 ] as const
 
-export type ShippingCourierCode = (typeof SHIPPING_COURIERS)[number]["code"]
+export type RajaOngkirCourierCode = (typeof SHIPPING_COURIERS)[number]["code"]
+
+// Store managed shipping is excluded from RajaOngkir quotes.
+export const MANUAL_SHIPPING_COURIER = "manual"
+
+export type ShippingCourierCode =
+  | RajaOngkirCourierCode
+  | typeof MANUAL_SHIPPING_COURIER
 
 export function shippingOptionId({
   courier,

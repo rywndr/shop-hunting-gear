@@ -1,5 +1,6 @@
 import { ALL_FILTER } from "@/lib/admin/config"
 import type { Order, OrderStatus, OrderStatusMeta } from "@/lib/orders/config"
+import { isRevenuePaymentStatus } from "@/lib/payments/midtrans/reconciliation"
 
 type BadgeVariant = OrderStatusMeta["badge"]
 
@@ -38,6 +39,30 @@ export type SalesOrder = {
 
 export function salesOrderQueue({ order }: SalesOrder): OrderQueue {
   return QUEUE_BY_STATUS[order.status]
+}
+
+type OrderState = Pick<Order, "paymentStatus" | "fulfillmentStatus">
+
+export function canMarkOrderPaid({
+  sourceKind,
+  paymentStatus,
+  fulfillmentStatus,
+}: OrderState & Pick<Order, "sourceKind">) {
+  return (
+    sourceKind === "manual" &&
+    fulfillmentStatus === "awaiting_payment" &&
+    (paymentStatus === "pending" || paymentStatus === "authorized")
+  )
+}
+
+export function canMarkOrderCompleted({
+  paymentStatus,
+  fulfillmentStatus,
+}: OrderState) {
+  return (
+    isRevenuePaymentStatus(paymentStatus) &&
+    (fulfillmentStatus === "processing" || fulfillmentStatus === "shipped")
+  )
 }
 
 export type OrderQueueFilter = typeof ALL_FILTER | OrderQueue

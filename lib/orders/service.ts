@@ -14,10 +14,11 @@ import {
   notInArray,
   or,
   sql,
+  type SQL,
 } from "drizzle-orm"
 
 import { canAccessAdmin, getCurrentSession } from "@/lib/auth/session"
-import type { CartItem } from "@/lib/cart/config"
+import type { CartItem, CartVariant } from "@/lib/cart/config"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import { db } from "@/lib/db/client"
 import {
@@ -28,11 +29,20 @@ import {
 import { user } from "@/lib/db/schema/auth"
 import type { Address } from "@/lib/account/types"
 import { ALL_FILTER } from "@/lib/admin/config"
-import type {
-  OrderQueue,
-  OrderQueueFilter,
-  SalesOrder,
+import {
+  canMarkOrderPaid,
+  type OrderQueue,
+  type OrderQueueFilter,
+  type SalesOrder,
 } from "@/lib/admin/orders"
+import {
+  manualOrderDeliveryMethod,
+  manualOrderSchema,
+  manualOrderVariantSelection,
+  MANUAL_ORDER_PICKUP_ADDRESS,
+  type ManualOrderCustomer,
+  type ManualOrderInput,
+} from "@/lib/admin/manual-order"
 import type { Transaction } from "@/lib/admin/finance"
 import type {
   MidtransStatusResponse,
@@ -46,11 +56,14 @@ import {
 } from "@/lib/payments/midtrans/reconciliation"
 import { midtransIdempotencyKey } from "@/lib/payments/midtrans/client"
 import { snapSessionExpiresAt } from "@/lib/payments/midtrans/config"
+import { storefrontProductDataBySlug } from "@/lib/products/service"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 import {
+  type FulfillmentStatus,
   type Order,
   type OrderItem,
+  type OrderSourceKind,
   type OrderStatus,
   type PaymentStatus,
 } from "./config"
@@ -223,6 +236,7 @@ function orderFromRow({
     status,
     paymentStatus: order.paymentStatus,
     fulfillmentStatus: order.fulfillmentStatus,
+    sourceKind: order.sourceKind,
     placedAt: order.placedAt.toISOString(),
     courier: `${order.shippingCourierName} ${order.shippingService}`,
     shipping: order.shippingCost,
@@ -364,34 +378,57 @@ export function checkoutKeyForOrder(input: CreateUnpaidOrderInput) {
   return checkoutFingerprint(input)
 }
 
-function requestedProductValues(items: readonly CreateOrderItem[]) {
+function requestedProductValues(
+  items: readonly { readonly productSlug: string; readonly quantity: number }[]
+) {
   const quantities = new Map<string, number>()
 
   for (const item of items) {
     quantities.set(
-      item.product.slug,
-      (quantities.get(item.product.slug) ?? 0) + item.quantity
+      item.productSlug,
+      (quantities.get(item.productSlug) ?? 0) + item.quantity
     )
   }
 
   return [...quantities.entries()]
 }
 
-async function insertLocalOrder({
+type InsertOrderItem = {
+  readonly productSlug: string
+  readonly name: string
+  readonly variants: readonly CartVariant[]
+  readonly quantity: number
+  readonly price: number
+  readonly cartItemId: string | null
+}
+
+async function insertOrderWithReservations({
   orderId,
+  userId,
+  sourceKind,
   checkoutKey,
   createIdempotencyKey,
-  userId,
-  source,
   items,
   shipping,
   address,
   grossAmount,
-}: CreateUnpaidOrderInput & {
+  adminNote,
+}: {
   readonly orderId: string
-  readonly checkoutKey: string
-  readonly createIdempotencyKey: string
+  readonly userId: string
+  readonly sourceKind: OrderSourceKind
+  readonly checkoutKey: string | null
+  readonly createIdempotencyKey: string | null
+  readonly items: readonly InsertOrderItem[]
+  readonly shipping: {
+    readonly courier: ShippingCourierCode
+    readonly courierName: string
+    readonly service: string
+    readonly cost: number
+  }
+  readonly address: OrderAddressSnapshot
   readonly grossAmount: number
+  readonly adminNote: string | null
 }) {
   const requestedProducts = requestedProductValues(items)
   const productValues = sql.join(
@@ -403,17 +440,16 @@ async function insertLocalOrder({
   const itemValues = sql.join(
     items.map((item) => {
       const itemId = randomUUID()
-      const cartItemId = source.kind === "cart" ? item.id : null
 
       return sql`(
         ${itemId},
         ${orderId},
-        ${item.product.slug},
-        ${item.product.name},
+        ${item.productSlug},
+        ${item.name},
         ${JSON.stringify(item.variants)}::jsonb,
         ${item.quantity}::integer,
-        ${item.product.price}::integer,
-        ${cartItemId}
+        ${item.price}::integer,
+        ${item.cartItemId}
       )`
     }),
     sql`, `
@@ -454,6 +490,7 @@ async function insertLocalOrder({
         checkout_key,
         midtrans_create_idempotency_key,
         source_kind,
+        admin_note,
         shipping_courier,
         shipping_courier_name,
         shipping_service,
@@ -469,13 +506,14 @@ async function insertLocalOrder({
         'pending',
         ${checkoutKey},
         ${createIdempotencyKey},
-        ${source.kind},
+        ${sourceKind},
+        ${adminNote},
         ${shipping.courier},
         ${shipping.courierName},
         ${shipping.service},
         ${shipping.cost},
         ${grossAmount},
-        ${JSON.stringify(addressSnapshot(address))}::jsonb
+        ${JSON.stringify(address)}::jsonb
       FROM ready
       RETURNING id
     ),
@@ -557,6 +595,43 @@ async function insertLocalOrder({
   }
 
   return row.id
+}
+
+async function insertLocalOrder({
+  orderId,
+  checkoutKey,
+  createIdempotencyKey,
+  userId,
+  source,
+  items,
+  shipping,
+  address,
+  grossAmount,
+}: CreateUnpaidOrderInput & {
+  readonly orderId: string
+  readonly checkoutKey: string
+  readonly createIdempotencyKey: string
+  readonly grossAmount: number
+}) {
+  return insertOrderWithReservations({
+    orderId,
+    userId,
+    sourceKind: source.kind,
+    checkoutKey,
+    createIdempotencyKey,
+    items: items.map((item) => ({
+      productSlug: item.product.slug,
+      name: item.product.name,
+      variants: item.variants,
+      quantity: item.quantity,
+      price: item.product.price,
+      cartItemId: source.kind === "cart" ? item.id : null,
+    })),
+    shipping,
+    address: addressSnapshot(address),
+    grossAmount,
+    adminNote: null,
+  })
 }
 
 export async function paymentOrderForId(
@@ -791,8 +866,7 @@ export async function markPaymentInitializationStarted({
     )
 }
 
-// A retryable create response is ambiguous. Midtrans may have created a
-// transaction even when this request did not return its token.
+// A timed-out request may have created a Midtrans transaction without returning its token.
 export async function markPaymentInitializationRetryableFailure({
   userId,
   orderId,
@@ -980,21 +1054,29 @@ function paymentColumnAssignments(payment: MidtransStatusResponse) {
   `
 }
 
-async function settlePaymentAtomically({
-  payment,
-}: {
-  readonly payment: MidtransStatusResponse
-}): Promise<AtomicPaymentMutationResult> {
-  const paidAt =
-    providerDate(payment.settlement_time) ??
-    providerDate(payment.transaction_time) ??
-    new Date()
+type AtomicSettlementResult = AtomicPaymentMutationResult & {
+  readonly fulfillment_status: FulfillmentStatus | null
+  readonly source_kind: OrderSourceKind | null
+  readonly inventory_ready: boolean | null
+}
 
-  const result = await db.execute<AtomicPaymentMutationResult>(sql`
+// Settles webhook and counter payments in one statement so stock changes run once.
+async function settleOrderPaymentAtomically({
+  orderId,
+  paidAt,
+  providerAssignments,
+  eligibility,
+}: {
+  readonly orderId: string
+  readonly paidAt: Date
+  readonly providerAssignments: SQL
+  readonly eligibility: SQL
+}): Promise<AtomicSettlementResult> {
+  const result = await db.execute<AtomicSettlementResult>(sql`
     WITH locked_order AS MATERIALIZED (
-      SELECT id, user_id, payment_status, fulfillment_status
+      SELECT id, user_id, payment_status, fulfillment_status, source_kind
       FROM customer_order
-      WHERE id = ${payment.order_id}
+      WHERE id = ${orderId}
       FOR UPDATE
     ),
     released_totals AS MATERIALIZED (
@@ -1018,6 +1100,7 @@ async function settlePaymentAtomically({
       SELECT locked_order.id, locked_order.user_id
       FROM locked_order
       WHERE locked_order.payment_status NOT IN (${revenuePaymentStatusValues()})
+        ${eligibility}
         AND NOT EXISTS (
           SELECT 1
           FROM released_totals AS released
@@ -1030,7 +1113,7 @@ async function settlePaymentAtomically({
     transitioned AS (
       UPDATE customer_order AS current_order
       SET
-        ${paymentColumnAssignments(payment)},
+        ${providerAssignments},
         payment_status = 'paid',
         fulfillment_status = CASE
           WHEN current_order.fulfillment_status IN ('awaiting_payment', 'cancelled')
@@ -1116,10 +1199,50 @@ async function settlePaymentAtomically({
     )
     SELECT
       (SELECT count(*)::integer FROM transitioned) AS transitioned,
-      (SELECT payment_status FROM locked_order) AS payment_status
+      (SELECT payment_status FROM locked_order) AS payment_status,
+      (SELECT fulfillment_status FROM locked_order) AS fulfillment_status,
+      (SELECT source_kind FROM locked_order) AS source_kind,
+      (
+        SELECT NOT EXISTS (
+          SELECT 1
+          FROM released_totals AS released
+          LEFT JOIN locked_products
+            ON locked_products.slug = released.product_slug
+          WHERE locked_products.slug IS NULL
+            OR locked_products.stock < released.quantity
+        )
+      ) AS inventory_ready
   `)
 
-  return atomicPaymentMutationResult(result.rows)
+  const [row] = result.rows
+
+  return (
+    row ?? {
+      transitioned: 0,
+      payment_status: null,
+      fulfillment_status: null,
+      source_kind: null,
+      inventory_ready: null,
+    }
+  )
+}
+
+async function settlePaymentAtomically({
+  payment,
+}: {
+  readonly payment: MidtransStatusResponse
+}): Promise<AtomicPaymentMutationResult> {
+  const paidAt =
+    providerDate(payment.settlement_time) ??
+    providerDate(payment.transaction_time) ??
+    new Date()
+
+  return settleOrderPaymentAtomically({
+    orderId: payment.order_id,
+    paidAt,
+    providerAssignments: paymentColumnAssignments(payment),
+    eligibility: sql``,
+  })
 }
 
 async function recordPaymentAtomically({
@@ -1636,17 +1759,250 @@ export async function salesOrderPage({
   return { orders: groupOrders(rows), counts, total }
 }
 
-export async function salesOrderBuyers(): Promise<readonly string[]> {
+const CUSTOMER_ROLE = "user"
+
+export async function manualOrderCustomers(): Promise<
+  readonly ManualOrderCustomer[]
+> {
   await assertAdminAccess()
 
-  const rows = await db
-    .select({ buyer: user.name })
+  return db
+    .select({ id: user.id, name: user.name, email: user.email })
     .from(user)
-    .innerJoin(customerOrder, eq(customerOrder.userId, user.id))
-    .groupBy(user.name)
-    .orderBy(asc(user.name))
+    .where(eq(user.role, CUSTOMER_ROLE))
+    .orderBy(asc(user.name), asc(user.id))
+}
 
-  return rows.map(({ buyer }) => buyer)
+async function manualOrderCustomerById(customerId: string) {
+  const [row] = await db
+    .select({ id: user.id, name: user.name, email: user.email })
+    .from(user)
+    .where(and(eq(user.id, customerId), eq(user.role, CUSTOMER_ROLE)))
+    .limit(1)
+
+  return row ?? null
+}
+
+export type ManualOrderRejection =
+  | "invalid-input"
+  | "unknown-customer"
+  | "unknown-product"
+  | "unknown-variant"
+  | "insufficient-stock"
+
+export type ManualOrderCreationResult =
+  | { readonly kind: "created"; readonly orderId: string }
+  | { readonly kind: "rejected"; readonly reason: ManualOrderRejection }
+
+export async function createManualOrder(
+  input: ManualOrderInput
+): Promise<ManualOrderCreationResult> {
+  await assertAdminAccess()
+
+  return createManualOrderRecord(input)
+}
+
+// Core mutation without an authorization check. `createManualOrder` is the
+// authorized entry point; only tests call this directly.
+export async function createManualOrderRecord(
+  input: ManualOrderInput
+): Promise<ManualOrderCreationResult> {
+  const parsed = manualOrderSchema.safeParse(input)
+
+  if (!parsed.success) return { kind: "rejected", reason: "invalid-input" }
+
+  const values = parsed.data
+  const delivery = manualOrderDeliveryMethod(values.deliveryMethod)
+
+  if (!delivery) return { kind: "rejected", reason: "invalid-input" }
+
+  const [customer, product] = await Promise.all([
+    manualOrderCustomerById(values.customerId),
+    storefrontProductDataBySlug(values.productSlug),
+  ])
+
+  if (!customer) return { kind: "rejected", reason: "unknown-customer" }
+  if (!product) return { kind: "rejected", reason: "unknown-product" }
+
+  const selection = manualOrderVariantSelection({
+    product,
+    variant: values.variant,
+  })
+
+  if (!selection) return { kind: "rejected", reason: "unknown-variant" }
+  if (values.quantity > product.stock) {
+    return { kind: "rejected", reason: "insufficient-stock" }
+  }
+
+  const shippingCost = delivery.requiresAddress ? values.shippingCost : 0
+  const grossAmount = product.price * values.quantity + shippingCost
+  const orderId = `HG-${randomUUID()}`
+
+  try {
+    await insertOrderWithReservations({
+      orderId,
+      userId: customer.id,
+      sourceKind: "manual",
+      checkoutKey: null,
+      createIdempotencyKey: null,
+      items: [
+        {
+          productSlug: product.slug,
+          name: product.name,
+          variants: selection.variants,
+          quantity: values.quantity,
+          price: product.price,
+          cartItemId: null,
+        },
+      ],
+      shipping: {
+        courier: delivery.courier,
+        courierName: delivery.courierName,
+        service: delivery.service,
+        cost: shippingCost,
+      },
+      address: {
+        recipient: values.recipient,
+        phone: values.phone,
+        street: delivery.requiresAddress
+          ? values.address
+          : MANUAL_ORDER_PICKUP_ADDRESS,
+        province: "",
+        city: "",
+        district: "",
+        subdistrict: "",
+        postalCode: "",
+      },
+      grossAmount,
+      adminNote: values.note === "" ? null : values.note,
+    })
+  } catch (error) {
+    if (error instanceof InventoryUnavailableError) {
+      return { kind: "rejected", reason: "insufficient-stock" }
+    }
+
+    throw error
+  }
+
+  return { kind: "created", orderId }
+}
+
+export type ManualPaymentResult =
+  | { readonly kind: "settled" }
+  | { readonly kind: "already-paid" }
+  | { readonly kind: "not-eligible" }
+  | { readonly kind: "not-manual" }
+  | { readonly kind: "inventory-unavailable" }
+
+export async function markOrderPaidManually(
+  orderId: string
+): Promise<ManualPaymentResult> {
+  await assertAdminAccess()
+
+  return settleManualOrderPayment(orderId)
+}
+
+// Core mutation without an authorization check. `markOrderPaidManually` is the
+// authorized entry point; only tests call this directly.
+export async function settleManualOrderPayment(
+  orderId: string
+): Promise<ManualPaymentResult> {
+  const mutation = await settleOrderPaymentAtomically({
+    orderId,
+    paidAt: new Date(),
+    // A counter payment has no provider transaction, so it writes no Midtrans
+    // columns. Provider-backed orders stay under Midtrans control.
+    providerAssignments: sql`updated_at = now()`,
+    eligibility: sql`
+      AND locked_order.source_kind = 'manual'
+      AND locked_order.fulfillment_status = 'awaiting_payment'
+      AND locked_order.payment_status IN ('pending', 'authorized')
+    `,
+  })
+
+  if (mutation.transitioned > 0) return { kind: "settled" }
+  if (
+    mutation.payment_status === null ||
+    mutation.fulfillment_status === null ||
+    mutation.source_kind === null
+  ) {
+    throw new UnknownOrderError(orderId)
+  }
+  if (mutation.source_kind !== "manual") return { kind: "not-manual" }
+  if (isRevenuePaymentStatus(mutation.payment_status)) {
+    return { kind: "already-paid" }
+  }
+  if (
+    !canMarkOrderPaid({
+      sourceKind: mutation.source_kind,
+      paymentStatus: mutation.payment_status,
+      fulfillmentStatus: mutation.fulfillment_status,
+    })
+  ) {
+    return { kind: "not-eligible" }
+  }
+
+  return mutation.inventory_ready === false
+    ? { kind: "inventory-unavailable" }
+    : { kind: "not-eligible" }
+}
+
+export type OrderCompletionResult =
+  | { readonly kind: "completed" }
+  | { readonly kind: "already-completed" }
+  | { readonly kind: "not-eligible" }
+
+export async function markOrderCompleted(
+  orderId: string
+): Promise<OrderCompletionResult> {
+  await assertAdminAccess()
+
+  return completeOrderFulfillment(orderId)
+}
+
+// Core mutation without an authorization check. `markOrderCompleted` is the
+// authorized entry point; only tests call this directly.
+export async function completeOrderFulfillment(
+  orderId: string
+): Promise<OrderCompletionResult> {
+  const result = await db.execute<{
+    readonly transitioned: number
+    readonly payment_status: PaymentStatus | null
+    readonly fulfillment_status: FulfillmentStatus | null
+  }>(sql`
+    WITH locked_order AS MATERIALIZED (
+      SELECT id, payment_status, fulfillment_status
+      FROM customer_order
+      WHERE id = ${orderId}
+      FOR UPDATE
+    ),
+    transitioned AS (
+      UPDATE customer_order AS current_order
+      SET
+        fulfillment_status = 'completed',
+        updated_at = now()
+      FROM locked_order
+      WHERE current_order.id = locked_order.id
+        AND locked_order.payment_status IN (${revenuePaymentStatusValues()})
+        AND locked_order.fulfillment_status IN ('processing', 'shipped')
+      RETURNING current_order.id
+    )
+    SELECT
+      (SELECT count(*)::integer FROM transitioned) AS transitioned,
+      (SELECT payment_status FROM locked_order) AS payment_status,
+      (SELECT fulfillment_status FROM locked_order) AS fulfillment_status
+  `)
+  const [row] = result.rows
+
+  if (!row || row.payment_status === null || row.fulfillment_status === null) {
+    throw new UnknownOrderError(orderId)
+  }
+  if (row.transitioned > 0) return { kind: "completed" }
+  if (row.fulfillment_status === "completed") {
+    return { kind: "already-completed" }
+  }
+
+  return { kind: "not-eligible" }
 }
 
 export async function salesOrders(): Promise<readonly SalesOrder[]> {
@@ -1679,7 +2035,7 @@ function transactionFromRows({
       order.midtransTransactionTime ??
       paidAt
     ).toISOString(),
-    method: "midtrans",
+    method: order.sourceKind === "manual" ? "manual" : "midtrans",
     items: orderView.items,
     shipping: order.shippingCost,
     discount: 0,

@@ -2,12 +2,18 @@
 
 import { TABLE_EDGE } from "@/components/admin/admin-card"
 import { CopyIdButton } from "@/components/admin/copy-id-button"
+import { MarkOrderCompletedDialog } from "@/components/admin/pesanan/mark-order-completed-dialog"
 import { MarkOrderPaidDialog } from "@/components/admin/pesanan/mark-order-paid-dialog"
 import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
-import { salesOrderQueue, type SalesOrder } from "@/lib/admin/orders"
+import {
+  canMarkOrderCompleted,
+  canMarkOrderPaid,
+  salesOrderQueue,
+  type SalesOrder,
+} from "@/lib/admin/orders"
 import { orderTotal, type Order } from "@/lib/orders/config"
 import { cn } from "@/lib/utils"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
@@ -104,8 +110,11 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
 
       <TableCell className={cn(TABLE_EDGE, "text-right align-top")}>
         <div className="flex flex-col items-end gap-2">
-          {order.status === "unpaid" && (
+          {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
+          )}
+          {canMarkOrderCompleted(order) && (
+            <MarkOrderCompletedDialog orderId={order.id} />
           )}
           <Button
             variant="outline"

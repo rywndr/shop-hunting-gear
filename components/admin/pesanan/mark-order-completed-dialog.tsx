@@ -9,13 +9,14 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
+function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,9 +32,9 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
   function confirm() {
     setError(null)
     startTransition(async () => {
-      const { markOrderPaidAction } =
+      const { markOrderCompletedAction } =
         await import("@/app/admin/pesanan/actions")
-      const result = await markOrderPaidAction(orderId)
+      const result = await markOrderCompletedAction(orderId)
 
       if (result.kind === "error") {
         setError(result.message)
@@ -47,13 +48,16 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size="sm" />}>
-        Tandai dibayar
+      <DialogTrigger render={<Button size="sm" variant="secondary" />}>
+        Tandai selesai
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tandai pesanan sudah dibayar?</DialogTitle>
+          <DialogTitle>Tandai pesanan selesai?</DialogTitle>
+          <DialogDescription>
+            Gunakan ini setelah barang diterima atau diambil pelanggan di toko.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-5">
@@ -69,7 +73,7 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
 
             <div className="flex shrink-0 items-center gap-2 text-xs">
               <span className="text-muted-foreground">Status baru</span>
-              <OrderQueueBadge queue="toShip" />
+              <OrderQueueBadge queue="completed" />
             </div>
           </div>
 
@@ -85,7 +89,7 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
             Batal
           </DialogClose>
           <Button type="button" onClick={confirm} disabled={pending}>
-            {pending ? "Menyimpan..." : "Konfirmasi sudah dibayar"}
+            {pending ? "Menyimpan..." : "Tandai selesai"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -93,4 +97,4 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
   )
 }
 
-export { MarkOrderPaidDialog }
+export { MarkOrderCompletedDialog }

@@ -505,6 +505,7 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
             : status === "cancelled"
               ? "cancelled"
               : status,
+        sourceKind: "cart",
         placedAt: `${date}T${PLACED_TIME}`,
         courier,
         shipping,

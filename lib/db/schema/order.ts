@@ -11,14 +11,16 @@ import {
 } from "drizzle-orm/pg-core"
 
 import type { CartVariant } from "@/lib/cart/config"
-import type { FulfillmentStatus, PaymentStatus } from "@/lib/orders/config"
+import type {
+  FulfillmentStatus,
+  OrderSourceKind,
+  PaymentStatus,
+} from "@/lib/orders/config"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 import { user } from "./auth"
 import { cartItem } from "./cart"
 import { product } from "./product"
-
-export type OrderSourceKind = "cart" | "product"
 
 export type OrderAddressSnapshot = {
   readonly recipient: string
@@ -51,10 +53,10 @@ export const customerOrder = pgTable(
       .default("pending")
       .notNull(),
     checkoutKey: text("checkout_key"),
-    midtransCreateIdempotencyKey: text(
-      "midtrans_create_idempotency_key"
-    ).notNull(),
+    // Manual orders do not use Midtrans idempotency keys.
+    midtransCreateIdempotencyKey: text("midtrans_create_idempotency_key"),
     sourceKind: text("source_kind").$type<OrderSourceKind>().notNull(),
+    adminNote: text("admin_note"),
     shippingCourier: text("shipping_courier")
       .$type<ShippingCourierCode>()
       .notNull(),
@@ -132,7 +134,11 @@ export const customerOrder = pgTable(
     ),
     check(
       "customerOrder_source_kind_valid",
-      sql`${table.sourceKind} in ('cart', 'product')`
+      sql`${table.sourceKind} in ('cart', 'product', 'manual')`
+    ),
+    check(
+      "customerOrder_create_idempotency_key_required",
+      sql`${table.sourceKind} = 'manual' or ${table.midtransCreateIdempotencyKey} is not null`
     ),
     check(
       "customerOrder_shipping_cost_nonnegative",

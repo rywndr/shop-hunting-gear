@@ -1,20 +1,27 @@
-import type {
-  ManualOrderInput,
-  ManualOrderProduct,
+import {
+  manualOrderCustomerLabel,
+  manualOrderDeliveryMethod,
+  type ManualOrderCustomer,
+  type ManualOrderInput,
+  type ManualOrderProduct,
 } from "@/lib/admin/manual-order"
 import { formatRupiah } from "@/utils/format/intl"
 
 type ManualOrderReviewStepProps = {
   values: Partial<ManualOrderInput>
+  customer: ManualOrderCustomer | undefined
   product: ManualOrderProduct | undefined
 }
 
 function ManualOrderReviewStep({
   values,
+  customer,
   product,
 }: ManualOrderReviewStepProps) {
   const quantity = Number(values.quantity) || 0
-  const shippingCost = Number(values.shippingCost) || 0
+  const delivery = manualOrderDeliveryMethod(values.deliveryMethod ?? "")
+  const requiresAddress = delivery?.requiresAddress ?? true
+  const shippingCost = requiresAddress ? Number(values.shippingCost) || 0 : 0
   const subtotal = (product?.price ?? 0) * quantity
 
   return (
@@ -22,7 +29,9 @@ function ManualOrderReviewStep({
       <div className="grid gap-3 border border-border p-4 sm:grid-cols-2">
         <div>
           <p className="text-xs text-muted-foreground">Pelanggan</p>
-          <p className="font-medium">{values.buyer}</p>
+          <p className="font-medium">
+            {customer ? manualOrderCustomerLabel(customer) : "-"}
+          </p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Barang</p>
@@ -38,9 +47,11 @@ function ManualOrderReviewStep({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Pengiriman</p>
-          <p className="font-medium">{values.courier}</p>
+          <p className="font-medium">{delivery?.label}</p>
           <p className="text-sm whitespace-pre-line text-muted-foreground">
-            {values.address}
+            {requiresAddress
+              ? values.address
+              : "Diambil pelanggan di toko, tanpa nomor resi."}
           </p>
         </div>
       </div>
@@ -63,8 +74,8 @@ function ManualOrderReviewStep({
       </dl>
 
       <p className="text-xs text-muted-foreground">
-        Tombol pembuatan pesanan belum mengirim data karena backend belum
-        tersambung.
+        Pesanan dibuat dengan status Belum Bayar. Tandai sudah dibayar setelah
+        pembayaran diterima.
       </p>
     </div>
   )

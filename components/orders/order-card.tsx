@@ -79,6 +79,8 @@ function OrderCard({
 }) {
   const { primaryAction, returnAction, secondaryAction } =
     ORDER_STATUSES[order.status]
+  const awaitsManualPayment =
+    order.status === "unpaid" && order.sourceKind === "manual"
 
   return (
     <Card size="sm" className={cn(FLAT_CARD, "gap-0 py-0")}>
@@ -126,7 +128,13 @@ function OrderCard({
           </span>
         </p>
 
-        <div className="ms-auto flex flex-wrap gap-2">
+        <div className="ms-auto flex flex-wrap items-center gap-2">
+          {awaitsManualPayment && (
+            <p className="text-xs text-muted-foreground">
+              Pesanan dibuat oleh admin. Selesaikan pembayaran di toko, lalu
+              admin menandai pesanan ini sudah dibayar.
+            </p>
+          )}
           {order.status === "unpaid" ? (
             <CancelOrderButton orderId={order.id} />
           ) : (
@@ -146,6 +154,7 @@ function OrderCard({
               token={order.paymentToken}
             />
           ) : (
+            !awaitsManualPayment &&
             primaryAction && (
               <Button type="button" className="h-10">
                 {primaryAction}

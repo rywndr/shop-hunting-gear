@@ -12,14 +12,22 @@ import {
   TextareaField,
   TextField,
 } from "@/components/form/fields"
-import { COURIER_OPTIONS } from "@/lib/admin/manual-order"
+import {
+  manualOrderRequiresAddress,
+  MANUAL_ORDER_DELIVERY_OPTIONS,
+} from "@/lib/admin/manual-order"
 
 function ManualOrderShippingStep({ form }: { form: ManualOrderForm }) {
   const {
     control,
+    clearErrors,
     register,
+    setValue,
+    watch,
     formState: { errors },
   } = form
+  const deliveryMethod = watch("deliveryMethod")
+  const requiresAddress = manualOrderRequiresAddress(deliveryMethod)
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -40,31 +48,28 @@ function ManualOrderShippingStep({ form }: { form: ManualOrderForm }) {
         {...register("phone")}
         error={fieldError(errors.phone)}
       />
-      <div className="sm:col-span-2">
-        <TextareaField
-          id="manual-order-address"
-          label="Alamat lengkap"
-          autoComplete="street-address"
-          placeholder="Nama jalan, nomor, RT/RW, kelurahan, kecamatan, kota, provinsi, dan kode pos"
-          {...register("address")}
-          error={fieldError(errors.address)}
-        />
-      </div>
       <Controller
         control={control}
-        name="courier"
+        name="deliveryMethod"
         render={({ field }) => (
           <SelectField
-            id="manual-order-courier"
-            label="Kurir"
-            placeholder="Pilih kurir"
-            options={COURIER_OPTIONS}
+            id="manual-order-delivery-method"
+            label="Metode pengiriman"
+            placeholder="Pilih metode pengiriman"
+            options={MANUAL_ORDER_DELIVERY_OPTIONS}
             value={field.value}
-            onValueChange={field.onChange}
+            onValueChange={(value) => {
+              field.onChange(value)
+
+              if (!manualOrderRequiresAddress(value)) {
+                setValue("shippingCost", 0, { shouldDirty: true })
+                clearErrors(["shippingCost", "address"])
+              }
+            }}
             onBlur={field.onBlur}
             name={field.name}
             inputRef={field.ref}
-            error={fieldError(errors.courier)}
+            error={fieldError(errors.deliveryMethod)}
           />
         )}
       />
@@ -75,9 +80,31 @@ function ManualOrderShippingStep({ form }: { form: ManualOrderForm }) {
         min={0}
         step={1000}
         {...register("shippingCost")}
+        disabled={!requiresAddress}
         error={fieldError(errors.shippingCost)}
-        description="Isi 0 jika pengiriman gratis."
+        description={
+          requiresAddress
+            ? "Isi 0 jika pengiriman gratis."
+            : "Pengambilan di toko tidak dikenai ongkos kirim."
+        }
       />
+      {requiresAddress ? (
+        <div className="sm:col-span-2">
+          <TextareaField
+            id="manual-order-address"
+            label="Alamat lengkap"
+            autoComplete="street-address"
+            placeholder="Nama jalan, nomor, RT/RW, kelurahan, kecamatan, kota, provinsi, dan kode pos"
+            {...register("address")}
+            error={fieldError(errors.address)}
+          />
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground sm:col-span-2">
+          Pelanggan mengambil barang langsung di toko, jadi alamat pengiriman
+          tidak diperlukan.
+        </p>
+      )}
       <div className="sm:col-span-2">
         <TextareaField
           id="manual-order-note"
