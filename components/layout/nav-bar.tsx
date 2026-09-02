@@ -13,11 +13,13 @@ const SEARCH_CLASS = "order-last w-full md:order-none md:w-64 lg:w-72"
 async function NavBar({
   className,
   search = true,
+  personalized = true,
 }: {
   className?: string
   search?: boolean
+  personalized?: boolean
 }) {
-  const session = await getCurrentSession()
+  const session = personalized ? await getCurrentSession() : null
   const isAdmin = canAccessAdmin(session)
 
   return (

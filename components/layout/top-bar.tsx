@@ -6,8 +6,14 @@ import { getCurrentSession } from "@/lib/auth/session"
 import { ACCOUNT_LINKS, SITE } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
-async function TopBar({ className }: { className?: string }) {
-  const session = await getCurrentSession()
+async function TopBar({
+  className,
+  personalized = true,
+}: {
+  className?: string
+  personalized?: boolean
+}) {
+  const session = personalized ? await getCurrentSession() : null
 
   return (
     <div className={cn("text-navbar-foreground/70", className)}>
@@ -25,7 +31,7 @@ async function TopBar({ className }: { className?: string }) {
           <span>{SITE.phone.display}</span>
         </a>
 
-        {!session && (
+        {personalized && !session && (
           <nav
             aria-label="Akun"
             className="flex items-center gap-2 text-navbar-foreground"

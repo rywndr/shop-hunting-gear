@@ -10,12 +10,24 @@ type ShellChrome = {
   readonly sticky: boolean
   readonly search: boolean
   readonly categories: boolean
+  readonly personalized: boolean
 }
 
 const SHELL_VARIANTS = {
-  browse: { sticky: true, search: true, categories: true },
-  product: { sticky: true, search: true, categories: false },
-  account: { sticky: false, search: false, categories: false },
+  browse: { sticky: true, search: true, categories: true, personalized: true },
+  product: { sticky: true, search: true, categories: false, personalized: true },
+  account: {
+    sticky: false,
+    search: false,
+    categories: false,
+    personalized: true,
+  },
+  notFound: {
+    sticky: true,
+    search: true,
+    categories: false,
+    personalized: false,
+  },
 } as const satisfies Record<string, ShellChrome>
 
 type SiteShellVariant = keyof typeof SHELL_VARIANTS
@@ -36,8 +48,8 @@ function SiteShell({ children, variant }: SiteShellProps) {
           chrome.sticky && "sticky top-0 z-20"
         )}
       >
-        <TopBar />
-        <NavBar search={chrome.search} />
+        <TopBar personalized={chrome.personalized} />
+        <NavBar search={chrome.search} personalized={chrome.personalized} />
         {chrome.categories && (
           <Suspense>
             <CategoryBar className="absolute inset-x-0 top-full" />
