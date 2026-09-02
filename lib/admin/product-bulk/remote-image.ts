@@ -1,12 +1,21 @@
 import "server-only"
 
+import {
+  lookup as dnsLookup,
+  type LookupAddress,
+  type LookupAllOptions,
+  type LookupOneOptions,
+} from "node:dns"
 import { lookup } from "node:dns/promises"
+import { request as httpsRequest } from "node:https"
 import { isIP } from "node:net"
+import { Readable } from "node:stream"
 import sharp from "sharp"
 
 import { type ProductImageMime } from "@/lib/products/storage"
 
 import {
+  megabytes,
   MAX_IMAGE_BYTES,
   MAX_REDIRECTS,
   REMOTE_IMAGE_TIMEOUT_MS,
@@ -283,13 +292,107 @@ export function parseRemoteImageUrl(value: string) {
   return { url, hostname }
 }
 
+export type RemoteImageResponse = {
+  readonly status: number
+  readonly location: string | null
+  readonly body: ReadableStream<Uint8Array> | null
+}
+
 export type RemoteImageTransport = {
-  readonly fetch: typeof globalThis.fetch
+  readonly request: (
+    url: URL,
+    signal: AbortSignal
+  ) => Promise<RemoteImageResponse>
   readonly resolve: (hostname: string) => Promise<readonly string[]>
 }
 
+class BlockedAddressError extends Error {
+  constructor() {
+    super("Remote product image address is not allowed.")
+    this.name = "BlockedAddressError"
+  }
+}
+
+/** Node can wrap a socket error in `cause` or in an AggregateError. */
+export function isBlockedAddressError(error: unknown): boolean {
+  if (error instanceof BlockedAddressError) {
+    return true
+  }
+
+  if (error instanceof AggregateError) {
+    return error.errors.some(isBlockedAddressError)
+  }
+
+  return error instanceof Error && error.cause !== undefined
+    ? isBlockedAddressError(error.cause)
+    : false
+}
+
+/**
+ * Screens the addresses inside the resolver the socket actually uses, so a
+ * rebinding answer cannot slip between the check and the connection.
+ */
+export function guardedLookup(
+  hostname: string,
+  options: LookupOneOptions | LookupAllOptions,
+  callback: (
+    error: NodeJS.ErrnoException | null,
+    address: string | LookupAddress[],
+    family?: number
+  ) => void
+) {
+  dnsLookup(hostname, { ...options, all: true }, (error, addresses) => {
+    if (error) {
+      callback(error, "", 0)
+      return
+    }
+
+    if (
+      addresses.length === 0 ||
+      addresses.some(({ address }) => isBlockedAddress(address))
+    ) {
+      callback(new BlockedAddressError(), "", 0)
+      return
+    }
+
+    if (options.all === true) {
+      callback(null, addresses)
+      return
+    }
+
+    const [first] = addresses
+    callback(null, first.address, first.family)
+  })
+}
+
+function nodeRequest(url: URL, signal: AbortSignal) {
+  return new Promise<RemoteImageResponse>((resolve, rejectRequest) => {
+    const request = httpsRequest(
+      url,
+      {
+        method: "GET",
+        headers: { accept: "image/*" },
+        lookup: guardedLookup,
+        signal,
+      },
+      (response) => {
+        const location = response.headers.location
+
+        resolve({
+          status: response.statusCode ?? 0,
+          location: typeof location === "string" ? location : null,
+          body: Readable.toWeb(response) as ReadableStream<Uint8Array>,
+        })
+      }
+    )
+
+    request.on("error", rejectRequest)
+    request.end()
+  })
+}
+
 const DEFAULT_TRANSPORT: RemoteImageTransport = {
-  fetch: (...args) => globalThis.fetch(...args),
+  request: nodeRequest,
   resolve: async (hostname) =>
     (await lookup(hostname, { all: true })).map(({ address }) => address),
 }
@@ -358,6 +461,10 @@ async function readCappedBody(body: ReadableStream<Uint8Array>) {
   return bytes
 }
 
+async function drain(body: ReadableStream<Uint8Array> | null) {
+  await body?.cancel().catch(() => undefined)
+}
+
 async function fetchFollowingRedirects({
   value,
   transport,
@@ -371,37 +478,36 @@ async function fetchFollowingRedirects({
     const { url, hostname } = parseRemoteImageUrl(target)
     await assertPublicHostname({ hostname, transport })
 
-    let response: Response
+    let response: RemoteImageResponse
 
     try {
-      response = await transport.fetch(url, {
-        method: "GET",
-        redirect: "manual",
-        cache: "no-store",
-        signal: AbortSignal.timeout(REMOTE_IMAGE_TIMEOUT_MS),
-        headers: { Accept: "image/*" },
-      })
+      response = await transport.request(
+        url,
+        AbortSignal.timeout(REMOTE_IMAGE_TIMEOUT_MS)
+      )
     } catch (error) {
-      return reject("unreachable", error)
+      return reject(
+        isBlockedAddressError(error) ? "blocked-address" : "unreachable",
+        error
+      )
     }
 
     if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location")
-      await response.body?.cancel().catch(() => undefined)
+      await drain(response.body)
 
-      if (!location) {
+      if (!response.location) {
         throw new RemoteImageError({
           failure: "http-error",
           status: response.status,
         })
       }
 
-      target = new URL(location, url).toString()
+      target = new URL(response.location, url).toString()
       continue
     }
 
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined)
+    if (response.status < 200 || response.status >= 300) {
+      await drain(response.body)
       throw new RemoteImageError({
         failure: "http-error",
         status: response.status,
@@ -480,9 +586,7 @@ export function remoteImageMessage({
         ? `${image} tidak dapat diunduh.`
         : `Server gambar mengembalikan HTTP ${error.status} untuk ${image}.`
     case "too-large":
-      return `${image} melebihi batas ukuran ${Math.floor(
-        MAX_IMAGE_BYTES / (1024 * 1024)
-      )} MB.`
+      return `${image} melebihi batas ukuran ${megabytes(MAX_IMAGE_BYTES)} MB.`
     case "unsupported-format":
       return `Format ${image} tidak didukung.`
     default: {

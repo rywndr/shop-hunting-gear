@@ -1,8 +1,4 @@
-import {
-  isListingState,
-  LISTING_STATES,
-  type ListingState,
-} from "@/lib/admin/catalog"
+import { LISTING_STATES, type ListingState } from "@/lib/admin/catalog"
 import { CATEGORIES, type CategorySlug } from "@/lib/site/config"
 
 export const IMAGE_COLUMN_KEYS = [
@@ -54,9 +50,22 @@ export const CATEGORY_CHOICES = CATEGORIES.map(({ slug, label }) => ({
   label,
 })) satisfies readonly BulkColumnChoice[]
 
-export const STATE_CHOICES = Object.entries(LISTING_STATES).map(
-  ([value, { label }]) => ({ value, label })
-) satisfies readonly BulkColumnChoice[]
+/**
+ * Deleting and restoring stay in the catalog console, so the workbook never
+ * offers "deleted" as a target state and never resurrects a deleted product.
+ */
+export const BULK_STATES = [
+  "active",
+  "inactive",
+  "draft",
+] as const satisfies readonly ListingState[]
+
+export type BulkState = (typeof BULK_STATES)[number]
+
+export const STATE_CHOICES = BULK_STATES.map((value) => ({
+  value,
+  label: LISTING_STATES[value].label,
+})) satisfies readonly BulkColumnChoice[]
 
 export const CLEAR_VALUE = "-"
 
@@ -256,17 +265,12 @@ export function categoryFromCell(value: string): CategorySlug | undefined {
   return undefined
 }
 
-export function listingStateFromCell(value: string): ListingState | undefined {
+export function listingStateFromCell(value: string): BulkState | undefined {
   const normalized = value.trim().toLowerCase()
 
-  for (const [state, { label }] of Object.entries(LISTING_STATES)) {
-    if (
-      isListingState(state) &&
-      (state === normalized || label.toLowerCase() === normalized)
-    ) {
-      return state
-    }
-  }
-
-  return undefined
+  return BULK_STATES.find(
+    (state) =>
+      state === normalized ||
+      LISTING_STATES[state].label.toLowerCase() === normalized
+  )
 }

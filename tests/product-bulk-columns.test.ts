@@ -8,7 +8,12 @@ import {
   UPDATE_COLUMNS,
   UPLOAD_COLUMNS,
 } from "../lib/admin/product-bulk/columns"
-import { MAX_IMAGES } from "../lib/admin/product-bulk/limits"
+import { MAX_PRODUCT_IMAGE_BYTES } from "../lib/admin/product-form"
+import {
+  megabytes,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGES,
+} from "../lib/admin/product-bulk/limits"
 import { mapHeaderRow } from "../lib/admin/product-bulk/parser"
 import { exportText, importText } from "../lib/admin/product-bulk/workbook"
 
@@ -126,4 +131,18 @@ test("exported cells leave ordinary text untouched", () => {
     assert.equal(exportText(value), value)
     assert.equal(importText(value), value)
   }
+})
+
+test("the status column offers only states a workbook may set", () => {
+  const state = bulkColumns("update").find((column) => column.key === "state")
+
+  assert.deepEqual(
+    state?.choices?.map(({ value }) => value),
+    ["active", "inactive", "draft"]
+  )
+})
+
+test("the remote image limit reuses the product form limit", () => {
+  assert.equal(MAX_IMAGE_BYTES, MAX_PRODUCT_IMAGE_BYTES)
+  assert.equal(megabytes(MAX_IMAGE_BYTES), 5)
 })

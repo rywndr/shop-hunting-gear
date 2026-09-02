@@ -16,7 +16,11 @@ import {
   BULK_IMPORT_FIELD,
   type BulkMode,
 } from "@/lib/admin/bulk"
-import { MAX_XLSX_BYTES, XLSX_EXTENSION } from "@/lib/admin/product-bulk/limits"
+import {
+  megabytes,
+  MAX_XLSX_BYTES,
+  XLSX_EXTENSION,
+} from "@/lib/admin/product-bulk/limits"
 import {
   bulkImportErrorSchema,
   bulkImportSummarySchema,
@@ -25,7 +29,7 @@ import {
 import { cn } from "@/lib/utils"
 import { formatNumber } from "@/utils/format/intl"
 
-const MAX_MEGABYTES = Math.floor(MAX_XLSX_BYTES / (1024 * 1024))
+const MAX_MEGABYTES = megabytes(MAX_XLSX_BYTES)
 
 type ImportState =
   | { readonly kind: "idle" }
@@ -54,10 +58,10 @@ function stateLabel(state: ImportState) {
 }
 
 function formatFileSize(bytes: number) {
-  const megabytes = bytes / (1024 * 1024)
+  const size = bytes / (1024 * 1024)
 
-  return megabytes >= 1
-    ? `${formatNumber(Math.round(megabytes * 10) / 10)} MB`
+  return size >= 1
+    ? `${formatNumber(Math.round(size * 10) / 10)} MB`
     : `${formatNumber(Math.max(1, Math.round(bytes / 1024)))} KB`
 }
 

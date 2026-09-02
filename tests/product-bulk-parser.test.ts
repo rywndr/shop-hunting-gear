@@ -269,3 +269,14 @@ test("update rows require the first image slot when a gallery is replaced", () =
 
   assert.equal(result?.kind, "invalid")
 })
+
+test("update rows reject deleted as a target status", () => {
+  for (const value of ["deleted", "Dihapus"]) {
+    const result = updateRow({ state: value })
+
+    assert.equal(result?.kind, "invalid", value)
+    if (result?.kind === "invalid") {
+      assert.match(result.message, /tidak dikenal/)
+    }
+  }
+})

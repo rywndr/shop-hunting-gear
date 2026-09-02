@@ -3,7 +3,11 @@ import { z } from "zod"
 import { canAccessAdmin } from "@/lib/auth/session"
 import { getRequestSession } from "@/lib/auth/request"
 import { BULK_IMPORT_FIELD, isBulkMode } from "@/lib/admin/bulk"
-import { MAX_XLSX_BYTES, XLSX_EXTENSION } from "@/lib/admin/product-bulk/limits"
+import {
+  megabytes,
+  MAX_XLSX_BYTES,
+  XLSX_EXTENSION,
+} from "@/lib/admin/product-bulk/limits"
 import { runBulkImport } from "@/lib/admin/product-bulk/runner"
 
 const paramsSchema = z.object({
@@ -55,9 +59,7 @@ export async function POST(
   if (file.size > MAX_XLSX_BYTES) {
     return Response.json(
       {
-        error: `Ukuran file maksimal ${Math.floor(
-          MAX_XLSX_BYTES / (1024 * 1024)
-        )} MB.`,
+        error: `Ukuran file maksimal ${megabytes(MAX_XLSX_BYTES)} MB.`,
       },
       { status: 413 }
     )

@@ -2,10 +2,12 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import sharp from "sharp"
 
-import { MAX_IMAGE_BYTES } from "../lib/admin/product-bulk/limits"
+import { megabytes, MAX_IMAGE_BYTES } from "../lib/admin/product-bulk/limits"
 import {
   fetchRemoteImage,
+  guardedLookup,
   isBlockedAddress,
+  isBlockedAddressError,
   parseRemoteImageUrl,
   remoteImageMessage,
   RemoteImageError,
@@ -24,7 +26,15 @@ function transport({
   addresses?: readonly string[]
 }): RemoteImageTransport {
   return {
-    fetch: async (input) => handler(new URL(String(input))),
+    request: async (url) => {
+      const response = await handler(url)
+
+      return {
+        status: response.status,
+        location: response.headers.get("location"),
+        body: response.body,
+      }
+    },
     resolve: async () => addresses,
   }
 }
@@ -353,7 +363,7 @@ test("image failures read as Indonesian row messages", () => {
     "URL Gambar 1 tidak valid.",
     "URL Gambar 1 mengarah ke alamat yang tidak diizinkan.",
     "Gambar 1 tidak dapat diunduh.",
-    "Gambar 1 melebihi batas ukuran 10 MB.",
+    `Gambar 1 melebihi batas ukuran ${megabytes(MAX_IMAGE_BYTES)} MB.`,
     "Format Gambar 1 tidak didukung.",
     "URL Gambar 1 punya terlalu banyak pengalihan.",
   ])
@@ -385,4 +395,46 @@ test("a url without a file extension still reaches the byte check", async () => 
   )
 
   assert.equal(image.mime, "image/jpeg")
+})
+
+test("the connect-time resolver rejects a hostname that maps to loopback", async () => {
+  const error = await new Promise<unknown>((resolve) => {
+    guardedLookup("localhost", { all: false }, (lookupError) =>
+      resolve(lookupError)
+    )
+  })
+
+  assert.equal(isBlockedAddressError(error), true)
+})
+
+test("the connect-time resolver passes a public address through", async () => {
+  const result = await new Promise<{ error: unknown; address: unknown }>(
+    (resolve) => {
+      guardedLookup("8.8.8.8", { all: false }, (error, address) =>
+        resolve({ error, address })
+      )
+    }
+  )
+
+  assert.equal(result.error, null)
+  assert.equal(result.address, "8.8.8.8")
+})
+
+test("a rebinding socket error maps to a blocked address row error", async () => {
+  const failure = await failureOf(() =>
+    fetchRemoteImage(URL_UNDER_TEST, {
+      resolve: async () => [PUBLIC_ADDRESS],
+      request: async () => {
+        const error = await new Promise<unknown>((resolve) => {
+          guardedLookup("localhost", { all: false }, (lookupError) =>
+            resolve(lookupError)
+          )
+        })
+
+        throw new AggregateError([error], "connect failed")
+      },
+    })
+  )
+
+  assert.equal(failure, "blocked-address")
 })

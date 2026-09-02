@@ -11,7 +11,7 @@ import {
   STATE_CHOICES,
   type BulkColumnMode,
 } from "./columns"
-import { MAX_IMAGES, MAX_ROWS } from "./limits"
+import { megabytes, MAX_IMAGE_BYTES, MAX_IMAGES, MAX_ROWS } from "./limits"
 import { serializeVariants, VARIANT_FORMAT_HINT } from "./variant"
 
 const EXAMPLE_VARIANTS = [
@@ -63,6 +63,7 @@ const SHARED_SECTIONS = [
     lines: [
       `Kategori yang diterima: ${CATEGORY_HINT}.`,
       `Status tayang yang diterima: ${STATE_HINT}.`,
+      "Menghapus dan memulihkan produk hanya dapat dilakukan dari halaman Produk.",
     ],
   },
   {
@@ -70,6 +71,7 @@ const SHARED_SECTIONS = [
     lines: [
       `Maksimal ${MAX_IMAGES} URL foto per produk, harus HTTPS dan dapat diakses publik.`,
       `Format foto yang didukung: ${IMAGE_FORMAT_HINT}.`,
+      `Ukuran tiap foto maksimal ${megabytes(MAX_IMAGE_BYTES)} MB.`,
       "Isi URL Gambar berurutan mulai dari slot 1, jangan melewati slot.",
       "URL Gambar 1 menjadi foto utama produk.",
       "Foto diunduh lalu disimpan ulang ke penyimpanan toko, jadi URL asal boleh dihapus setelah import.",
@@ -114,7 +116,7 @@ const UPDATE_SECTIONS = [
       "Sel kosong berarti nilai lama dipertahankan, bukan nol dan bukan teks kosong.",
       `Isi ${CLEAR_VALUE} pada Harga Coret / Diskon untuk menghapus harga coret.`,
       "Baris tanpa perubahan dilaporkan sebagai dilewati.",
-      "Produk berstatus Dihapus tidak dapat diperbarui. Pulihkan dulu dari halaman Produk.",
+      "Produk yang sudah dihapus tidak dapat diperbarui. Pulihkan dulu dari halaman Produk.",
     ],
   },
   ...SHARED_SECTIONS,
@@ -198,5 +200,5 @@ export const BULK_GUIDE_NOTES = [
   `Kategori: ${CATEGORY_HINT}.`,
   `Status tayang: ${STATE_HINT}.`,
   "Berat dalam gram, angka bulat tanpa Rp atau titik.",
-  `Format foto: ${IMAGE_FORMAT_HINT}.`,
+  `Format foto: ${IMAGE_FORMAT_HINT}, maksimal ${megabytes(MAX_IMAGE_BYTES)} MB per foto.`,
 ] as const satisfies readonly string[]
