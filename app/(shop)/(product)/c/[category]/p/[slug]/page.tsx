@@ -23,9 +23,8 @@ import { formatRating, formatRupiah } from "@/utils/format/intl"
 
 export const revalidate = 21600
 
-export async function generateStaticParams() {
-  const products = await storefrontProducts()
-  return products.map(({ category, slug }) => ({ category, slug }))
+export function generateStaticParams() {
+  return []
 }
 
 export async function generateMetadata({
