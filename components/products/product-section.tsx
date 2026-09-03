@@ -19,13 +19,14 @@ function ProductSection({
 }: ProductSectionProps) {
   return (
     <section
-      aria-labelledby={id}
+      id={id}
+      aria-labelledby={`${id}-heading`}
       className={cn("flex scroll-mt-24 flex-col gap-4", className)}
     >
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <div className="flex min-w-0 flex-col gap-1">
           <h2
-            id={id}
+            id={`${id}-heading`}
             className="font-heading text-lg font-bold tracking-tight uppercase sm:text-xl"
           >
             {title}

@@ -62,8 +62,8 @@ export function isSectionActive({
   return href === ADMIN_ROOT ? pathname === href : pathname.startsWith(href)
 }
 
-const ADMIN_LINK = {
-  label: "Admin",
+export const ADMIN_LINK = {
+  label: "Konsol Admin",
   href: ADMIN_ROOT,
 } as const satisfies NavLink
 

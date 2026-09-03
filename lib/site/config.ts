@@ -78,6 +78,10 @@ export const SITE = {
     display: "0812-3456-7890",
     href: "tel:+6281234567890",
   },
+  whatsapp: {
+    display: "0812-3456-7890",
+    href: "https://wa.me/6281234567890",
+  },
   email: {
     display: "info@hunting-gear.net",
     href: "mailto:halo@hunting-gear.net",
@@ -93,6 +97,7 @@ export const SITE = {
   logo: { src: string; width: number; height: number }
   socialImage: { src: string; width: number; height: number; alt: string }
   phone: ContactLink
+  whatsapp: ContactLink
   email: ContactLink
 }
 
@@ -166,14 +171,21 @@ export const AUTH_SHOWCASE = {
   body: string
 }
 
+export const MARKETPLACE_LINKS = [
+  { label: "Tokopedia", href: "#" },
+  { label: "Shopee", href: "#" },
+  { label: "Lazada", href: "#" },
+  { label: "Blibli", href: "#" },
+] as const satisfies readonly NavLink[]
+
 export const ACCOUNT_LINKS = [
   { label: "Masuk", href: AUTH_ROUTES.signIn },
   { label: "Daftar", href: AUTH_ROUTES.register },
 ] as const satisfies readonly NavLink[]
 
 export const USER_LINKS = {
-  account: { label: "Akun", href: "/akun" },
-  history: { label: "History", href: "/history" },
+  account: { label: "Akun Saya", href: "/akun" },
+  history: { label: "Pesanan", href: "/history" },
   logout: { label: "Keluar", href: "/keluar" },
 } as const satisfies Record<string, NavLink>
 

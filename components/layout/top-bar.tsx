@@ -34,7 +34,7 @@ async function TopBar({
         {personalized && !session && (
           <nav
             aria-label="Akun"
-            className="flex items-center gap-2 text-navbar-foreground"
+            className="hidden items-center gap-2 text-navbar-foreground md:flex"
           >
             {ACCOUNT_LINKS.map((link) => (
               <Link

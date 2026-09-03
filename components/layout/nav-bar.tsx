@@ -3,20 +3,16 @@ import { Suspense } from "react"
 import { AccountMenu } from "@/components/layout/account-menu"
 import { BrandLogo } from "@/components/layout/brand-logo"
 import { CartSheet } from "@/components/layout/cart-sheet"
+import { GuestAccountMenu } from "@/components/layout/guest-account-menu"
 import { MobileNav } from "@/components/layout/mobile-nav"
-import { SearchForm } from "@/components/layout/search-form"
 import { accountMenuLinks } from "@/lib/admin/config"
 import { canAccessAdmin, getCurrentSession } from "@/lib/auth/session"
 
-const SEARCH_CLASS = "order-last w-full md:order-none md:w-64 lg:w-72"
-
 async function NavBar({
   className,
-  search = true,
   personalized = true,
 }: {
   className?: string
-  search?: boolean
   personalized?: boolean
 }) {
   const session = personalized ? await getCurrentSession() : null
@@ -24,20 +20,34 @@ async function NavBar({
 
   return (
     <div className={className}>
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3 md:gap-x-4 md:pt-0 md:pb-3">
+      <div className="relative mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 md:gap-4">
         <Suspense fallback={<div aria-hidden className="size-10 md:hidden" />}>
-          <MobileNav className="md:hidden" />
+          <MobileNav
+            accountState={
+              personalized
+                ? session
+                  ? isAdmin
+                    ? "admin"
+                    : "authenticated"
+                  : "guest"
+                : "hidden"
+            }
+            className="md:hidden"
+          />
         </Suspense>
-        <BrandLogo className="mr-auto md:-mt-6" />
-        {search && (
-          <Suspense
-            fallback={<div aria-hidden className={`h-10 ${SEARCH_CLASS}`} />}
-          >
-            <SearchForm className={SEARCH_CLASS} />
-          </Suspense>
+        <BrandLogo
+          layout="inline"
+          className="absolute left-1/2 -translate-x-1/2 md:static md:mr-auto md:translate-x-0"
+        />
+        {session ? (
+          <AccountMenu
+            links={accountMenuLinks(isAdmin)}
+            className="hidden md:inline-flex"
+          />
+        ) : (
+          personalized && <GuestAccountMenu className="hidden md:block" />
         )}
-        <CartSheet />
-        {session && <AccountMenu links={accountMenuLinks(isAdmin)} />}
+        <CartSheet className="ml-auto md:ml-0" />
       </div>
     </div>
   )

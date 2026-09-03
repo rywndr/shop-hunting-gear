@@ -69,7 +69,10 @@ function CartSheet({ className }: CartSheetProps) {
         )}
       </SheetTrigger>
 
-      <SheetContent side="right">
+      <SheetContent
+        side="right"
+        className="bg-secondary text-secondary-foreground"
+      >
         <SheetHeader>
           <SheetTitle>Keranjang</SheetTitle>
           <SheetDescription>

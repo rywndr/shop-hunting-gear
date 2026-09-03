@@ -5,15 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UserCircleIcon } from "@phosphor-icons/react"
 
-import { ThemeToggleMenuItem } from "@/components/layout/theme-toggle"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth/client"
 import { USER_LINKS, type NavLink } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
@@ -42,50 +34,46 @@ function AccountMenu({
   }
 
   return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            aria-label="Menu akun"
-            className={cn(
-              "text-navbar-foreground hover:bg-navbar-foreground/10 hover:text-navbar-foreground",
-              className
-            )}
-          />
-        }
+    <div className={cn("group relative", className)}>
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        aria-label="Menu akun"
+        className="text-navbar-foreground hover:bg-navbar-foreground/10 hover:text-navbar-foreground"
       >
         <UserCircleIcon className="size-6" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-auto border border-navbar-border bg-navbar-accent text-navbar-accent-foreground"
-      >
-        {links.map((link) =>
-          link.href === USER_LINKS.logout.href ? (
-            <DropdownMenuItem
-              key={link.href}
-              disabled={signingOut}
-              onClick={signOut}
-              className="focus:bg-navbar-foreground/10 focus:text-navbar-foreground"
-            >
-              {signingOut ? "Keluar..." : link.label}
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem
-              key={link.href}
-              render={<Link href={link.href} />}
-              className="focus:bg-navbar-foreground/10 focus:text-navbar-foreground"
-            >
-              {link.label}
-            </DropdownMenuItem>
-          )
-        )}
-        <DropdownMenuSeparator className="bg-navbar-border" />
-        <ThemeToggleMenuItem className="focus:bg-navbar-foreground/10 focus:text-navbar-foreground focus:**:text-navbar-foreground!" />
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </Button>
+
+      <div className="invisible absolute top-full left-1/2 z-30 w-48 -translate-x-1/2 pt-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className="border border-border bg-secondary p-5 text-secondary-foreground shadow-lg">
+          <nav aria-label="Tautan akun">
+            <ul className="space-y-1">
+              {links
+                .filter((link) => link.href !== USER_LINKS.logout.href)
+                .map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="block px-2 py-2 text-sm transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </nav>
+
+          <button
+            type="button"
+            disabled={signingOut}
+            onClick={signOut}
+            className="mt-8 px-2 text-sm font-medium underline underline-offset-4 disabled:opacity-50"
+          >
+            {signingOut ? "Keluar..." : "Keluar"}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
