@@ -4,6 +4,7 @@ import test from "node:test"
 import {
   canPrintShippingLabel,
   canShipOrder,
+  canTrackOrder,
   shippingLabelHref,
 } from "../lib/admin/orders"
 import { normalizeTracking, trackingSchema } from "../lib/admin/shipment"
@@ -71,6 +72,57 @@ test("only an open fulfillment without a resi may be shipped", () => {
   }
   assert.equal(
     canShipOrder({ ...PAID_TO_SHIP, tracking: "JP1234567890" }),
+    false
+  )
+})
+
+test("tracking is shown only for shipped supported-courier orders", () => {
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "shipped",
+      tracking: "JP1234567890",
+      shipping: NORMAL_SHIPPING,
+    }),
+    true
+  )
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "completed",
+      tracking: "JP1234567890",
+      shipping: NORMAL_SHIPPING,
+    }),
+    true
+  )
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "processing",
+      tracking: "JP1234567890",
+      shipping: NORMAL_SHIPPING,
+    }),
+    false
+  )
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "shipped",
+      tracking: "JP1234567890",
+      shipping: { courier: "sicepat", service: "REG" },
+    }),
+    false
+  )
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "shipped",
+      tracking: "JP1234567890",
+      shipping: { courier: "manual", service: "Pickup" },
+    }),
+    false
+  )
+  assert.equal(
+    canTrackOrder({
+      fulfillmentStatus: "shipped",
+      tracking: "bad",
+      shipping: NORMAL_SHIPPING,
+    }),
     false
   )
 })

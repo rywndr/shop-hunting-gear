@@ -6,6 +6,7 @@ import {
   GaugeIcon,
   PackageIcon,
   ReceiptIcon,
+  TruckIcon,
   WalletIcon,
   type Icon,
 } from "@phosphor-icons/react"
@@ -29,6 +30,7 @@ import {
 const SECTION_ICONS = {
   dashboard: GaugeIcon,
   orders: ReceiptIcon,
+  tracking: TruckIcon,
   products: PackageIcon,
   finance: WalletIcon,
 } satisfies Record<AdminSection, Icon>

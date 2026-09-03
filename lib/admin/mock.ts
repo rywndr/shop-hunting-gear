@@ -462,14 +462,18 @@ const SALES_ORDER_ENTRIES = [
   },
 ] as const satisfies readonly SalesOrderEntry[]
 
-const MOCK_SALES_SHIPPING = {
-  courier: "jne",
-  service: "Manual",
-} as const satisfies SalesOrder["shipping"]
-
 const FIRST_ORDER_INVOICE = 212
 const PLACED_TIME = "10:12:00+07:00"
 const FIRST_TRACKING = 8_204_915_037
+
+function shippingCourierForMock(courier: string) {
+  const normalized = courier.toLowerCase()
+
+  if (normalized.startsWith("jne")) return "jne"
+  if (normalized.startsWith("j&t")) return "jnt"
+  if (normalized.startsWith("sicepat")) return "sicepat"
+  return "manual"
+}
 
 function trackingNumber(
   courier: string,
@@ -491,11 +495,15 @@ function trackingNumber(
 export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
   ({ daysBack, status, buyer, courier, shipping, items }, index) => {
     const date = dayBefore(daysBack)
+    const shippingCourier = shippingCourierForMock(courier)
     const invoice = String(FIRST_ORDER_INVOICE - index).padStart(4, "0")
 
     return {
       buyer,
-      shipping: MOCK_SALES_SHIPPING,
+      shipping: {
+        courier: shippingCourier,
+        service: "Manual",
+      },
       order: {
         id: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
         status,
@@ -514,6 +522,7 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
         sourceKind: "cart",
         placedAt: `${date}T${PLACED_TIME}`,
         courier,
+        shippingCourier,
         shipping,
         paymentToken: null,
         tracking: trackingNumber(courier, status, index),

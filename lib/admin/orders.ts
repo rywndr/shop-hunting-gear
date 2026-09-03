@@ -7,6 +7,7 @@ import type {
 } from "@/lib/orders/config"
 import { isRevenuePaymentStatus } from "@/lib/payments/midtrans/reconciliation"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
+import { canTrackSavedShipment } from "@/lib/shipping/tracking"
 
 type BadgeVariant = OrderStatusMeta["badge"]
 
@@ -123,6 +124,22 @@ export function canPrintShippingLabel<Candidate extends LabelState>(
     (order.fulfillmentStatus === "shipped" ||
       order.fulfillmentStatus === "completed")
   )
+}
+
+type TrackingState = Pick<Order, "fulfillmentStatus" | "tracking"> & {
+  readonly shipping: SalesOrder["shipping"]
+}
+
+export function canTrackOrder({
+  fulfillmentStatus,
+  tracking,
+  shipping,
+}: TrackingState) {
+  return canTrackSavedShipment({
+    fulfillmentStatus,
+    tracking,
+    shippingCourier: shipping.courier,
+  })
 }
 
 export function shippingLabelHref(orderId: string) {

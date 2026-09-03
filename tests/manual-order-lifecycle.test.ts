@@ -17,13 +17,18 @@ import {
   settleManualOrderPayment,
   shippingLabelRecord,
 } from "../lib/orders/service"
+import {
+  orderTrackingRecordForSavedAwb,
+  orderTrackingRecordForUser,
+} from "../lib/orders/tracking"
 import type { ManualOrderInput } from "../lib/admin/manual-order"
 
 const suffix = randomUUID().slice(0, 8)
 const CUSTOMER_ID = `test-customer-${suffix}`
+const CUSTOM_TRACKING = `JP${suffix.toUpperCase()}123`
 const PRODUCT_ID = `test-product-${suffix}`
 const PRODUCT_SLUG = `test-senapan-${suffix}`
-const INITIAL_STOCK = 40
+const INITIAL_STOCK = 100
 const INITIAL_SOLD = 3
 const PRICE = 1_250_000
 
@@ -385,6 +390,75 @@ test("a stale second submission never overwrites a saved resi", async () => {
 
   assert.equal(stale.kind, "already-shipped")
   assert.equal((await orderRow(orderId)).tracking, TRACKING)
+})
+
+test("customer tracking lookup is restricted to the order owner", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+
+  assert.ok(
+    await orderTrackingRecordForUser({
+      userId: CUSTOMER_ID,
+      orderId,
+    })
+  )
+  assert.equal(
+    await orderTrackingRecordForUser({
+      userId: "another-customer",
+      orderId,
+    }),
+    null
+  )
+})
+
+test("custom resi lookup finds local shipments without guessing unknown ones", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (
+      await recordOrderShipment({
+        orderId,
+        tracking: CUSTOM_TRACKING,
+      })
+    ).kind,
+    "shipped"
+  )
+
+  const local = await orderTrackingRecordForSavedAwb(CUSTOM_TRACKING)
+  assert.equal(local.kind, "found")
+  if (local.kind !== "found") throw new Error("unreachable")
+  assert.equal(local.order.shippingCourier, "jne")
+  assert.equal(local.order.phone, "081234567890")
+  assert.deepEqual(await orderTrackingRecordForSavedAwb("UNKNOWN-RESI-123"), {
+    kind: "not-found",
+  })
+})
+
+test("custom resi lookup rejects duplicate saved AWBs", async () => {
+  const duplicateTracking = `DUP${suffix.toUpperCase()}123`
+  const firstOrderId = await createCourierOrder()
+  const secondOrderId = await createCourierOrder()
+
+  for (const orderId of [firstOrderId, secondOrderId]) {
+    assert.equal(await settle(orderId), "settled")
+    assert.equal(
+      (
+        await recordOrderShipment({
+          orderId,
+          tracking: duplicateTracking,
+        })
+      ).kind,
+      "shipped"
+    )
+  }
+
+  assert.deepEqual(await orderTrackingRecordForSavedAwb(duplicateTracking), {
+    kind: "ambiguous",
+  })
 })
 
 test("an unpaid order is never shipped", async () => {

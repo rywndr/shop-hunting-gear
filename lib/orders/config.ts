@@ -1,3 +1,5 @@
+import type { ShippingCourierCode } from "@/lib/shipping/config"
+
 export const ORDER_STATUSES = {
   unpaid: {
     label: "Belum Bayar",
@@ -92,6 +94,7 @@ export type Order = {
   readonly sourceKind: OrderSourceKind
   readonly placedAt: string
   readonly courier: string
+  readonly shippingCourier: ShippingCourierCode
   readonly shipping: number
   readonly tracking: string | null
   readonly paymentToken: string | null

@@ -21,6 +21,12 @@ export const ADMIN_SECTIONS = [
     description: "Kelola pesanan masuk, pembayaran, dan pengiriman.",
   },
   {
+    slug: "tracking",
+    label: "Lacak Pengiriman",
+    href: `${ADMIN_ROOT}/lacak-pengiriman`,
+    description: "Periksa status pengiriman dengan nomor resi.",
+  },
+  {
     slug: "products",
     label: "Produk",
     href: `${ADMIN_ROOT}/produk`,

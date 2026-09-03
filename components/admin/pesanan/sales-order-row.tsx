@@ -10,6 +10,7 @@ import { MarkOrderPaidDialog } from "@/components/admin/pesanan/mark-order-paid-
 import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
 import { ShipOrderDialog } from "@/components/admin/pesanan/ship-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
+import { ShipmentTrackingDialog } from "@/components/orders/shipment-tracking-dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import {
@@ -17,6 +18,7 @@ import {
   canMarkOrderPaid,
   canPrintShippingLabel,
   canShipOrder,
+  canTrackOrder,
   salesOrderQueue,
   shippingLabelHref,
   type SalesOrder,
@@ -132,6 +134,11 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
               courier={order.courier}
             />
           )}
+          {canTrackOrder({
+            fulfillmentStatus: order.fulfillmentStatus,
+            tracking: order.tracking,
+            shipping: salesOrder.shipping,
+          }) && <ShipmentTrackingDialog orderId={order.id} audience="admin" />}
           {canPrintShippingLabel(order) && (
             <Link
               href={shippingLabelHref(order.id)}

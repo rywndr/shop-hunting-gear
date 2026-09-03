@@ -248,6 +248,7 @@ function orderFromRow({
     sourceKind: order.sourceKind,
     placedAt: order.placedAt.toISOString(),
     courier: `${order.shippingCourierName} ${order.shippingService}`,
+    shippingCourier: order.shippingCourier,
     shipping: order.shippingCost,
     tracking: order.tracking,
     paymentToken:

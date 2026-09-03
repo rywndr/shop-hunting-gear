@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
+import { ShipmentTrackingDialog } from "@/components/orders/shipment-tracking-dialog"
 import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { OrderPaymentButton } from "@/components/orders/order-payment-button"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
@@ -19,6 +20,7 @@ import {
 } from "@/lib/orders/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { productHref } from "@/lib/products/config"
+import { canTrackSavedShipment } from "@/lib/shipping/tracking"
 import { storefrontProductCardBySlug } from "@/lib/products/service"
 import { cn } from "@/lib/utils"
 
@@ -81,6 +83,11 @@ function OrderCard({
     ORDER_STATUSES[order.status]
   const awaitsManualPayment =
     order.status === "unpaid" && order.sourceKind === "manual"
+  const trackableShipment = canTrackSavedShipment({
+    fulfillmentStatus: order.fulfillmentStatus,
+    tracking: order.tracking,
+    shippingCourier: order.shippingCourier,
+  })
 
   return (
     <Card size="sm" className={cn(FLAT_CARD, "gap-0 py-0")}>
@@ -154,11 +161,20 @@ function OrderCard({
               token={order.paymentToken}
             />
           ) : (
-            !awaitsManualPayment &&
-            primaryAction && (
-              <Button type="button" className="h-10">
-                {primaryAction}
-              </Button>
+            !awaitsManualPayment && (
+              <>
+                {trackableShipment && (
+                  <ShipmentTrackingDialog
+                    orderId={order.id}
+                    audience="customer"
+                  />
+                )}
+                {primaryAction && order.status !== "shipped" && (
+                  <Button type="button" className="h-10">
+                    {primaryAction}
+                  </Button>
+                )}
+              </>
             )
           )}
         </div>
