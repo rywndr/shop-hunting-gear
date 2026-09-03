@@ -9,6 +9,11 @@ const courierCodeSchema = z.enum(
 
 export const createSnapPaymentSchema = z.object({
   addressId: z.string().uuid(),
+  customerNote: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().trim().max(500).optional()
+  ),
   source: checkoutSourceSchema,
   shipping: z.object({
     courier: courierCodeSchema,

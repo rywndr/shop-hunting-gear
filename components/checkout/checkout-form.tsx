@@ -10,6 +10,7 @@ import { CheckCircleIcon, MapPinIcon, PackageIcon } from "@phosphor-icons/react"
 import { FLAT_CARD } from "@/components/account/account-card"
 import { useCart } from "@/components/cart/cart-provider"
 import { SnapPaymentButton } from "@/components/checkout/snap-payment-button"
+import { TextareaField } from "@/components/form/fields"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,6 +61,8 @@ function CheckoutForm({
     preferredAddress ? { kind: "loading" } : { kind: "idle" }
   )
   const [shippingId, setShippingId] = useState("")
+  const [customerNote, setCustomerNote] = useState("")
+  const [orderPrepared, setOrderPrepared] = useState(false)
   const { clearCart } = useCart()
   const subtotal = cartSubtotal(items)
 
@@ -297,6 +300,32 @@ function CheckoutForm({
             </CardContent>
           </Card>
         </section>
+
+        <section aria-labelledby="checkout-catatan-title">
+          <Card className={FLAT_CARD}>
+            <CardHeader>
+              <CardTitle id="checkout-catatan-title" className="uppercase">
+                Catatan untuk Penjual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TextareaField
+                id="customer-note"
+                label="Tambahkan catatan untuk pesanan ini (opsional)"
+                value={customerNote}
+                onChange={(event) => setCustomerNote(event.target.value)}
+                maxLength={500}
+                readOnly={orderPrepared}
+                description={
+                  orderPrepared
+                    ? "Catatan tidak dapat diubah setelah pesanan dibuat."
+                    : undefined
+                }
+                placeholder="Tambahkan catatan untuk pesanan ini (opsional)"
+              />
+            </CardContent>
+          </Card>
+        </section>
       </div>
 
       <aside
@@ -374,6 +403,7 @@ function CheckoutForm({
             <SnapPaymentButton
               addressId={addressId}
               browserConfig={midtrans}
+              customerNote={customerNote}
               shipping={
                 selectedShipping
                   ? {
@@ -383,6 +413,10 @@ function CheckoutForm({
                   : undefined
               }
               source={source}
+              onOrderPrepared={(preparedCustomerNote) => {
+                setCustomerNote(preparedCustomerNote)
+                setOrderPrepared(true)
+              }}
               onOrderCreated={async () => {
                 if (source.kind === "cart") await clearCart()
               }}

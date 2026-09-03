@@ -92,6 +92,7 @@ export type Order = {
   readonly paymentStatus: PaymentStatus
   readonly fulfillmentStatus: FulfillmentStatus
   readonly sourceKind: OrderSourceKind
+  readonly customerNote: string | null
   readonly placedAt: string
   readonly courier: string
   readonly shippingCourier: ShippingCourierCode

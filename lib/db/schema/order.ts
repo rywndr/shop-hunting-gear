@@ -56,6 +56,7 @@ export const customerOrder = pgTable(
     // Manual orders do not use Midtrans idempotency keys.
     midtransCreateIdempotencyKey: text("midtrans_create_idempotency_key"),
     sourceKind: text("source_kind").$type<OrderSourceKind>().notNull(),
+    customerNote: text("customer_note"),
     adminNote: text("admin_note"),
     shippingCourier: text("shipping_courier")
       .$type<ShippingCourierCode>()

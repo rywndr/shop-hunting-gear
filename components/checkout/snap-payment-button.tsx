@@ -43,12 +43,15 @@ type SnapScriptState = "loading" | "ready" | "error"
 function SnapPaymentButton({
   addressId,
   browserConfig,
+  customerNote,
   shipping,
   source,
+  onOrderPrepared,
   onOrderCreated,
 }: {
   addressId: string
   browserConfig: MidtransBrowserConfig
+  customerNote: string
   shipping:
     | {
         readonly courier: RajaOngkirCourierCode
@@ -56,6 +59,7 @@ function SnapPaymentButton({
       }
     | undefined
   source: CheckoutSource
+  onOrderPrepared: (customerNote: string) => void
   onOrderCreated: () => Promise<void>
 }) {
   const router = useRouter()
@@ -63,6 +67,7 @@ function SnapPaymentButton({
   const [paymentState, setPaymentState] = useState<PaymentState>({
     kind: "idle",
   })
+  const normalizedCustomerNote = customerNote.trim() || undefined
   const checkoutKey = JSON.stringify({ addressId, shipping, source })
 
   async function finishPayment(orderId: string) {
@@ -169,6 +174,7 @@ function SnapPaymentButton({
 
     const input = {
       addressId,
+      customerNote: normalizedCustomerNote,
       shipping,
       source,
     } satisfies CreateSnapPaymentInput
@@ -183,6 +189,7 @@ function SnapPaymentButton({
         return
       }
 
+      onOrderPrepared(result.customerNote ?? "")
       openSnap(result, checkoutKey)
       void onOrderCreated()
     } catch {

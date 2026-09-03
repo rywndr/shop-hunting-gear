@@ -98,6 +98,7 @@ type CreateOrderItem = Pick<CartItem, "id" | "quantity" | "variants"> & {
 type CreateUnpaidOrderInput = {
   readonly userId: string
   readonly addressId: string
+  readonly customerNote: string | null
   readonly source: CheckoutSource
   readonly items: readonly CreateOrderItem[]
   readonly shipping: {
@@ -121,6 +122,7 @@ type PaymentOrder = Pick<
   | "paymentInitStatus"
   | "fulfillmentStatus"
   | "sourceKind"
+  | "customerNote"
   | "snapToken"
   | "snapRedirectUrl"
   | "paymentSessionExpiresAt"
@@ -246,6 +248,7 @@ function orderFromRow({
     paymentStatus: order.paymentStatus,
     fulfillmentStatus: order.fulfillmentStatus,
     sourceKind: order.sourceKind,
+    customerNote: order.customerNote,
     placedAt: order.placedAt.toISOString(),
     courier: `${order.shippingCourierName} ${order.shippingService}`,
     shippingCourier: order.shippingCourier,
@@ -426,6 +429,7 @@ async function insertOrderWithReservations({
   shipping,
   address,
   grossAmount,
+  customerNote,
   adminNote,
 }: {
   readonly orderId: string
@@ -442,6 +446,7 @@ async function insertOrderWithReservations({
   }
   readonly address: OrderAddressSnapshot
   readonly grossAmount: number
+  readonly customerNote: string | null
   readonly adminNote: string | null
 }) {
   const requestedProducts = requestedProductValues(items)
@@ -504,6 +509,7 @@ async function insertOrderWithReservations({
         checkout_key,
         midtrans_create_idempotency_key,
         source_kind,
+        customer_note,
         admin_note,
         shipping_courier,
         shipping_courier_name,
@@ -521,6 +527,7 @@ async function insertOrderWithReservations({
         ${checkoutKey},
         ${createIdempotencyKey},
         ${sourceKind},
+        ${customerNote},
         ${adminNote},
         ${shipping.courier},
         ${shipping.courierName},
@@ -616,6 +623,7 @@ async function insertLocalOrder({
   checkoutKey,
   createIdempotencyKey,
   userId,
+  customerNote,
   source,
   items,
   shipping,
@@ -644,6 +652,7 @@ async function insertLocalOrder({
     shipping,
     address: addressSnapshot(address),
     grossAmount,
+    customerNote,
     adminNote: null,
   })
 }
@@ -1887,6 +1896,7 @@ export async function createManualOrderRecord(
         postalCode: "",
       },
       grossAmount,
+      customerNote: null,
       adminNote: values.note === "" ? null : values.note,
     })
   } catch (error) {

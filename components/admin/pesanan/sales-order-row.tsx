@@ -110,6 +110,15 @@ function SalesOrderRow({
           className="mt-2"
         />
 
+        {order.customerNote !== null && (
+          <div className="mt-2 border-l-2 border-border pl-2 text-xs">
+            <span className="block font-medium">Catatan pembeli</span>
+            <p className="mt-0.5 break-words whitespace-pre-wrap text-muted-foreground">
+              {order.customerNote}
+            </p>
+          </div>
+        )}
+
         <div className="mt-2 flex flex-col items-start gap-1 lg:hidden">
           <OrderQueueBadge queue={queue} />
           <span className="text-xs text-muted-foreground">{buyer}</span>

@@ -34,6 +34,7 @@ export type CreatePaymentResult =
       readonly kind: "ready"
       readonly orderId: string
       readonly token: string
+      readonly customerNote: string | null
     }
   | { readonly kind: "error"; readonly message: string }
 
@@ -205,6 +206,7 @@ export async function createPaymentAction(
     const localOrder = await createOrResumeUnpaidOrder({
       userId: session.user.id,
       addressId: parsed.data.addressId,
+      customerNote: parsed.data.customerNote ?? null,
       source: parsed.data.source,
       items,
       shipping: {
@@ -233,6 +235,7 @@ export async function createPaymentAction(
         kind: "ready",
         orderId: localOrder.id,
         token: localOrder.snapToken,
+        customerNote: localOrder.customerNote,
       }
     }
 
@@ -273,6 +276,7 @@ export async function createPaymentAction(
         kind: "ready",
         orderId: currentOrder.id,
         token: currentOrder.snapToken,
+        customerNote: currentOrder.customerNote,
       }
     }
 
@@ -337,7 +341,12 @@ export async function createPaymentAction(
     }
 
     revalidatePath("/history")
-    return { kind: "ready", orderId: localOrder.id, token: saved.token }
+    return {
+      kind: "ready",
+      orderId: localOrder.id,
+      token: saved.token,
+      customerNote: localOrder.customerNote,
+    }
   } catch (error) {
     if (
       localOrderId &&
