@@ -1,17 +1,24 @@
 "use client"
 
+import Link from "next/link"
+import { PrinterIcon } from "@phosphor-icons/react"
+
 import { TABLE_EDGE } from "@/components/admin/admin-card"
 import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { MarkOrderCompletedDialog } from "@/components/admin/pesanan/mark-order-completed-dialog"
 import { MarkOrderPaidDialog } from "@/components/admin/pesanan/mark-order-paid-dialog"
 import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
+import { ShipOrderDialog } from "@/components/admin/pesanan/ship-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import {
   canMarkOrderCompleted,
   canMarkOrderPaid,
+  canPrintShippingLabel,
+  canShipOrder,
   salesOrderQueue,
+  shippingLabelHref,
   type SalesOrder,
 } from "@/lib/admin/orders"
 import { orderTotal, type Order } from "@/lib/orders/config"
@@ -112,6 +119,25 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
         <div className="flex flex-col items-end gap-2">
           {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
+          )}
+          {canShipOrder(order) && (
+            <ShipOrderDialog
+              orderId={order.id}
+              buyer={buyer}
+              courier={order.courier}
+            />
+          )}
+          {canPrintShippingLabel(order) && (
+            <Link
+              href={shippingLabelHref(order.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Cetak label pengiriman ${order.id} di tab baru`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <PrinterIcon data-icon="inline-start" />
+              Cetak Label
+            </Link>
           )}
           {canMarkOrderCompleted(order) && (
             <MarkOrderCompletedDialog orderId={order.id} />

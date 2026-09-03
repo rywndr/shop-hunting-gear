@@ -43,6 +43,7 @@ import {
   type ManualOrderCustomer,
   type ManualOrderInput,
 } from "@/lib/admin/manual-order"
+import { trackingSchema } from "@/lib/admin/shipment"
 import type { Transaction } from "@/lib/admin/finance"
 import type {
   MidtransStatusResponse,
@@ -1802,8 +1803,7 @@ export async function createManualOrder(
   return createManualOrderRecord(input)
 }
 
-// Core mutation without an authorization check. `createManualOrder` is the
-// authorized entry point; only tests call this directly.
+// No auth check. Application code must call `createManualOrder`.
 export async function createManualOrderRecord(
   input: ManualOrderInput
 ): Promise<ManualOrderCreationResult> {
@@ -1902,8 +1902,7 @@ export async function markOrderPaidManually(
   return settleManualOrderPayment(orderId)
 }
 
-// Core mutation without an authorization check. `markOrderPaidManually` is the
-// authorized entry point; only tests call this directly.
+// No auth check. Application code must call `markOrderPaidManually`.
 export async function settleManualOrderPayment(
   orderId: string
 ): Promise<ManualPaymentResult> {
@@ -1960,8 +1959,7 @@ export async function markOrderCompleted(
   return completeOrderFulfillment(orderId)
 }
 
-// Core mutation without an authorization check. `markOrderCompleted` is the
-// authorized entry point; only tests call this directly.
+// No auth check. Application code must call `markOrderCompleted`.
 export async function completeOrderFulfillment(
   orderId: string
 ): Promise<OrderCompletionResult> {
@@ -2003,6 +2001,147 @@ export async function completeOrderFulfillment(
   }
 
   return { kind: "not-eligible" }
+}
+
+export type OrderShipmentResult =
+  | { readonly kind: "shipped" }
+  | { readonly kind: "already-shipped" }
+  | { readonly kind: "not-eligible" }
+  | { readonly kind: "invalid-tracking" }
+
+export async function shipOrder(input: {
+  readonly orderId: string
+  readonly tracking: string
+}): Promise<OrderShipmentResult> {
+  await assertAdminAccess()
+
+  return recordOrderShipment(input)
+}
+
+// No auth check. Application code must call `shipOrder`.
+export async function recordOrderShipment({
+  orderId,
+  tracking,
+}: {
+  readonly orderId: string
+  readonly tracking: string
+}): Promise<OrderShipmentResult> {
+  const parsed = trackingSchema.safeParse(tracking)
+
+  if (!parsed.success) return { kind: "invalid-tracking" }
+
+  // The row lock plus the guarded UPDATE keeps a stale second submission from
+  // replacing a tracking number another admin already saved.
+  const result = await db.execute<{
+    readonly transitioned: number
+    readonly payment_status: PaymentStatus | null
+    readonly fulfillment_status: FulfillmentStatus | null
+    readonly tracking: string | null
+  }>(sql`
+    WITH locked_order AS MATERIALIZED (
+      SELECT id, payment_status, fulfillment_status, tracking
+      FROM customer_order
+      WHERE id = ${orderId}
+      FOR UPDATE
+    ),
+    transitioned AS (
+      UPDATE customer_order AS current_order
+      SET
+        tracking = ${parsed.data},
+        fulfillment_status = 'shipped',
+        updated_at = now()
+      FROM locked_order
+      WHERE current_order.id = locked_order.id
+        AND locked_order.payment_status IN (${revenuePaymentStatusValues()})
+        AND locked_order.fulfillment_status = 'processing'
+        AND locked_order.tracking IS NULL
+      RETURNING current_order.id
+    )
+    SELECT
+      (SELECT count(*)::integer FROM transitioned) AS transitioned,
+      (SELECT payment_status FROM locked_order) AS payment_status,
+      (SELECT fulfillment_status FROM locked_order) AS fulfillment_status,
+      (SELECT tracking FROM locked_order) AS tracking
+  `)
+  const [row] = result.rows
+
+  if (!row || row.payment_status === null || row.fulfillment_status === null) {
+    throw new UnknownOrderError(orderId)
+  }
+  if (row.transitioned > 0) return { kind: "shipped" }
+  if (row.fulfillment_status === "shipped" || row.tracking !== null) {
+    return { kind: "already-shipped" }
+  }
+
+  return { kind: "not-eligible" }
+}
+
+export type ShippingLabelItem = {
+  readonly name: string
+  readonly variant: string
+  readonly quantity: number
+}
+
+/** Includes the private address fields omitted from customer-facing orders. */
+export type ShippingLabelOrder = {
+  readonly id: string
+  readonly placedAt: string
+  readonly fulfillmentStatus: FulfillmentStatus
+  readonly tracking: string | null
+  readonly courier: ShippingCourierCode
+  readonly courierName: string
+  readonly service: string
+  readonly address: OrderAddressSnapshot
+  readonly items: readonly ShippingLabelItem[]
+}
+
+export type PrintableShippingLabel = ShippingLabelOrder & {
+  readonly tracking: string
+}
+
+export async function shippingLabelForOrder(
+  orderId: string
+): Promise<ShippingLabelOrder | null> {
+  await assertAdminAccess()
+
+  return shippingLabelRecord(orderId)
+}
+
+// No auth check. Application code must call `shippingLabelForOrder`.
+export async function shippingLabelRecord(
+  orderId: string
+): Promise<ShippingLabelOrder | null> {
+  const rows = await db
+    .select({ order: customerOrder, item: customerOrderItem })
+    .from(customerOrder)
+    .innerJoin(
+      customerOrderItem,
+      eq(customerOrderItem.orderId, customerOrder.id)
+    )
+    .where(eq(customerOrder.id, orderId))
+    .orderBy(asc(customerOrderItem.id))
+
+  const [first] = rows
+
+  if (!first) return null
+
+  const { order } = first
+
+  return {
+    id: order.id,
+    placedAt: order.placedAt.toISOString(),
+    fulfillmentStatus: order.fulfillmentStatus,
+    tracking: order.tracking,
+    courier: order.shippingCourier,
+    courierName: order.shippingCourierName,
+    service: order.shippingService,
+    address: order.addressSnapshot,
+    items: rows.map(({ item }) => ({
+      name: item.name,
+      variant: variantLabel(item.variants),
+      quantity: item.quantity,
+    })),
+  }
 }
 
 export async function salesOrders(): Promise<readonly SalesOrder[]> {

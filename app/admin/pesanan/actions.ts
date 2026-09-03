@@ -8,6 +8,7 @@ import {
   createManualOrder,
   markOrderCompleted,
   markOrderPaidManually,
+  shipOrder,
   UnknownOrderError,
   type ManualOrderRejection,
 } from "@/lib/orders/service"
@@ -165,5 +166,51 @@ export async function markOrderCompletedAction(
       error,
     })
     return { kind: "error", message: "Perubahan belum tersimpan. Coba lagi." }
+  }
+}
+
+export async function shipOrderAction(
+  orderId: string,
+  tracking: string
+): Promise<OrderMutationResult> {
+  if (!(await isAuthorized())) {
+    return { kind: "error", message: "Anda tidak dapat mengubah pesanan." }
+  }
+
+  try {
+    const result = await shipOrder({ orderId, tracking })
+
+    switch (result.kind) {
+      case "shipped":
+        return orderRefreshed()
+      case "already-shipped":
+        return {
+          kind: "error",
+          message:
+            "Status pesanan sudah berubah. Muat ulang halaman dan coba lagi.",
+        }
+      case "invalid-tracking":
+        return { kind: "error", message: "Masukkan nomor resi yang valid." }
+      case "not-eligible":
+        return {
+          kind: "error",
+          message: "Pesanan ini tidak dapat ditandai dikirim.",
+        }
+      default: {
+        const _exhaustive: never = result
+        return _exhaustive
+      }
+    }
+  } catch (error) {
+    if (error instanceof UnknownOrderError) {
+      return { kind: "error", message: "Pesanan tidak ditemukan." }
+    }
+
+    logOrderMutationFailure({
+      event: "admin.order_shipment_failed",
+      orderId,
+      error,
+    })
+    return { kind: "error", message: "Pengiriman belum tersimpan. Coba lagi." }
   }
 }

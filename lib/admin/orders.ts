@@ -65,6 +65,36 @@ export function canMarkOrderCompleted({
   )
 }
 
+type ShipmentState = OrderState & Pick<Order, "tracking">
+
+export function canShipOrder({
+  paymentStatus,
+  fulfillmentStatus,
+  tracking,
+}: ShipmentState) {
+  return (
+    isRevenuePaymentStatus(paymentStatus) &&
+    fulfillmentStatus === "processing" &&
+    tracking === null
+  )
+}
+
+type LabelState = Pick<Order, "fulfillmentStatus" | "tracking">
+
+export function canPrintShippingLabel<Candidate extends LabelState>(
+  order: Candidate
+): order is Candidate & { readonly tracking: string } {
+  return (
+    order.tracking !== null &&
+    (order.fulfillmentStatus === "shipped" ||
+      order.fulfillmentStatus === "completed")
+  )
+}
+
+export function shippingLabelHref(orderId: string) {
+  return `/admin/pesanan/${encodeURIComponent(orderId)}/label`
+}
+
 export type OrderQueueFilter = typeof ALL_FILTER | OrderQueue
 
 export const ORDER_QUEUE_FILTER_ORDER = [

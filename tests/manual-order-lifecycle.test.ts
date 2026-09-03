@@ -13,7 +13,9 @@ import { user } from "../lib/db/schema/auth"
 import {
   completeOrderFulfillment,
   createManualOrderRecord,
+  recordOrderShipment,
   settleManualOrderPayment,
+  shippingLabelRecord,
 } from "../lib/orders/service"
 import type { ManualOrderInput } from "../lib/admin/manual-order"
 
@@ -62,6 +64,7 @@ async function orderRow(orderId: string) {
       grossAmount: customerOrder.grossAmount,
       shippingCost: customerOrder.shippingCost,
       shippingCourier: customerOrder.shippingCourier,
+      tracking: customerOrder.tracking,
       shippingService: customerOrder.shippingService,
       adminNote: customerOrder.adminNote,
       addressSnapshot: customerOrder.addressSnapshot,
@@ -323,4 +326,125 @@ test("an unknown customer or variant is rejected", async () => {
     }),
     { kind: "rejected", reason: "unknown-variant" }
   )
+})
+
+const TRACKING = "JP1234567890"
+
+test("saving a resi moves a paid order from processing to shipped", async () => {
+  const orderId = await createOrder({
+    deliveryMethod: "jne",
+    address: "Jalan Merdeka 10, Bandung, Jawa Barat 40111",
+    shippingCost: 25_000,
+  })
+  assert.equal(await settle(orderId), "settled")
+
+  const shipped = await recordOrderShipment({
+    orderId,
+    tracking: ` ${TRACKING} `,
+  })
+  assert.equal(shipped.kind, "shipped")
+
+  const order = await orderRow(orderId)
+  assert.equal(order.fulfillmentStatus, "shipped")
+  assert.equal(order.tracking, TRACKING)
+})
+
+test("a stale second submission never overwrites a saved resi", async () => {
+  const orderId = await createOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+
+  const stale = await recordOrderShipment({
+    orderId,
+    tracking: "JNE-999999999",
+  })
+
+  assert.equal(stale.kind, "already-shipped")
+  assert.equal((await orderRow(orderId)).tracking, TRACKING)
+})
+
+test("an unpaid order is never shipped", async () => {
+  const orderId = await createOrder()
+  const result = await recordOrderShipment({ orderId, tracking: TRACKING })
+
+  assert.equal(result.kind, "not-eligible")
+
+  const order = await orderRow(orderId)
+  assert.equal(order.fulfillmentStatus, "awaiting_payment")
+  assert.equal(order.tracking, null)
+})
+
+test("an invalid resi is rejected before the order is touched", async () => {
+  const orderId = await createOrder()
+  assert.equal(await settle(orderId), "settled")
+
+  const result = await recordOrderShipment({ orderId, tracking: "  " })
+
+  assert.equal(result.kind, "invalid-tracking")
+
+  const order = await orderRow(orderId)
+  assert.equal(order.fulfillmentStatus, "processing")
+  assert.equal(order.tracking, null)
+})
+
+test("a completed order keeps its resi and cannot be shipped again", async () => {
+  const orderId = await createOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+  assert.equal((await completeOrderFulfillment(orderId)).kind, "completed")
+
+  const result = await recordOrderShipment({
+    orderId,
+    tracking: "JNE-999999999",
+  })
+
+  assert.equal(result.kind, "already-shipped")
+  assert.equal((await orderRow(orderId)).tracking, TRACKING)
+})
+
+test("the label query reads the stored address snapshot and items", async () => {
+  const orderId = await createOrder({
+    deliveryMethod: "jne",
+    address: "Jalan Merdeka 10, Bandung, Jawa Barat 40111",
+    shippingCost: 25_000,
+    recipient: "Budi Santoso",
+    phone: "081234567890",
+  })
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+
+  const label = await shippingLabelRecord(orderId)
+
+  assert.ok(label)
+  assert.equal(label.id, orderId)
+  assert.equal(label.tracking, TRACKING)
+  assert.equal(label.fulfillmentStatus, "shipped")
+  assert.equal(label.courier, "jne")
+  assert.equal(label.courierName, "JNE")
+  assert.equal(label.address.recipient, "Budi Santoso")
+  assert.equal(label.address.phone, "081234567890")
+  assert.equal(
+    label.address.street,
+    "Jalan Merdeka 10, Bandung, Jawa Barat 40111"
+  )
+  assert.deepEqual(label.items, [
+    {
+      name: `Senapan Uji ${suffix}`,
+      variant: "Kaliber: 4.5 mm",
+      quantity: PICKUP_ORDER.quantity,
+    },
+  ])
+})
+
+test("an unknown order has no shipping label", async () => {
+  assert.equal(await shippingLabelRecord(`missing-${suffix}`), null)
 })
