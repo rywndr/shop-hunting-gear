@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { getCurrentSession } from "@/lib/auth/session"
+import { confirmOrderReceivedForUser } from "@/lib/orders/service"
 import { cancelMidtransOrderForUser } from "@/lib/payments/midtrans/service"
 
 export type CancelOrderResult =
@@ -12,12 +13,72 @@ export type CancelOrderResult =
   | { readonly kind: "pending"; readonly message: string }
   | { readonly kind: "error"; readonly message: string }
 
-const cancelOrderSchema = z.string().trim().min(1)
+export type ConfirmOrderReceivedResult =
+  | { readonly kind: "success" }
+  | { readonly kind: "error"; readonly message: string }
+
+const orderIdSchema = z.string().trim().min(1)
+
+export async function confirmOrderReceivedAction(
+  orderId: string
+): Promise<ConfirmOrderReceivedResult> {
+  const parsedOrderId = orderIdSchema.safeParse(orderId)
+
+  if (!parsedOrderId.success) {
+    return { kind: "error", message: "Data pesanan tidak valid." }
+  }
+
+  const session = await getCurrentSession()
+
+  if (!session) {
+    return { kind: "error", message: "Silakan masuk untuk melanjutkan." }
+  }
+
+  try {
+    const result = await confirmOrderReceivedForUser({
+      userId: session.user.id,
+      orderId: parsedOrderId.data,
+    })
+
+    switch (result.kind) {
+      case "completed":
+      case "already-completed":
+        revalidatePath("/history")
+        revalidatePath("/admin/pesanan")
+        revalidatePath("/admin/keuangan")
+        return { kind: "success" }
+      case "not-found":
+        return { kind: "error", message: "Pesanan tidak ditemukan." }
+      case "not-eligible":
+        return {
+          kind: "error",
+          message: "Pesanan ini belum dapat dikonfirmasi sebagai sudah diterima.",
+        }
+      default: {
+        const _exhaustive: never = result
+        return _exhaustive
+      }
+    }
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: "orders.customer_confirm_received_failed",
+        orderId: parsedOrderId.data,
+        userId: session.user.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    )
+    return {
+      kind: "error",
+      message: "Pesanan belum dapat dikonfirmasi. Coba lagi.",
+    }
+  }
+}
 
 export async function cancelOrderAction(
   orderId: string
 ): Promise<CancelOrderResult> {
-  const parsedOrderId = cancelOrderSchema.safeParse(orderId)
+  const parsedOrderId = orderIdSchema.safeParse(orderId)
 
   if (!parsedOrderId.success) {
     return { kind: "error", message: "Data pesanan tidak valid." }

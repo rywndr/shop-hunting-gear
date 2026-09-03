@@ -4,6 +4,7 @@ import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 import { FLAT_CARD } from "@/components/account/account-card"
 import { ShipmentTrackingDialog } from "@/components/orders/shipment-tracking-dialog"
 import { CancelOrderButton } from "@/components/orders/cancel-order-button"
+import { ConfirmOrderReceivedDialog } from "@/components/orders/confirm-order-received-dialog"
 import { OrderPaymentButton } from "@/components/orders/order-payment-button"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
 import { ReturnOrderDialog } from "@/components/orders/return-order-dialog"
@@ -144,6 +145,13 @@ function OrderCard({
           )}
           {order.status === "unpaid" ? (
             <CancelOrderButton orderId={order.id} />
+          ) : order.status === "shipped" ? (
+            secondaryAction && (
+              <ConfirmOrderReceivedDialog
+                orderId={order.id}
+                triggerLabel={secondaryAction}
+              />
+            )
           ) : (
             secondaryAction && (
               <Button type="button" variant="outline" className="h-10">

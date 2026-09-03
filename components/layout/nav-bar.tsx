@@ -20,7 +20,7 @@ async function NavBar({
 
   return (
     <div className={className}>
-      <div className="relative mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 md:gap-4">
+      <div className="relative flex items-center gap-2 px-4 py-3 md:gap-4 md:px-8">
         <Suspense fallback={<div aria-hidden className="size-10 md:hidden" />}>
           <MobileNav
             accountState={

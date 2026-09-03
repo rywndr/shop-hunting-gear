@@ -1959,6 +1959,64 @@ export async function settleManualOrderPayment(
     : { kind: "not-eligible" }
 }
 
+export type CustomerOrderCompletionResult =
+  | { readonly kind: "completed" }
+  | { readonly kind: "already-completed" }
+  | { readonly kind: "not-eligible" }
+  | { readonly kind: "not-found" }
+
+export async function confirmOrderReceivedForUser({
+  userId,
+  orderId,
+}: {
+  readonly userId: string
+  readonly orderId: string
+}): Promise<CustomerOrderCompletionResult> {
+  const result = await db.execute<{
+    readonly transitioned: number
+    readonly payment_status: PaymentStatus | null
+    readonly fulfillment_status: FulfillmentStatus | null
+  }>(sql`
+    WITH locked_order AS MATERIALIZED (
+      SELECT id, user_id, payment_status, fulfillment_status
+      FROM customer_order
+      WHERE id = ${orderId}
+        AND user_id = ${userId}
+      FOR UPDATE
+    ),
+    transitioned AS (
+      UPDATE customer_order AS current_order
+      SET
+        fulfillment_status = 'completed',
+        updated_at = now()
+      FROM locked_order
+      WHERE current_order.id = locked_order.id
+        AND current_order.user_id = locked_order.user_id
+        AND current_order.user_id = ${userId}
+        AND current_order.payment_status IN (${revenuePaymentStatusValues()})
+        AND current_order.fulfillment_status = 'shipped'
+        AND locked_order.payment_status IN (${revenuePaymentStatusValues()})
+        AND locked_order.fulfillment_status = 'shipped'
+      RETURNING current_order.id
+    )
+    SELECT
+      (SELECT count(*)::integer FROM transitioned) AS transitioned,
+      (SELECT payment_status FROM locked_order) AS payment_status,
+      (SELECT fulfillment_status FROM locked_order) AS fulfillment_status
+  `)
+  const [row] = result.rows
+
+  if (!row || row.payment_status === null || row.fulfillment_status === null) {
+    return { kind: "not-found" }
+  }
+  if (row.transitioned > 0) return { kind: "completed" }
+  if (row.fulfillment_status === "completed") {
+    return { kind: "already-completed" }
+  }
+
+  return { kind: "not-eligible" }
+}
+
 export type OrderCompletionResult =
   | { readonly kind: "completed" }
   | { readonly kind: "already-completed" }

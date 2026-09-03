@@ -12,6 +12,7 @@ import { product, productListing } from "../lib/db/schema/product"
 import { user } from "../lib/db/schema/auth"
 import {
   completeOrderFulfillment,
+  confirmOrderReceivedForUser,
   createManualOrderRecord,
   recordOrderShipment,
   settleManualOrderPayment,
@@ -373,6 +374,101 @@ test("saving a resi moves a paid order from processing to shipped", async () => 
   const order = await orderRow(orderId)
   assert.equal(order.fulfillmentStatus, "shipped")
   assert.equal(order.tracking, TRACKING)
+})
+
+test("an owner can confirm a paid shipped order as received", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+
+  const result = await confirmOrderReceivedForUser({
+    userId: CUSTOMER_ID,
+    orderId,
+  })
+
+  assert.deepEqual(result, { kind: "completed" })
+  assert.equal((await orderRow(orderId)).fulfillmentStatus, "completed")
+  assert.deepEqual(
+    await confirmOrderReceivedForUser({ userId: CUSTOMER_ID, orderId }),
+    { kind: "already-completed" }
+  )
+})
+
+test("a customer cannot confirm another customer's order", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal(
+    (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+    "shipped"
+  )
+
+  assert.deepEqual(
+    await confirmOrderReceivedForUser({
+      userId: `another-customer-${suffix}`,
+      orderId,
+    }),
+    { kind: "not-found" }
+  )
+  assert.equal((await orderRow(orderId)).fulfillmentStatus, "shipped")
+})
+
+test("customer confirmation rejects invalid fulfillment and payment states", async () => {
+  for (const fulfillmentStatus of [
+    "awaiting_payment",
+    "processing",
+    "cancelled",
+  ] as const) {
+    const orderId = await createCourierOrder()
+    assert.equal(await settle(orderId), "settled")
+    await db
+      .update(customerOrder)
+      .set({ fulfillmentStatus })
+      .where(eq(customerOrder.id, orderId))
+
+    assert.deepEqual(
+      await confirmOrderReceivedForUser({ userId: CUSTOMER_ID, orderId }),
+      { kind: "not-eligible" }
+    )
+    assert.equal((await orderRow(orderId)).fulfillmentStatus, fulfillmentStatus)
+  }
+
+  const unpaidShippedOrderId = await createCourierOrder()
+  await db
+    .update(customerOrder)
+    .set({ fulfillmentStatus: "shipped" })
+    .where(eq(customerOrder.id, unpaidShippedOrderId))
+
+  assert.deepEqual(
+    await confirmOrderReceivedForUser({
+      userId: CUSTOMER_ID,
+      orderId: unpaidShippedOrderId,
+    }),
+    { kind: "not-eligible" }
+  )
+  assert.equal(
+    (await orderRow(unpaidShippedOrderId)).fulfillmentStatus,
+    "shipped"
+  )
+})
+
+test("ownership checks also apply to already completed orders", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  await db
+    .update(customerOrder)
+    .set({ fulfillmentStatus: "completed" })
+    .where(eq(customerOrder.id, orderId))
+
+  assert.deepEqual(
+    await confirmOrderReceivedForUser({
+      userId: `another-customer-${suffix}`,
+      orderId,
+    }),
+    { kind: "not-found" }
+  )
 })
 
 test("a stale second submission never overwrites a saved resi", async () => {
