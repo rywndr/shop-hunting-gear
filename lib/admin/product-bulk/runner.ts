@@ -13,7 +13,11 @@ import { deleteProductImages, uploadProductImage } from "@/lib/products/storage"
 import type { BulkColumnMode } from "./columns"
 import { fetchRemoteImage } from "./remote-image"
 import { runBulkUpdate, runBulkUpload, type BulkDependencies } from "./service"
-import { bulkWorkbookBytes, type BulkWorkbookRow } from "./workbook"
+import {
+  bulkWorkbookBytes,
+  exportedImageUrlCells,
+  type BulkWorkbookRow,
+} from "./workbook"
 
 const DEPENDENCIES: BulkDependencies = {
   fetchImage: (url) => fetchRemoteImage(url),
@@ -51,7 +55,7 @@ async function updateWorkbookRows(): Promise<readonly BulkWorkbookRow[]> {
   const products = await adminBulkProductRows()
 
   return products.map(
-    ({ id, name, price, compareAtPrice, stock, weight, state }) => ({
+    ({ id, name, images, price, compareAtPrice, stock, weight, state }) => ({
       id,
       name,
       price,
@@ -59,6 +63,7 @@ async function updateWorkbookRows(): Promise<readonly BulkWorkbookRow[]> {
       stock,
       weight,
       state,
+      ...exportedImageUrlCells(images),
     })
   )
 }

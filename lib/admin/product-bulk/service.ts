@@ -159,7 +159,7 @@ async function importGallery({
       objectKeys.add(objectKey)
     }
 
-    images.push(stored)
+    images.push({ ...stored, sourceUrl: url })
   }
 
   const [first, ...others] = images
@@ -326,6 +326,19 @@ type UpdateChanges = {
   weight?: number
 }
 
+function sourceUrlsMatch({
+  submitted,
+  images,
+}: {
+  submitted: readonly string[]
+  images: readonly StoredProductImage[]
+}) {
+  return (
+    submitted.length === images.length &&
+    submitted.every((url, index) => images[index]?.sourceUrl === url)
+  )
+}
+
 function updateChanges({
   values,
   current,
@@ -385,6 +398,9 @@ async function runUpdateRow({
   }
 
   const changes = updateChanges({ values, current })
+  const galleryChanged =
+    values.imageUrls !== undefined &&
+    !sourceUrlsMatch({ submitted: values.imageUrls, images: current.images })
   const state =
     values.state !== undefined && values.state !== current.state
       ? values.state
@@ -408,7 +424,7 @@ async function runUpdateRow({
   if (
     Object.keys(changes).length === 0 &&
     state === undefined &&
-    values.imageUrls === undefined
+    !galleryChanged
   ) {
     return {
       row,
@@ -419,7 +435,7 @@ async function runUpdateRow({
     }
   }
 
-  if (values.imageUrls === undefined) {
+  if (values.imageUrls === undefined || !galleryChanged) {
     try {
       await dependencies.updateProduct({ productId, values: changes, state })
     } catch (error) {

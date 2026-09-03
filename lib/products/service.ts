@@ -698,6 +698,7 @@ export async function createProduct({
 export type BulkProductRow = {
   readonly id: string
   readonly name: string
+  readonly images: readonly StoredProductImage[]
   readonly price: number
   readonly compareAtPrice: number | null
   readonly stock: number
@@ -706,13 +707,13 @@ export type BulkProductRow = {
 }
 
 export type BulkProduct = BulkProductRow & {
-  readonly images: readonly StoredProductImage[]
   readonly variants: readonly StoredProductVariant[]
 }
 
 const BULK_PRODUCT_COLUMNS = {
   id: productTable.id,
   name: productTable.name,
+  images: productTable.images,
   price: productTable.price,
   compareAtPrice: productTable.compareAtPrice,
   stock: productTable.stock,
@@ -754,7 +755,6 @@ export async function adminBulkProductsByIds(
       db
         .select({
           ...BULK_PRODUCT_COLUMNS,
-          images: productTable.images,
           variants: productTable.variants,
         })
         .from(productTable)

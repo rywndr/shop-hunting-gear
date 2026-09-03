@@ -7,6 +7,7 @@ const legacyStoredProductImageSchema = z
     id: z.string().min(1),
     objectKey: z.string().min(1),
     alt: z.string().trim().min(1),
+    sourceUrl: z.string().url().optional(),
   })
   .strict()
 
@@ -17,6 +18,7 @@ const derivedStoredProductImageSchema = z
     thumbnailObjectKey: z.string().min(1),
     detailObjectKey: z.string().min(1),
     alt: z.string().trim().min(1),
+    sourceUrl: z.string().url().optional(),
   })
   .strict()
 

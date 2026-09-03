@@ -12,6 +12,8 @@ import {
 import { bulkGuideSections, bulkGuideTitle } from "./guide"
 import { MAX_ROWS } from "./limits"
 import { mapHeaderRow } from "./parser"
+import type { StoredProductImage } from "@/lib/products/schema"
+
 import type { BulkCell, BulkSheet, BulkSheetRow } from "./types"
 
 const { ValueType, Workbook } = ExcelJS
@@ -56,6 +58,23 @@ export function importText(value: string) {
 export type BulkWorkbookRow = Readonly<
   Partial<Record<BulkColumnKey, string | number | null>>
 >
+
+export function exportedImageUrlCells(
+  images: readonly StoredProductImage[]
+): BulkWorkbookRow {
+  const sourceUrls = images.every(({ sourceUrl }) => sourceUrl !== undefined)
+    ? images.map(({ sourceUrl }) => sourceUrl).slice(0, 6)
+    : []
+
+  return {
+    image1Url: sourceUrls[0],
+    image2Url: sourceUrls[1],
+    image3Url: sourceUrls[2],
+    image4Url: sourceUrls[3],
+    image5Url: sourceUrls[4],
+    image6Url: sourceUrls[5],
+  }
+}
 
 function headerFont(column: BulkColumnMeta) {
   return {

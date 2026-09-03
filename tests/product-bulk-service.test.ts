@@ -12,7 +12,10 @@ import {
   runBulkUpload,
   type BulkDependencies,
 } from "../lib/admin/product-bulk/service"
-import { bulkWorkbookBytes } from "../lib/admin/product-bulk/workbook"
+import {
+  bulkWorkbookBytes,
+  exportedImageUrlCells,
+} from "../lib/admin/product-bulk/workbook"
 import type { BulkProduct } from "../lib/products/service"
 import type { StoredProductImage } from "../lib/products/schema"
 
@@ -44,17 +47,19 @@ async function imageBytes() {
   return pixels
 }
 
-function storedImage(id: string): StoredProductImage {
+function storedImage(id: string, sourceUrl?: string): StoredProductImage {
   return {
     id,
     objectKey: `products/p/${id}/original.png`,
     thumbnailObjectKey: `products/p/${id}/thumbnail.webp`,
     detailObjectKey: `products/p/${id}/detail.webp`,
     alt: `foto ${id}`,
+    ...(sourceUrl === undefined ? {} : { sourceUrl }),
   }
 }
 
 type Recorder = {
+  readonly fetched: string[]
   readonly uploaded: string[]
   readonly deleted: string[][]
   readonly created: unknown[]
@@ -80,6 +85,7 @@ function dependencies({
   createProduct?: BulkDependencies["createProduct"]
 } = {}): { deps: BulkDependencies; recorder: Recorder } {
   const recorder: Recorder = {
+    fetched: [],
     uploaded: [],
     deleted: [],
     created: [],
@@ -88,9 +94,12 @@ function dependencies({
   }
 
   const deps: BulkDependencies = {
-    fetchImage:
-      fetchImage ??
-      (async () => ({ bytes: await imageBytes(), mime: "image/png" })),
+    fetchImage: async (url) => {
+      recorder.fetched.push(url)
+      return fetchImage
+        ? fetchImage(url)
+        : { bytes: await imageBytes(), mime: "image/png" }
+    },
     uploadImage:
       uploadImage ??
       (async ({ id, alt }) => {
@@ -194,6 +203,7 @@ test("new products land as drafts with a generated id and slug", async () => {
   assert.match(created?.id ?? "", /^\d+$/)
   assert.match(created?.slug ?? "", /^tenda-camping-ringan-\d{8}$/)
   assert.equal(created?.images.length, 1)
+  assert.equal(created?.images[0]?.sourceUrl, IMAGE_ONE)
   assert.equal(created?.description.length, 1)
 })
 
@@ -349,6 +359,103 @@ test("blank image columns keep the stored gallery untouched", async () => {
   assert.equal(recorder.uploaded.length, 0)
   assert.equal(recorder.deleted.length, 0)
   assert.equal("images" in (recorder.updated[0]?.values ?? {}), false)
+})
+
+test("a mixed gallery exports no URLs and re-uploads without gallery work", async () => {
+  const current = bulkProduct({
+    images: [storedImage("old-1", IMAGE_ONE), storedImage("old-2")],
+  })
+  const imageCells = exportedImageUrlCells(current.images)
+  const row = {
+    id: current.id,
+    name: current.name,
+    price: current.price,
+    compareAtPrice: current.compareAtPrice,
+    stock: current.stock,
+    weight: current.weight,
+    state: current.state,
+    ...imageCells,
+  }
+
+  assert.equal(imageCells.image1Url, undefined)
+  assert.equal(imageCells.image2Url, undefined)
+  assert.equal(imageCells.image3Url, undefined)
+  assert.equal(imageCells.image4Url, undefined)
+  assert.equal(imageCells.image5Url, undefined)
+  assert.equal(imageCells.image6Url, undefined)
+
+  const bytes = await updateWorkbook([row])
+  const { deps, recorder } = dependencies({
+    products: new Map([[current.id, current]]),
+  })
+  const result = await runBulkUpdate(bytes, deps)
+
+  assert.equal(result.kind, "summary")
+  if (result.kind === "summary") {
+    assert.equal(result.summary.skipped, 1)
+  }
+  assert.deepEqual(recorder.fetched, [])
+  assert.deepEqual(recorder.uploaded, [])
+  assert.deepEqual(recorder.deleted, [])
+  assert.deepEqual(recorder.updated, [])
+})
+
+test("unchanged source URLs skip all gallery work", async () => {
+  const current = bulkProduct({
+    images: [storedImage("old-1", IMAGE_ONE), storedImage("old-2", IMAGE_TWO)],
+  })
+  const bytes = await updateWorkbook([
+    { id: current.id, image1Url: IMAGE_ONE, image2Url: IMAGE_TWO },
+  ])
+  const { deps, recorder } = dependencies({
+    products: new Map([[current.id, current]]),
+  })
+  const result = await runBulkUpdate(bytes, deps)
+
+  assert.equal(result.kind, "summary")
+  if (result.kind === "summary") {
+    assert.equal(result.summary.skipped, 1)
+    assert.equal(result.summary.rows[0]?.message, "Tidak ada perubahan.")
+  }
+  assert.deepEqual(recorder.fetched, [])
+  assert.deepEqual(recorder.uploaded, [])
+  assert.deepEqual(recorder.deleted, [])
+  assert.deepEqual(recorder.updated, [])
+})
+
+test("unchanged source URLs allow a stock-only update", async () => {
+  const current = bulkProduct({ images: [storedImage("old-1", IMAGE_ONE)] })
+  const bytes = await updateWorkbook([
+    { id: current.id, stock: 4, image1Url: IMAGE_ONE },
+  ])
+  const { deps, recorder } = dependencies({
+    products: new Map([[current.id, current]]),
+  })
+  await runBulkUpdate(bytes, deps)
+
+  assert.deepEqual(recorder.updated[0]?.values, { stock: 4 })
+  assert.deepEqual(recorder.fetched, [])
+  assert.deepEqual(recorder.uploaded, [])
+  assert.deepEqual(recorder.deleted, [])
+})
+
+test("a changed source URL replaces the gallery and remembers the URL", async () => {
+  const current = bulkProduct({ images: [storedImage("old-1", IMAGE_ONE)] })
+  const bytes = await updateWorkbook([
+    { id: current.id, image1Url: IMAGE_TWO },
+  ])
+  const { deps, recorder } = dependencies({
+    products: new Map([[current.id, current]]),
+  })
+  await runBulkUpdate(bytes, deps)
+
+  assert.deepEqual(recorder.fetched, [IMAGE_TWO])
+  assert.equal(recorder.uploaded.length, 1)
+  const images = recorder.updated[0]?.values.images as
+    | readonly StoredProductImage[]
+    | undefined
+  assert.equal(images?.[0]?.sourceUrl, IMAGE_TWO)
+  assert.equal(recorder.deleted.length, 1)
 })
 
 test("populated image columns replace the gallery and drop the old objects last", async () => {
