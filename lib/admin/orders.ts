@@ -1,6 +1,12 @@
 import { ALL_FILTER } from "@/lib/admin/config"
-import type { Order, OrderStatus, OrderStatusMeta } from "@/lib/orders/config"
+import type {
+  Order,
+  OrderStatus,
+  OrderStatusMeta,
+  PaymentStatus,
+} from "@/lib/orders/config"
 import { isRevenuePaymentStatus } from "@/lib/payments/midtrans/reconciliation"
+import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 type BadgeVariant = OrderStatusMeta["badge"]
 
@@ -35,6 +41,10 @@ const QUEUE_BY_STATUS = {
 export type SalesOrder = {
   readonly buyer: string
   readonly order: Order
+  readonly shipping: {
+    readonly courier: ShippingCourierCode
+    readonly service: string
+  }
 }
 
 export function salesOrderQueue({ order }: SalesOrder): OrderQueue {
@@ -42,6 +52,25 @@ export function salesOrderQueue({ order }: SalesOrder): OrderQueue {
 }
 
 type OrderState = Pick<Order, "paymentStatus" | "fulfillmentStatus">
+
+export const SHIPMENT_PAYMENT_STATUSES = [
+  "paid",
+  "partial_refund",
+] as const satisfies readonly PaymentStatus[]
+
+export function canStartShipmentForPayment(status: PaymentStatus) {
+  return status === "paid" || status === "partial_refund"
+}
+
+function isStorePickup({
+  courier,
+  service,
+}: {
+  readonly courier: ShippingCourierCode
+  readonly service: string
+}) {
+  return courier === "manual" && service === "Pickup"
+}
 
 export function canMarkOrderPaid({
   sourceKind,
@@ -65,17 +94,22 @@ export function canMarkOrderCompleted({
   )
 }
 
-type ShipmentState = OrderState & Pick<Order, "tracking">
+type ShipmentState = OrderState &
+  Pick<Order, "tracking"> & {
+    readonly shipping: SalesOrder["shipping"]
+  }
 
 export function canShipOrder({
   paymentStatus,
   fulfillmentStatus,
   tracking,
+  shipping,
 }: ShipmentState) {
   return (
-    isRevenuePaymentStatus(paymentStatus) &&
+    canStartShipmentForPayment(paymentStatus) &&
     fulfillmentStatus === "processing" &&
-    tracking === null
+    tracking === null &&
+    !isStorePickup(shipping)
   )
 }
 

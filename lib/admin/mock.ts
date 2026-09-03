@@ -462,6 +462,11 @@ const SALES_ORDER_ENTRIES = [
   },
 ] as const satisfies readonly SalesOrderEntry[]
 
+const MOCK_SALES_SHIPPING = {
+  courier: "jne",
+  service: "Manual",
+} as const satisfies SalesOrder["shipping"]
+
 const FIRST_ORDER_INVOICE = 212
 const PLACED_TIME = "10:12:00+07:00"
 const FIRST_TRACKING = 8_204_915_037
@@ -490,6 +495,7 @@ export const MOCK_SALES_ORDERS: readonly SalesOrder[] = SALES_ORDER_ENTRIES.map(
 
     return {
       buyer,
+      shipping: MOCK_SALES_SHIPPING,
       order: {
         id: `INV/${date.replaceAll("-", "")}/HG/${invoice}`,
         status,

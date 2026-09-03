@@ -8,29 +8,54 @@ import {
 } from "../lib/admin/orders"
 import { normalizeTracking, trackingSchema } from "../lib/admin/shipment"
 
+const NORMAL_SHIPPING = {
+  courier: "jne",
+  service: "REG",
+} as const
+
 const PAID_TO_SHIP = {
   paymentStatus: "paid",
   fulfillmentStatus: "processing",
   tracking: null,
+  shipping: NORMAL_SHIPPING,
 } as const
 
-test("a paid order that is still processing may be shipped", () => {
+test("shipment eligibility allows only paid shipment payments", () => {
   assert.equal(canShipOrder(PAID_TO_SHIP), true)
   assert.equal(
     canShipOrder({ ...PAID_TO_SHIP, paymentStatus: "partial_refund" }),
     true
   )
-})
-
-test("an unpaid order may never be shipped", () => {
-  for (const paymentStatus of ["pending", "authorized", "expired"] as const) {
-    assert.equal(canShipOrder({ ...PAID_TO_SHIP, paymentStatus }), false)
-  }
   assert.equal(
     canShipOrder({
-      paymentStatus: "pending",
-      fulfillmentStatus: "awaiting_payment",
-      tracking: null,
+      ...PAID_TO_SHIP,
+      shipping: { courier: "manual", service: "Manual" },
+    }),
+    true
+  )
+})
+
+test("shipment eligibility rejects blocked payment statuses", () => {
+  for (const paymentStatus of [
+    "pending",
+    "authorized",
+    "failed",
+    "denied",
+    "cancelled",
+    "expired",
+    "refunded",
+    "partial_chargeback",
+    "chargeback",
+  ] as const) {
+    assert.equal(canShipOrder({ ...PAID_TO_SHIP, paymentStatus }), false)
+  }
+})
+
+test("a pickup order cannot be shipped", () => {
+  assert.equal(
+    canShipOrder({
+      ...PAID_TO_SHIP,
+      shipping: { courier: "manual", service: "Pickup" },
     }),
     false
   )

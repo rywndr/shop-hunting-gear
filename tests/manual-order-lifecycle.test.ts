@@ -42,6 +42,12 @@ const PICKUP_ORDER = {
   note: "Diambil sore ini.",
 } satisfies ManualOrderInput
 
+const COURIER_ORDER_DEFAULTS = {
+  deliveryMethod: "jne",
+  address: "Jalan Merdeka 10, Bandung, Jawa Barat 40111",
+  shippingCost: 25_000,
+} satisfies Partial<ManualOrderInput>
+
 const createdOrderIds: string[] = []
 
 async function productRow() {
@@ -103,6 +109,12 @@ async function createOrder(
 
   createdOrderIds.push(result.orderId)
   return result.orderId
+}
+
+async function createCourierOrder(
+  overrides: Partial<ManualOrderInput> = {}
+): Promise<string> {
+  return createOrder({ ...COURIER_ORDER_DEFAULTS, ...overrides })
 }
 
 before(async () => {
@@ -330,12 +342,21 @@ test("an unknown customer or variant is rejected", async () => {
 
 const TRACKING = "JP1234567890"
 
+test("a paid pickup order cannot be shipped", async () => {
+  const orderId = await createOrder()
+  assert.equal(await settle(orderId), "settled")
+  assert.equal((await orderRow(orderId)).fulfillmentStatus, "processing")
+
+  const result = await recordOrderShipment({ orderId, tracking: TRACKING })
+
+  assert.deepEqual(result, { kind: "not-eligible" })
+  const order = await orderRow(orderId)
+  assert.equal(order.fulfillmentStatus, "processing")
+  assert.equal(order.tracking, null)
+})
+
 test("saving a resi moves a paid order from processing to shipped", async () => {
-  const orderId = await createOrder({
-    deliveryMethod: "jne",
-    address: "Jalan Merdeka 10, Bandung, Jawa Barat 40111",
-    shippingCost: 25_000,
-  })
+  const orderId = await createCourierOrder()
   assert.equal(await settle(orderId), "settled")
 
   const shipped = await recordOrderShipment({
@@ -350,7 +371,7 @@ test("saving a resi moves a paid order from processing to shipped", async () => 
 })
 
 test("a stale second submission never overwrites a saved resi", async () => {
-  const orderId = await createOrder()
+  const orderId = await createCourierOrder()
   assert.equal(await settle(orderId), "settled")
   assert.equal(
     (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
@@ -367,7 +388,7 @@ test("a stale second submission never overwrites a saved resi", async () => {
 })
 
 test("an unpaid order is never shipped", async () => {
-  const orderId = await createOrder()
+  const orderId = await createCourierOrder()
   const result = await recordOrderShipment({ orderId, tracking: TRACKING })
 
   assert.equal(result.kind, "not-eligible")
@@ -377,8 +398,48 @@ test("an unpaid order is never shipped", async () => {
   assert.equal(order.tracking, null)
 })
 
+test("reversed payment states cannot start shipment", async () => {
+  for (const paymentStatus of [
+    "refunded",
+    "partial_chargeback",
+    "chargeback",
+  ] as const) {
+    const orderId = await createCourierOrder()
+    assert.equal(await settle(orderId), "settled")
+    await db
+      .update(customerOrder)
+      .set({ paymentStatus })
+      .where(eq(customerOrder.id, orderId))
+
+    const result = await recordOrderShipment({ orderId, tracking: TRACKING })
+
+    assert.deepEqual(result, { kind: "not-eligible" })
+    const order = await orderRow(orderId)
+    assert.equal(order.paymentStatus, paymentStatus)
+    assert.equal(order.fulfillmentStatus, "processing")
+    assert.equal(order.tracking, null)
+  }
+})
+
+test("a partially refunded courier order can start shipment", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal(await settle(orderId), "settled")
+  await db
+    .update(customerOrder)
+    .set({ paymentStatus: "partial_refund" })
+    .where(eq(customerOrder.id, orderId))
+
+  const result = await recordOrderShipment({ orderId, tracking: TRACKING })
+
+  assert.deepEqual(result, { kind: "shipped" })
+  const order = await orderRow(orderId)
+  assert.equal(order.paymentStatus, "partial_refund")
+  assert.equal(order.fulfillmentStatus, "shipped")
+  assert.equal(order.tracking, TRACKING)
+})
+
 test("an invalid resi is rejected before the order is touched", async () => {
-  const orderId = await createOrder()
+  const orderId = await createCourierOrder()
   assert.equal(await settle(orderId), "settled")
 
   const result = await recordOrderShipment({ orderId, tracking: "  " })
@@ -391,7 +452,7 @@ test("an invalid resi is rejected before the order is touched", async () => {
 })
 
 test("a completed order keeps its resi and cannot be shipped again", async () => {
-  const orderId = await createOrder()
+  const orderId = await createCourierOrder()
   assert.equal(await settle(orderId), "settled")
   assert.equal(
     (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,

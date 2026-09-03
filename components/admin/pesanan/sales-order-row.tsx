@@ -120,7 +120,12 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
           {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
           )}
-          {canShipOrder(order) && (
+          {canShipOrder({
+            paymentStatus: order.paymentStatus,
+            fulfillmentStatus: order.fulfillmentStatus,
+            tracking: order.tracking,
+            shipping: salesOrder.shipping,
+          }) && (
             <ShipOrderDialog
               orderId={order.id}
               buyer={buyer}

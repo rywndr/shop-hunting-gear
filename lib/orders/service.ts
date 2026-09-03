@@ -31,6 +31,7 @@ import type { Address } from "@/lib/account/types"
 import { ALL_FILTER } from "@/lib/admin/config"
 import {
   canMarkOrderPaid,
+  SHIPMENT_PAYMENT_STATUSES,
   type OrderQueue,
   type OrderQueueFilter,
   type SalesOrder,
@@ -143,6 +144,13 @@ const REVENUE_PAYMENT_STATUSES: PaymentStatus[] = [
 function revenuePaymentStatusValues() {
   return sql.join(
     REVENUE_PAYMENT_STATUSES.map((status) => sql`${status}`),
+    sql`, `
+  )
+}
+
+function shipmentPaymentStatusValues() {
+  return sql.join(
+    SHIPMENT_PAYMENT_STATUSES.map((status) => sql`${status}`),
     sql`, `
   )
 }
@@ -322,6 +330,10 @@ function groupOrders(rows: readonly JoinedOrderRow[]): readonly SalesOrder[] {
   return [...grouped.values()].map(({ buyer, order, items }) => ({
     buyer,
     order: orderFromRow({ order, items }),
+    shipping: {
+      courier: order.shippingCourier,
+      service: order.shippingService,
+    },
   }))
 }
 
@@ -2039,7 +2051,13 @@ export async function recordOrderShipment({
     readonly tracking: string | null
   }>(sql`
     WITH locked_order AS MATERIALIZED (
-      SELECT id, payment_status, fulfillment_status, tracking
+      SELECT
+        id,
+        payment_status,
+        fulfillment_status,
+        tracking,
+        shipping_courier,
+        shipping_service
       FROM customer_order
       WHERE id = ${orderId}
       FOR UPDATE
@@ -2052,9 +2070,13 @@ export async function recordOrderShipment({
         updated_at = now()
       FROM locked_order
       WHERE current_order.id = locked_order.id
-        AND locked_order.payment_status IN (${revenuePaymentStatusValues()})
+        AND locked_order.payment_status IN (${shipmentPaymentStatusValues()})
         AND locked_order.fulfillment_status = 'processing'
         AND locked_order.tracking IS NULL
+        AND NOT (
+          locked_order.shipping_courier = 'manual'
+          AND locked_order.shipping_service = 'Pickup'
+        )
       RETURNING current_order.id
     )
     SELECT

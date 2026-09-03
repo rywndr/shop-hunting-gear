@@ -39,7 +39,7 @@ export default async function ShippingLabelPage({
   }
 
   return (
-    <main className="flex min-h-dvh justify-center bg-muted p-4 print:block print:min-h-0 print:bg-white print:p-0 print:pt-[3mm] print:pl-[3mm]">
+    <main className="flex min-h-dvh justify-center bg-muted p-4 print:block print:min-h-0 print:bg-white print:p-0">
       <div className="flex flex-col items-center gap-4 print:items-start print:gap-0">
         <PrintLabelTrigger />
         <ShippingLabel label={label} />
