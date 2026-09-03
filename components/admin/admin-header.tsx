@@ -12,7 +12,7 @@ function AdminHeader() {
           size="icon-lg"
           className="mr-auto text-navbar-foreground hover:bg-navbar-foreground/10 hover:text-navbar-foreground"
         />
-        <AccountMenu links={ADMIN_MENU_LINKS} />
+        <AccountMenu links={ADMIN_MENU_LINKS} align="end" />
       </div>
     </header>
   )

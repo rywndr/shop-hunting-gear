@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils"
 function AccountMenu({
   links,
   className,
+  align = "center",
 }: {
   links: readonly NavLink[]
   className?: string
+  align?: "center" | "end"
 }) {
   const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
@@ -44,7 +46,12 @@ function AccountMenu({
         <UserCircleIcon className="size-6" />
       </Button>
 
-      <div className="invisible absolute top-full left-1/2 z-30 w-48 -translate-x-1/2 pt-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <div
+        className={cn(
+          "invisible absolute top-full z-30 w-48 pt-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100",
+          align === "center" ? "left-1/2 -translate-x-1/2" : "right-0"
+        )}
+      >
         <div className="border border-border bg-secondary p-5 text-secondary-foreground shadow-lg">
           <nav aria-label="Tautan akun">
             <ul className="space-y-1">
