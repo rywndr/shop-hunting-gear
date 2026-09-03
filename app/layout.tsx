@@ -1,8 +1,10 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { Geist_Mono, Roboto, Roboto_Slab } from "next/font/google"
 
 import "./globals.css"
 import { CartProvider } from "@/components/cart/cart-provider"
+import { RouteProgress } from "@/components/layout/route-progress"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ROOT_METADATA } from "@/lib/site/metadata"
 import { cn } from "@/lib/utils"
@@ -40,7 +42,12 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            <Suspense fallback={null}>
+              <RouteProgress />
+            </Suspense>
+            {children}
+          </CartProvider>
         </ThemeProvider>
       </body>
     </html>
