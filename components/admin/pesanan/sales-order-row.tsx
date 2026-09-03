@@ -145,7 +145,7 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Cetak label pengiriman ${order.id} di tab baru`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              className={cn(buttonVariants({ size: "sm" }))}
             >
               <PrinterIcon data-icon="inline-start" />
               Cetak Label

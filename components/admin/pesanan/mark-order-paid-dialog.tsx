@@ -57,21 +57,19 @@ function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
         </DialogHeader>
 
         <div className="flex flex-col gap-5">
-          <div className="flex items-center justify-between gap-4 border-y py-3">
+          <dl className="grid min-w-0 gap-3 border-y py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-4">
             <div className="min-w-0">
-              <span className="block text-xs text-muted-foreground">
-                Pesanan
-              </span>
-              <span className="block truncate font-mono text-sm">
-                {orderId}
-              </span>
+              <dt className="text-xs text-muted-foreground">Pesanan</dt>
+              <dd className="truncate font-mono text-sm">{orderId}</dd>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 text-xs">
-              <span className="text-muted-foreground">Status baru</span>
-              <OrderQueueBadge queue="toShip" />
+            <div className="flex items-center justify-between gap-2 text-xs sm:justify-start">
+              <dt className="text-muted-foreground">Status baru</dt>
+              <dd>
+                <OrderQueueBadge queue="toShip" />
+              </dd>
             </div>
-          </div>
+          </dl>
 
           {error && (
             <p role="alert" className="text-sm text-destructive">
