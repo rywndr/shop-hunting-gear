@@ -31,6 +31,7 @@ import type {
   SalesOrder,
 } from "@/lib/admin/orders"
 import { orderTab } from "@/lib/admin/orders"
+import type { ProductThumbnailImage } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 
 const SEARCH_DEBOUNCE_MS = 350
@@ -117,8 +118,10 @@ function SalesOrderTable({
   pageSize,
   queue,
   search,
+  productImages,
 }: {
   readonly orders: readonly SalesOrder[]
+  readonly productImages: readonly ProductThumbnailImage[]
   readonly counts: Readonly<Record<OrderQueue, number>>
   readonly total: number
   readonly page: number
@@ -215,6 +218,7 @@ function SalesOrderTable({
               <SalesOrderRow
                 key={salesOrder.order.id}
                 salesOrder={salesOrder}
+                productImages={productImages}
               />
             ))
           )}

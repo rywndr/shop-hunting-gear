@@ -8,7 +8,11 @@ import { SalesOrderTable } from "@/components/admin/pesanan/sales-order-table"
 import { SalesOrderTableSkeleton } from "@/components/admin/pesanan/sales-order-table-skeleton"
 import { adminSection } from "@/lib/admin/config"
 import { manualOrderCustomers, salesOrderPage } from "@/lib/orders/service"
-import { storefrontProductData } from "@/lib/products/service"
+import { productThumbnailImages } from "@/lib/products/config"
+import {
+  storefrontProductCards,
+  storefrontProductData,
+} from "@/lib/products/service"
 import { orderFilterFromTab, type OrderQueueFilter } from "@/lib/admin/orders"
 
 const SECTION = adminSection("orders")
@@ -59,10 +63,21 @@ async function OrderTable({
     page: currentPage,
     pageSize: currentPageSize,
   })
+  const productSlugs = [
+    ...new Set(
+      orderPage.orders.flatMap(({ order }) =>
+        order.items.map(({ productSlug }) => productSlug)
+      )
+    ),
+  ]
+  const products = await storefrontProductCards(
+    productSlugs.map((slug) => ({ slug }))
+  )
 
   return (
     <SalesOrderTable
       orders={orderPage.orders}
+      productImages={productThumbnailImages(products)}
       counts={orderPage.counts}
       total={orderPage.total}
       page={currentPage}

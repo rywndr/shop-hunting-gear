@@ -70,6 +70,22 @@ export type ProductCard = Omit<Product, "images"> & {
   readonly images: readonly [ProductCardImage]
 }
 
+export type ProductThumbnailImage = {
+  readonly productSlug: string
+  readonly src: string
+  readonly label: string
+}
+
+export function productThumbnailImages(
+  products: readonly ProductCard[]
+): readonly ProductThumbnailImage[] {
+  return products.map((product) => ({
+    productSlug: product.slug,
+    src: product.images[0].thumbnailUrl ?? product.images[0].url,
+    label: product.images[0].alt,
+  }))
+}
+
 export type ProductDetail = Omit<Product, "images"> & {
   readonly images: NonEmptyReadonlyArray<ProductDetailImage>
 }

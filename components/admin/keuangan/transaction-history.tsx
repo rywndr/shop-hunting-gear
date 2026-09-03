@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import type { Pagination } from "@/hooks/use-pagination"
 import type { Transaction } from "@/lib/admin/finance"
+import type { ProductThumbnailImage } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 
 const COLUMNS = [
@@ -68,8 +69,10 @@ function TransactionHistory({
   total,
   page,
   pageSize,
+  productImages,
 }: {
   readonly transactions: readonly Transaction[]
+  readonly productImages: readonly ProductThumbnailImage[]
   readonly total: number
   readonly page: number
   readonly pageSize: number
@@ -142,6 +145,7 @@ function TransactionHistory({
                 key={transaction.orderId}
                 transaction={transaction}
                 columnCount={COLUMNS.length}
+                productImages={productImages}
               />
             ))
           )}

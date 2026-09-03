@@ -24,34 +24,47 @@ import {
   type SalesOrder,
 } from "@/lib/admin/orders"
 import { orderTotal, type Order } from "@/lib/orders/config"
+import type { ProductThumbnailImage } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
 
 function OrderItemList({
   order,
   className,
+  productImages,
 }: {
   order: Order
   className?: string
+  productImages: readonly ProductThumbnailImage[]
 }) {
+  const imagesBySlug = new Map(
+    productImages.map((image) => [image.productSlug, image])
+  )
+
   return (
     <ul className={cn("flex flex-col gap-2", className)}>
-      {order.items.map((item) => (
-        <li key={`${item.name} ${item.variant}`} className="flex gap-2">
-          <ProductThumbnail
-            className="size-10 shrink-0"
-            iconClassName="size-4"
-          />
+      {order.items.map((item) => {
+        const image = imagesBySlug.get(item.productSlug)
 
-          <div className="min-w-0">
-            <span className="line-clamp-2 font-medium">{item.name}</span>
-            <span className="block text-xs text-muted-foreground">
-              {item.variant && <>{item.variant} &middot; </>}x
-              {formatNumber(item.quantity)}
-            </span>
-          </div>
-        </li>
-      ))}
+        return (
+          <li key={`${item.name} ${item.variant}`} className="flex gap-2">
+            <ProductThumbnail
+              src={image?.src}
+              label={image?.label ?? `Gambar ${item.name}`}
+              className="size-10 shrink-0"
+              iconClassName="size-4"
+            />
+
+            <div className="min-w-0">
+              <span className="line-clamp-2 font-medium">{item.name}</span>
+              <span className="block text-xs text-muted-foreground">
+                {item.variant && <>{item.variant} &middot; </>}x
+                {formatNumber(item.quantity)}
+              </span>
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -69,7 +82,13 @@ function ShippingLabel({ order }: { order: Order }) {
   )
 }
 
-function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
+function SalesOrderRow({
+  salesOrder,
+  productImages,
+}: {
+  salesOrder: SalesOrder
+  productImages: readonly ProductThumbnailImage[]
+}) {
   const { buyer, order } = salesOrder
   const queue = salesOrderQueue(salesOrder)
 
@@ -85,7 +104,11 @@ function SalesOrderRow({ salesOrder }: { salesOrder: SalesOrder }) {
           <CopyIdButton value={order.id} />
         </div>
 
-        <OrderItemList order={order} className="mt-2" />
+        <OrderItemList
+          order={order}
+          productImages={productImages}
+          className="mt-2"
+        />
 
         <div className="mt-2 flex flex-col items-start gap-1 lg:hidden">
           <OrderQueueBadge queue={queue} />

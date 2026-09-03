@@ -7,6 +7,8 @@ import { FundsSummary } from "@/components/admin/keuangan/funds-summary"
 import { TransactionHistory } from "@/components/admin/keuangan/transaction-history"
 import { adminSection } from "@/lib/admin/config"
 import { financeSummary, paidTransactionPage } from "@/lib/orders/service"
+import { productThumbnailImages } from "@/lib/products/config"
+import { storefrontProductCards } from "@/lib/products/service"
 
 const SECTION = adminSection("finance")
 type AdminPageSize = 10 | 25 | 50
@@ -36,12 +38,23 @@ async function FinanceContent({
     financeSummary(),
     paidTransactionPage({ page, pageSize }),
   ])
+  const productSlugs = [
+    ...new Set(
+      transactionPage.transactions.flatMap(({ items }) =>
+        items.map(({ productSlug }) => productSlug)
+      )
+    ),
+  ]
+  const products = await storefrontProductCards(
+    productSlugs.map((slug) => ({ slug }))
+  )
 
   return (
     <>
       <FundsSummary amount={summary} />
       <TransactionHistory
         transactions={transactionPage.transactions}
+        productImages={productThumbnailImages(products)}
         total={transactionPage.total}
         page={page}
         pageSize={pageSize}

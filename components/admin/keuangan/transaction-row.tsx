@@ -15,6 +15,7 @@ import {
   transactionEarnings,
   type Transaction,
 } from "@/lib/admin/finance"
+import type { ProductThumbnailImage } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 import {
   formatNumber,
@@ -25,28 +26,40 @@ import {
 function TransactionItemList({
   transaction,
   className,
+  productImages,
 }: {
   transaction: Transaction
   className?: string
+  productImages: readonly ProductThumbnailImage[]
 }) {
+  const imagesBySlug = new Map(
+    productImages.map((image) => [image.productSlug, image])
+  )
+
   return (
     <ul className={cn("flex flex-col gap-2", className)}>
-      {transaction.items.map((item) => (
-        <li key={`${item.name} ${item.variant}`} className="flex gap-2">
-          <ProductThumbnail
-            className="size-10 shrink-0"
-            iconClassName="size-4"
-          />
+      {transaction.items.map((item) => {
+        const image = imagesBySlug.get(item.productSlug)
 
-          <div className="min-w-0">
-            <span className="line-clamp-2 font-medium">{item.name}</span>
-            <span className="block text-xs text-muted-foreground">
-              {item.variant && <>{item.variant} &middot; </>}x
-              {formatNumber(item.quantity)}
-            </span>
-          </div>
-        </li>
-      ))}
+        return (
+          <li key={`${item.name} ${item.variant}`} className="flex gap-2">
+            <ProductThumbnail
+              src={image?.src}
+              label={image?.label ?? `Gambar ${item.name}`}
+              className="size-10 shrink-0"
+              iconClassName="size-4"
+            />
+
+            <div className="min-w-0">
+              <span className="line-clamp-2 font-medium">{item.name}</span>
+              <span className="block text-xs text-muted-foreground">
+                {item.variant && <>{item.variant} &middot; </>}x
+                {formatNumber(item.quantity)}
+              </span>
+            </div>
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -54,9 +67,11 @@ function TransactionItemList({
 function TransactionRow({
   transaction,
   columnCount,
+  productImages,
 }: {
   transaction: Transaction
   columnCount: number
+  productImages: readonly ProductThumbnailImage[]
 }) {
   const [open, setOpen] = useState(false)
   const detailId = useId()
@@ -79,7 +94,11 @@ function TransactionRow({
             {formatShortDate(transaction.settledAt)}
           </span>
 
-          <TransactionItemList transaction={transaction} className="mt-2" />
+          <TransactionItemList
+            transaction={transaction}
+            productImages={productImages}
+            className="mt-2"
+          />
 
           <div className="mt-2 flex flex-col items-start gap-1 md:hidden">
             <FulfillmentBadge fulfillment={transaction.fulfillment} />
