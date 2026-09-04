@@ -17,6 +17,8 @@ import type { ReviewUploadTokenPayload } from "./upload-intent"
 
 const MAX_IMAGE_PIXELS = 50_000_000
 const MAX_IMAGE_DIMENSION = 20_000
+const THUMBNAIL_WIDTH = 480
+const DETAIL_WIDTH = 1200
 const URL_TTL_SECONDS = 12 * 60 * 60
 const URL_CACHE_TTL_SECONDS = 3 * 60 * 60
 const REVIEW_CACHE_CONTROL = "public, max-age=86400"
@@ -131,8 +133,8 @@ export async function processStagedReviewImage({
 
   const derivatives = await webpDerivativeBuffers({
     bytes,
-    thumbnailSize: 640,
-    detailSize: 1440,
+    thumbnailSize: THUMBNAIL_WIDTH,
+    detailSize: DETAIL_WIDTH,
   })
   const keys = reviewCanonicalObjectKeys({
     productId,
@@ -142,20 +144,27 @@ export async function processStagedReviewImage({
   const uploadedObjectKeys: string[] = []
 
   try {
-    uploadedObjectKeys.push(keys.thumbnailObjectKey)
-    await putB2Object({
-      key: keys.thumbnailObjectKey,
-      body: derivatives.thumbnail,
-      contentType: "image/webp",
-      cacheControl: REVIEW_CACHE_CONTROL,
-    })
-    uploadedObjectKeys.push(keys.objectKey)
-    await putB2Object({
-      key: keys.objectKey,
-      body: derivatives.detail,
-      contentType: "image/webp",
-      cacheControl: REVIEW_CACHE_CONTROL,
-    })
+    uploadedObjectKeys.push(keys.thumbnailObjectKey, keys.objectKey)
+    const uploads = await Promise.allSettled([
+      putB2Object({
+        key: keys.thumbnailObjectKey,
+        body: derivatives.thumbnail,
+        contentType: "image/webp",
+        cacheControl: REVIEW_CACHE_CONTROL,
+      }),
+      putB2Object({
+        key: keys.objectKey,
+        body: derivatives.detail,
+        contentType: "image/webp",
+        cacheControl: REVIEW_CACHE_CONTROL,
+      }),
+    ])
+
+    for (const upload of uploads) {
+      if (upload.status === "rejected") {
+        throw upload.reason
+      }
+    }
   } catch (error) {
     try {
       await deleteB2Objects(uploadedObjectKeys)
