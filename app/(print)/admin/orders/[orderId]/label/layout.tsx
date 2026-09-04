@@ -9,7 +9,7 @@ export const metadata: Metadata = { robots: PRIVATE_ROBOTS }
 
 export default async function ShippingLabelLayout({
   children,
-}: LayoutProps<"/admin/pesanan/[orderId]/label">) {
+}: LayoutProps<"/admin/orders/[orderId]/label">) {
   const session = await getCurrentSession()
 
   if (!session) {

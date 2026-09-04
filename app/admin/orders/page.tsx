@@ -89,7 +89,7 @@ async function OrderTable({
 }
 
 export default async function AdminOrdersPage(
-  props: PageProps<"/admin/pesanan">
+  props: PageProps<"/admin/orders">
 ) {
   const params = await props.searchParams
   const tab = typeof params.tab === "string" ? params.tab : undefined
@@ -104,7 +104,7 @@ export default async function AdminOrdersPage(
   )
 
   if (tab === undefined) {
-    redirect("/admin/pesanan?tab=unpaid")
+    redirect("/admin/orders?tab=unpaid")
   }
 
   return (

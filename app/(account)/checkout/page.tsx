@@ -36,7 +36,7 @@ export default async function CheckoutPage({
   if (!session) return null
 
   const query = await searchParams
-  const preparedOrderId = queryValue(query.pesanan)
+  const preparedOrderId = queryValue(query.order)
 
   if (preparedOrderId) {
     const preparedOrder = await preparedCheckoutOrderForUser({

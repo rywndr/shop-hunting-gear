@@ -59,9 +59,9 @@ function midtransItemText(value: string) {
 }
 
 function revalidatePaymentViews() {
-  revalidatePath("/history")
-  revalidatePath("/admin/pesanan")
-  revalidatePath("/admin/keuangan")
+  revalidatePath("/orders")
+  revalidatePath("/admin/orders")
+  revalidatePath("/admin/finance")
 }
 
 function confirmationResult(
@@ -340,7 +340,7 @@ export async function createPaymentAction(
       throw new Error("Snap transaction could not be saved to the order.")
     }
 
-    revalidatePath("/history")
+    revalidatePath("/orders")
     return {
       kind: "ready",
       orderId: localOrder.id,

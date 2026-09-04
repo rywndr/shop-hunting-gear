@@ -92,7 +92,7 @@ function SnapPaymentButton({
     }
 
     setPaymentState({ kind: "snap-completed", orderId, notice })
-    router.push(`/history?pesanan=${encodeURIComponent(orderId)}`)
+    router.push(`/orders?order=${encodeURIComponent(orderId)}`)
     router.refresh()
   }
 

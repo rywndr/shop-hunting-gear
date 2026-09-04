@@ -9,7 +9,7 @@ import {
 } from "@/lib/site/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
 
-export const NEW_PRODUCT_HREF = `${adminSection("products").href}/tambah`
+export const NEW_PRODUCT_HREF = `${adminSection("products").href}/new`
 
 export const NEW_PRODUCT_PAGE = {
   label: "Tambah Produk",

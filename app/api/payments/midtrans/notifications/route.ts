@@ -14,9 +14,9 @@ import {
 export const maxDuration = 10
 
 function revalidatePaymentViews() {
-  revalidatePath("/history")
-  revalidatePath("/admin/pesanan")
-  revalidatePath("/admin/keuangan")
+  revalidatePath("/orders")
+  revalidatePath("/admin/orders")
+  revalidatePath("/admin/finance")
 }
 
 export async function POST(request: Request) {

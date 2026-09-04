@@ -111,12 +111,12 @@ function sectionCopy(filter: BrowseFilter): {
     case "category":
       return {
         title: categoryLabels(filter.categories),
-        description: "Produk dari kategori yang dipilih.",
+        description: "Produk dari category yang dipilih.",
       }
     case "all":
       return {
         title: "Semua Produk",
-        description: "Seluruh katalog dari empat kategori dalam satu daftar.",
+        description: "Seluruh katalog dari empat category dalam satu daftar.",
       }
     default: {
       const _exhaustive: never = filter
@@ -212,7 +212,7 @@ async function BrowseCatalog({
 
   return (
     <ProductSection
-      id="produk"
+      id="products"
       title={copy.title}
       description={copy.description}
       action={
@@ -246,7 +246,7 @@ async function BrowseCatalog({
 function BrowseCatalogSkeleton() {
   return (
     <ProductSection
-      id="produk"
+      id="products"
       title="Memuat produk"
       description="Katalog sedang dimuat."
       className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"

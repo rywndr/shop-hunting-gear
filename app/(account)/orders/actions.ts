@@ -43,9 +43,9 @@ export async function confirmOrderReceivedAction(
     switch (result.kind) {
       case "completed":
       case "already-completed":
-        revalidatePath("/history")
-        revalidatePath("/admin/pesanan")
-        revalidatePath("/admin/keuangan")
+        revalidatePath("/orders")
+        revalidatePath("/admin/orders")
+        revalidatePath("/admin/finance")
         return { kind: "success" }
       case "not-found":
         return { kind: "error", message: "Pesanan tidak ditemukan." }
@@ -114,12 +114,12 @@ export async function cancelOrderAction(
 
   switch (result.kind) {
     case "cancelled":
-      revalidatePath("/history")
-      revalidatePath("/admin/pesanan")
+      revalidatePath("/orders")
+      revalidatePath("/admin/orders")
       return { kind: "success" }
     case "paid":
-      revalidatePath("/history")
-      revalidatePath("/admin/pesanan")
+      revalidatePath("/orders")
+      revalidatePath("/admin/orders")
       return {
         kind: "paid",
         message: "Pesanan sudah dibayar dan tidak dapat dibatalkan.",

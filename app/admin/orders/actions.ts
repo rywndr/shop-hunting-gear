@@ -30,9 +30,9 @@ async function isAuthorized() {
 }
 
 function orderRefreshed(): OrderMutationResult {
-  revalidatePath("/admin/pesanan")
-  revalidatePath("/admin/keuangan")
-  revalidatePath("/history")
+  revalidatePath("/admin/orders")
+  revalidatePath("/admin/finance")
+  revalidatePath("/orders")
   return { kind: "success" }
 }
 

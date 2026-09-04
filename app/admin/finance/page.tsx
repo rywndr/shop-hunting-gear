@@ -64,7 +64,7 @@ async function FinanceContent({
 }
 
 export default async function AdminFinancePage(
-  props: PageProps<"/admin/keuangan">
+  props: PageProps<"/admin/finance">
 ) {
   const params = await props.searchParams
   const page = positiveInteger(

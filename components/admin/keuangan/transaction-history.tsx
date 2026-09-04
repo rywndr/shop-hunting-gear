@@ -87,12 +87,12 @@ function TransactionHistory({
       const params = new URLSearchParams()
       if (nextPage > 1) params.set("page", String(nextPage))
       if (pageSize !== 10) params.set("size", String(pageSize))
-      router.push(`/admin/keuangan?${params.toString()}`)
+      router.push(`/admin/finance?${params.toString()}`)
     },
     onPageSizeChange: (nextPageSize) => {
       const params = new URLSearchParams()
       if (nextPageSize !== 10) params.set("size", String(nextPageSize))
-      router.push(`/admin/keuangan?${params.toString()}`)
+      router.push(`/admin/finance?${params.toString()}`)
     },
   })
 

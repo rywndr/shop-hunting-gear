@@ -27,7 +27,7 @@ function ProductPagination({
     else params.delete(PAGE_QUERY)
 
     const query = params.toString()
-    return `${pathname}${query ? `?${query}` : ""}#produk`
+    return `${pathname}${query ? `?${query}` : ""}#products`
   }
 
   function step(nextPage: number, label: string) {

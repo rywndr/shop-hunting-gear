@@ -55,7 +55,7 @@ export async function POST(
       return error("Token unggahan tidak valid atau sudah kedaluwarsa.", 400)
     }
 
-    revalidatePath("/history")
+    revalidatePath("/orders")
     revalidatePath("/")
     revalidatePath(
       productHref({

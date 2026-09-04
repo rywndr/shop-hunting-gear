@@ -13,7 +13,7 @@ import {
 } from "react-hook-form"
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
 
-import { editProductAction } from "@/app/admin/produk/actions"
+import { editProductAction } from "@/app/admin/products/actions"
 import { AdminCard } from "@/components/admin/admin-card"
 import { ProductImageUploader } from "@/components/admin/produk/product-image-uploader"
 import {
@@ -95,7 +95,7 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
       })
       if (result.kind === "error") setSubmitError(result.message)
       else {
-        router.push("/admin/produk?tab=all")
+        router.push("/admin/products?tab=all")
         router.refresh()
       }
     })

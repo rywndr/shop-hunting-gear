@@ -36,7 +36,7 @@ import {
 } from "@/lib/admin/product-form"
 import { productDiscount } from "@/lib/products/config"
 import { formatNumber, formatRupiah } from "@/utils/format/intl"
-import { createProductAction } from "@/app/admin/produk/tambah/actions"
+import { createProductAction } from "@/app/admin/products/new/actions"
 import { productSubmissionFormData } from "@/lib/admin/product-submission"
 
 function DiscountNote({ control }: { control: ProductFormControl }) {

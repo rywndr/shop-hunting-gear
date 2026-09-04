@@ -28,7 +28,7 @@ const DEPENDENCIES: BulkDependencies = {
   loadProducts: adminBulkProductsByIds,
   revalidate: () => {
     revalidatePath("/")
-    revalidatePath("/admin/produk")
+    revalidatePath("/admin/products")
   },
 }
 

@@ -149,7 +149,7 @@ function CheckoutForm({
                   <p className="text-muted-foreground">
                     Tambahkan alamat sebelum memilih pengiriman.
                   </p>
-                  <Button render={<Link href="/akun" />} variant="outline">
+                  <Button render={<Link href="/account" />} variant="outline">
                     Tambah Alamat
                   </Button>
                 </div>
@@ -423,7 +423,7 @@ function CheckoutForm({
                 setOrderPrepared(true)
 
                 const params = new URLSearchParams(window.location.search)
-                params.set("pesanan", preparedOrder.orderId)
+                params.set("order", preparedOrder.orderId)
                 window.history.replaceState(
                   null,
                   "",

@@ -16,7 +16,7 @@ export type Category = NavLink & {
   readonly slug: string
 }
 
-export const CATEGORY_QUERY = "kategori"
+export const CATEGORY_QUERY = "category"
 export const SEARCH_QUERY = "q"
 export const PAGE_QUERY = "page"
 
@@ -152,9 +152,9 @@ export function categoryBySlug(slug: CategorySlug): Category {
 }
 
 export const AUTH_ROUTES = {
-  signIn: "/masuk",
-  register: "/daftar",
-  forgotPassword: "/lupa-sandi",
+  signIn: "/login",
+  register: "/register",
+  forgotPassword: "/forgot-password",
 } as const satisfies Record<string, string>
 
 export const AUTH_SHOWCASE = {
@@ -205,15 +205,15 @@ export const ACCOUNT_LINKS = [
 ] as const satisfies readonly NavLink[]
 
 export const USER_LINKS = {
-  account: { label: "Akun Saya", href: "/akun" },
-  history: { label: "Pesanan", href: "/history" },
-  logout: { label: "Keluar", href: "/keluar" },
+  account: { label: "Akun Saya", href: "/account" },
+  history: { label: "Pesanan", href: "/orders" },
+  logout: { label: "Keluar", href: "/logout" },
 } as const satisfies Record<string, NavLink>
 
 export const INFO_LINKS = [
-  { label: "Tentang Kami", href: "/tentang-kami" },
-  { label: "Pengiriman & Retur", href: "/pengiriman-retur" },
-  { label: "Kebijakan Privasi", href: "/kebijakan-privasi" },
+  { label: "Tentang Kami", href: "/about" },
+  { label: "Pengiriman & Retur", href: "/shipping-returns" },
+  { label: "Kebijakan Privasi", href: "/privacy-policy" },
 ] as const satisfies readonly NavLink[]
 
 export type HeroSlide = {

@@ -81,14 +81,14 @@ test("route progress follows navigation lifecycle", (context) => {
   assert.equal(getRouteProgressSnapshot().pending, false)
   assert.equal(getRouteProgressSnapshot().committed, "/?q=hunting+gear")
 
-  setCommittedRoute("/admin/produk?tab=active")
-  startRouteProgress("/admin/produk?tab=all")
-  completeRouteProgress("/admin/produk?tab=all")
+  setCommittedRoute("/admin/products?tab=active")
+  startRouteProgress("/admin/products?tab=all")
+  completeRouteProgress("/admin/products?tab=all")
   assert.equal(getRouteProgressSnapshot().pending, false)
 
   setCommittedRoute("/admin")
-  startRouteProgress("/admin/produk")
-  completeRouteProgress("/admin/produk?tab=active")
+  startRouteProgress("/admin/products")
+  completeRouteProgress("/admin/products?tab=active")
   assert.equal(getRouteProgressSnapshot().pending, false)
 
   setCommittedRoute("/")
@@ -105,7 +105,7 @@ test("route progress follows navigation lifecycle", (context) => {
   completeRouteProgress("/")
   assert.equal(getRouteProgressSnapshot().pending, false)
 
-  setCommittedRoute("/akun")
+  setCommittedRoute("/account")
   startRouteProgress("/")
   startRouteProgress("/admin")
   completeRouteProgress("/")

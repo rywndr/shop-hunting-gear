@@ -33,7 +33,7 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
     setError(null)
     startTransition(async () => {
       const { markOrderCompletedAction } =
-        await import("@/app/admin/pesanan/actions")
+        await import("@/app/admin/orders/actions")
       const result = await markOrderCompletedAction(orderId)
 
       if (result.kind === "error") {

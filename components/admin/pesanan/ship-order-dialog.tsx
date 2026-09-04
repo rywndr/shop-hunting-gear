@@ -57,7 +57,7 @@ function ShipOrderDialog({ orderId, buyer, courier }: ShipOrderDialogProps) {
   function submit({ tracking }: ShipOrderValues) {
     setError(null)
     startTransition(async () => {
-      const { shipOrderAction } = await import("@/app/admin/pesanan/actions")
+      const { shipOrderAction } = await import("@/app/admin/orders/actions")
       const result = await shipOrderAction(orderId, tracking)
 
       if (result.kind === "error") {

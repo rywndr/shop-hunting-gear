@@ -101,36 +101,36 @@ test("repeated page params resolve to the first value", () => {
 
 test("one category is indexable and self-canonical", () => {
   const { selection, canonical, redirectTo, index } = resolve({
-    kategori: "hunting",
+    category: "hunting",
   })
 
   assert.deepEqual(selection.categories, ["hunting"])
-  assert.equal(canonical, "/?kategori=hunting")
+  assert.equal(canonical, "/?category=hunting")
   assert.equal(redirectTo, null)
   assert.equal(index, true)
 })
 
 test("two categories stay functional but are not indexable", () => {
   const { selection, canonical, redirectTo, index } = resolve({
-    kategori: ["hunting", "fishing"],
+    category: ["hunting", "fishing"],
   })
 
   assert.deepEqual(selection.categories, ["hunting", "fishing"])
-  assert.equal(canonical, "/?kategori=hunting&kategori=fishing")
+  assert.equal(canonical, "/?category=hunting&category=fishing")
   assert.equal(redirectTo, null)
   assert.equal(index, false)
 })
 
 test("three categories are not indexable", () => {
   assert.equal(
-    resolve({ kategori: ["hunting", "fishing", "hobbies"] }).index,
+    resolve({ category: ["hunting", "fishing", "hobbies"] }).index,
     false
   )
 })
 
 test("selecting every category redirects to the unfiltered catalog", () => {
   const { selection, canonical, redirectTo, index } = resolve({
-    kategori: ["hunting", "fishing", "spareparts", "hobbies"],
+    category: ["hunting", "fishing", "spareparts", "hobbies"],
   })
 
   assert.deepEqual(selection.categories, [])
@@ -141,35 +141,35 @@ test("selecting every category redirects to the unfiltered catalog", () => {
 
 test("non-canonical category order permanently redirects", () => {
   const { canonical, redirectTo, redirectType } = resolve({
-    kategori: ["hobbies", "hunting"],
+    category: ["hobbies", "hunting"],
   })
 
-  assert.equal(canonical, "/?kategori=hunting&kategori=hobbies")
-  assert.equal(redirectTo, "/?kategori=hunting&kategori=hobbies")
+  assert.equal(canonical, "/?category=hunting&category=hobbies")
+  assert.equal(redirectTo, "/?category=hunting&category=hobbies")
   assert.equal(redirectType, "permanent")
 })
 
 test("duplicate categories permanently redirect to one param", () => {
   const { selection, redirectTo, redirectType } = resolve({
-    kategori: ["hunting", "hunting"],
+    category: ["hunting", "hunting"],
   })
 
   assert.deepEqual(selection.categories, ["hunting"])
-  assert.equal(redirectTo, "/?kategori=hunting")
+  assert.equal(redirectTo, "/?category=hunting")
   assert.equal(redirectType, "permanent")
 })
 
 test("unknown categories are dropped", () => {
   const { selection, redirectTo } = resolve({
-    kategori: ["senapan", "hunting"],
+    category: ["senapan", "hunting"],
   })
 
   assert.deepEqual(selection.categories, ["hunting"])
-  assert.equal(redirectTo, "/?kategori=hunting")
+  assert.equal(redirectTo, "/?category=hunting")
 })
 
 test("an only-unknown category redirects to the unfiltered catalog", () => {
-  const { selection, redirectTo, index } = resolve({ kategori: "senapan" })
+  const { selection, redirectTo, index } = resolve({ category: "senapan" })
 
   assert.deepEqual(selection.categories, [])
   assert.equal(redirectTo, "/")
@@ -178,19 +178,19 @@ test("an only-unknown category redirects to the unfiltered catalog", () => {
 
 test("category and page combine into one canonical URL", () => {
   const { canonical, redirectTo, index } = resolve({
-    kategori: "fishing",
+    category: "fishing",
     page: "3",
   })
 
-  assert.equal(canonical, "/?kategori=fishing&page=3")
+  assert.equal(canonical, "/?category=fishing&page=3")
   assert.equal(redirectTo, null)
   assert.equal(index, true)
 })
 
 test("params are reordered into the canonical sequence", () => {
-  const { redirectTo } = resolve({ page: "3", kategori: "fishing" })
+  const { redirectTo } = resolve({ page: "3", category: "fishing" })
 
-  assert.equal(redirectTo, "/?kategori=fishing&page=3")
+  assert.equal(redirectTo, "/?category=fishing&page=3")
 })
 
 test("search is never indexable", () => {
@@ -206,11 +206,11 @@ test("search is never indexable", () => {
 
 test("search with a single category is still not indexable", () => {
   const { canonical, redirectTo, index } = resolve({
-    kategori: "fishing",
+    category: "fishing",
     q: "joran",
   })
 
-  assert.equal(canonical, "/?kategori=fishing&q=joran")
+  assert.equal(canonical, "/?category=fishing&q=joran")
   assert.equal(redirectTo, null)
   assert.equal(index, false)
 })
@@ -236,13 +236,13 @@ test("a padded or empty search normalizes away", () => {
 test("unrelated params never trigger a redirect", () => {
   assert.equal(resolve({ utm_source: "instagram" }).redirectTo, null)
   assert.equal(
-    resolve({ kategori: "hunting", utm_source: "instagram" }).redirectTo,
+    resolve({ category: "hunting", utm_source: "instagram" }).redirectTo,
     null
   )
 })
 
 test("normalization does not depend on the page count", () => {
-  const query: BrowseQuery = { kategori: ["hobbies", "hunting"], q: " reel " }
+  const query: BrowseQuery = { category: ["hobbies", "hunting"], q: " reel " }
 
   assert.deepEqual(normalizeBrowseQuery(query), {
     categories: ["hunting", "hobbies"],

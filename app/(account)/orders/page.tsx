@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
+import { permanentRedirect } from "next/navigation"
 
 import { AccountShell } from "@/components/account/account-shell"
 import { SectionTabs, type SectionTab } from "@/components/account/section-tabs"
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils"
 
 const PAGE_SIZE = 6
 
-type HistoryTab = "semua" | OrderStatus
+type HistoryTab = "all" | OrderStatus
 
 export const metadata: Metadata = {
   title: "History",
@@ -31,9 +32,9 @@ function isOrderStatus(value: string): value is OrderStatus {
 }
 
 function historyTab(value: string | undefined): HistoryTab {
-  return value === "semua" || (value !== undefined && isOrderStatus(value))
+  return value === "all" || (value !== undefined && isOrderStatus(value))
     ? value
-    : "semua"
+    : "all"
 }
 
 function positiveInteger(value: string | undefined) {
@@ -70,11 +71,11 @@ function buildTabs({
 
   return [
     {
-      value: "semua",
+      value: "all",
       label: "Semua",
       count: total,
       panel: panel(
-        "semua",
+        "all",
         "Pesanan yang Anda buat akan muncul di sini.",
         total
       ),
@@ -129,7 +130,7 @@ function OrderCardSkeleton() {
 
 function HistoryTabsSkeleton({ activeTab }: { activeTab: HistoryTab }) {
   const tabs: readonly SectionTab[] = [
-    { value: "semua", label: "Semua" },
+    { value: "all", label: "Semua" },
     ...ORDER_STATUS_ORDER.map((status) => ({
       value: status,
       label: ORDER_STATUSES[status].label,
@@ -171,7 +172,7 @@ async function HistoryTabs({
 
   if (!session) return null
 
-  const status = activeTab === "semua" ? null : activeTab
+  const status = activeTab === "all" ? null : activeTab
   const orderPage = await ordersForUserPage({
     userId: session.user.id,
     status,
@@ -196,8 +197,26 @@ async function HistoryTabs({
   )
 }
 
-export default async function HistoryPage(props: PageProps<"/history">) {
+export default async function HistoryPage(props: PageProps<"/orders">) {
   const params = await props.searchParams
+  const legacyOrder =
+    typeof params.pesanan === "string" ? params.pesanan : undefined
+  const legacyStatus = params.status === "semua"
+
+  if (legacyOrder || legacyStatus) {
+    const query = new URLSearchParams()
+    const order =
+      typeof params.order === "string" ? params.order : legacyOrder
+
+    if (order) query.set("order", order)
+    if (typeof params.page === "string") query.set("page", params.page)
+    if (typeof params.status === "string") {
+      query.set("status", legacyStatus ? "all" : params.status)
+    }
+
+    permanentRedirect(`/orders?${query.toString()}`)
+  }
+
   const activeTab = historyTab(
     typeof params.status === "string" ? params.status : undefined
   )

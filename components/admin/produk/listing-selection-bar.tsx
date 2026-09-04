@@ -34,12 +34,12 @@ function ListingSelectionBar({
 
   function runAction(
     action: Parameters<
-      typeof import("@/app/admin/produk/actions").applyListingAction
+      typeof import("@/app/admin/products/actions").applyListingAction
     >[0]["action"]
   ) {
     setError(null)
     startTransition(async () => {
-      const { applyListingAction } = await import("@/app/admin/produk/actions")
+      const { applyListingAction } = await import("@/app/admin/products/actions")
       const result = await applyListingAction({
         action,
         productIds: selectedIds,

@@ -44,7 +44,7 @@ function OrderPaymentButton({
 
     setNotice(nextNotice)
     setPaying(false)
-    router.push(`/history?pesanan=${encodeURIComponent(orderId)}`)
+    router.push(`/orders?order=${encodeURIComponent(orderId)}`)
     router.refresh()
   }
 

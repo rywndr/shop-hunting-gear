@@ -16,7 +16,7 @@ export default async function AccountLayout({
   const session = await getCurrentSession()
 
   if (!session) {
-    redirect(`${AUTH_ROUTES.signIn}?callbackURL=/akun`)
+    redirect(`${AUTH_ROUTES.signIn}?callbackURL=/account`)
   }
 
   return <SiteShell variant="account">{children}</SiteShell>

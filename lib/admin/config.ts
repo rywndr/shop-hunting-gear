@@ -17,25 +17,25 @@ export const ADMIN_SECTIONS = [
   {
     slug: "orders",
     label: "Pesanan",
-    href: `${ADMIN_ROOT}/pesanan`,
+    href: `${ADMIN_ROOT}/orders`,
     description: "Kelola pesanan masuk, pembayaran, dan pengiriman.",
   },
   {
     slug: "tracking",
     label: "Lacak Pengiriman",
-    href: `${ADMIN_ROOT}/lacak-pengiriman`,
+    href: `${ADMIN_ROOT}/tracking`,
     description: "Periksa status pengiriman dengan nomor resi.",
   },
   {
     slug: "products",
     label: "Produk",
-    href: `${ADMIN_ROOT}/produk`,
+    href: `${ADMIN_ROOT}/products`,
     description: "Kelola katalog, harga, varian, dan stok produk.",
   },
   {
     slug: "finance",
     label: "Keuangan",
-    href: `${ADMIN_ROOT}/keuangan`,
+    href: `${ADMIN_ROOT}/finance`,
     description: "Pemasukan, pengeluaran, dan rekap keuangan toko.",
   },
 ] as const satisfies readonly AdminSectionEntry[]

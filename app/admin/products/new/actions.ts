@@ -260,7 +260,7 @@ export async function createProductAction(
   }
 
   revalidatePath("/")
-  revalidatePath("/admin/produk")
+  revalidatePath("/admin/products")
 
-  return { kind: "success", href: "/admin/produk?tab=all" }
+  return { kind: "success", href: "/admin/products?tab=all" }
 }

@@ -2,20 +2,20 @@ import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
 import { AuthCard } from "@/components/auth/auth-card"
-import { SignInForm } from "@/components/auth/sign-in-form"
+import { RegisterForm } from "@/components/auth/register-form"
 import { safeAuthRedirect } from "@/lib/auth/redirect"
 import { getCurrentSession } from "@/lib/auth/session"
 import { AUTH_ROUTES } from "@/lib/site/config"
 
 export const metadata: Metadata = {
-  title: "Masuk",
-  description: "Masuk ke akun Anda untuk melanjutkan belanja.",
+  title: "Daftar",
+  description: "Buat akun untuk belanja perlengkapan outdoor lebih cepat.",
 }
 
-export default async function Page({ searchParams }: PageProps<"/masuk">) {
+export default async function Page({ searchParams }: PageProps<"/register">) {
   const { callbackURL } = await searchParams
   const redirectTo = safeAuthRedirect(
-    typeof callbackURL === "string" ? callbackURL : "/"
+    typeof callbackURL === "string" ? callbackURL : undefined
   )
   const session = await getCurrentSession()
 
@@ -25,15 +25,15 @@ export default async function Page({ searchParams }: PageProps<"/masuk">) {
 
   return (
     <AuthCard
-      title="Masuk"
-      description="Masuk untuk melanjutkan belanja."
+      title="Daftar"
+      description="Buat akun sekali, lalu pesanan berikutnya jadi lebih cepat."
       alternate={{
-        prompt: "Belum punya akun?",
-        label: "Daftar sekarang",
-        href: AUTH_ROUTES.register,
+        prompt: "Sudah punya akun?",
+        label: "Masuk di sini",
+        href: AUTH_ROUTES.signIn,
       }}
     >
-      <SignInForm callbackURL={redirectTo} />
+      <RegisterForm callbackURL={redirectTo} />
     </AuthCard>
   )
 }

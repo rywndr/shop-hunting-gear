@@ -147,7 +147,7 @@ function SalesOrderTable({
     if (nextSearch.trim()) params.set("q", nextSearch.trim())
     if (nextPage > 1) params.set("page", String(nextPage))
     if (nextPageSize !== 10) params.set("size", String(nextPageSize))
-    router.push(`/admin/pesanan?${params.toString()}`)
+    router.push(`/admin/orders?${params.toString()}`)
   }
 
   const pagination = serverPagination({

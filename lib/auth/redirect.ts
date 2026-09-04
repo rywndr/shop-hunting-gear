@@ -1,4 +1,4 @@
-const DEFAULT_AUTH_REDIRECT = "/akun"
+const DEFAULT_AUTH_REDIRECT = "/account"
 
 export function safeAuthRedirect(value: string | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {

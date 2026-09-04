@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { cancelOrderAction } from "@/app/(account)/history/actions"
+import { cancelOrderAction } from "@/app/(account)/orders/actions"
 import { Button } from "@/components/ui/button"
 
 function CancelOrderButton({ orderId }: { readonly orderId: string }) {

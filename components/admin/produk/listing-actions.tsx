@@ -104,7 +104,7 @@ function ListingActions({ listing }: { listing: Listing }) {
   function runAction(action: ListingActionKind) {
     setError(null)
     startTransition(async () => {
-      const { applyListingAction } = await import("@/app/admin/produk/actions")
+      const { applyListingAction } = await import("@/app/admin/products/actions")
       const result = await applyListingAction({
         action,
         productIds: [listing.id],
@@ -121,7 +121,7 @@ function ListingActions({ listing }: { listing: Listing }) {
           variant="ghost"
           size="icon-sm"
           nativeButton={false}
-          render={<Link href={`/admin/produk/${listing.id}/ubah`} />}
+          render={<Link href={`/admin/products/${listing.id}/edit`} />}
           aria-label={`Ubah ${listing.product.name}`}
         >
           <PencilSimpleIcon className="size-4" aria-hidden />

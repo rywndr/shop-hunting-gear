@@ -154,7 +154,7 @@ function ListingTable({
     if (nextPage > 1) params.set("page", String(nextPage))
     if (nextPageSize !== DEFAULT_PAGE_SIZE)
       params.set("size", String(nextPageSize))
-    router.push(`/admin/produk?${params.toString()}`)
+    router.push(`/admin/products?${params.toString()}`)
   }
 
   const pagination = serverPagination({

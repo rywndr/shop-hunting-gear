@@ -64,7 +64,7 @@ export async function applyListingAction({
       state: ACTION_STATES[action],
     })
     revalidatePath("/")
-    revalidatePath("/admin/produk")
+    revalidatePath("/admin/products")
     revalidatePath("/c/[category]/p/[slug]", "page")
     return { kind: "success" }
   } catch {
@@ -103,7 +103,7 @@ export async function quickEditListing({
   try {
     await updateProductInventory({ productId, field, value, compareAtPrice })
     revalidatePath("/")
-    revalidatePath("/admin/produk")
+    revalidatePath("/admin/products")
     return { kind: "success" }
   } catch {
     return { kind: "error", message: "Perubahan belum tersimpan. Coba lagi." }
@@ -285,7 +285,7 @@ export async function editProductAction({
       },
     })
     revalidatePath("/")
-    revalidatePath("/admin/produk")
+    revalidatePath("/admin/products")
 
     const retainedIds = new Set(images.map(({ id }) => id))
     const removedKeys = current.images

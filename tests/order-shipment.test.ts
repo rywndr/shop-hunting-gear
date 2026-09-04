@@ -156,10 +156,10 @@ test("a label needs a stored resi on a shipped or completed order", () => {
 })
 
 test("the label route is derived from the order id", () => {
-  assert.equal(shippingLabelHref("HG-9d0b"), "/admin/pesanan/HG-9d0b/label")
+  assert.equal(shippingLabelHref("HG-9d0b"), "/admin/orders/HG-9d0b/label")
   assert.equal(
     shippingLabelHref("INV/2026/HG/0212"),
-    "/admin/pesanan/INV%2F2026%2FHG%2F0212/label"
+    "/admin/orders/INV%2F2026%2FHG%2F0212/label"
   )
 })
 

@@ -143,7 +143,7 @@ export function canTrackOrder({
 }
 
 export function shippingLabelHref(orderId: string) {
-  return `/admin/pesanan/${encodeURIComponent(orderId)}/label`
+  return `/admin/orders/${encodeURIComponent(orderId)}/label`
 }
 
 export type OrderQueueFilter = typeof ALL_FILTER | OrderQueue

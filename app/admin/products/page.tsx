@@ -70,7 +70,7 @@ async function ProductListingTable({
 }
 
 export default async function AdminProductsPage(
-  props: PageProps<"/admin/produk">
+  props: PageProps<"/admin/products">
 ) {
   const params = await props.searchParams
   const tab = typeof params.tab === "string" ? params.tab : undefined
@@ -93,7 +93,7 @@ export default async function AdminProductsPage(
   )
 
   if (tab === undefined) {
-    redirect("/admin/produk?tab=active")
+    redirect("/admin/products?tab=active")
   }
 
   return (

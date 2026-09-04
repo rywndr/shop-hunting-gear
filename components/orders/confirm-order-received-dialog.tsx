@@ -40,7 +40,7 @@ function ConfirmOrderReceivedDialog({
     setError(null)
     startTransition(async () => {
       const { confirmOrderReceivedAction } =
-        await import("@/app/(account)/history/actions")
+        await import("@/app/(account)/orders/actions")
       const result = await confirmOrderReceivedAction(orderId)
 
       if (result.kind === "error") {

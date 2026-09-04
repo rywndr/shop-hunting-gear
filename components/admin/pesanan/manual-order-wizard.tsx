@@ -82,7 +82,7 @@ function ManualOrderWizard({ customers, products }: ManualOrderWizardProps) {
     setError(null)
     startTransition(async () => {
       const { createManualOrderAction } =
-        await import("@/app/admin/pesanan/actions")
+        await import("@/app/admin/orders/actions")
       const result = await createManualOrderAction(submitted)
 
       if (result.kind === "error") {

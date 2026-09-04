@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Label pengiriman" }
 
 export default async function ShippingLabelPage({
   params,
-}: PageProps<"/admin/pesanan/[orderId]/label">) {
+}: PageProps<"/admin/orders/[orderId]/label">) {
   const { orderId } = await params
   const label = await shippingLabelForOrder(orderId)
 
@@ -29,7 +29,7 @@ export default async function ShippingLabelPage({
           memiliki nomor resi. Tandai pesanan dikirim lebih dulu.
         </p>
         <Link
-          href="/admin/pesanan?tab=to-ship"
+          href="/admin/orders?tab=to-ship"
           className={buttonVariants({ variant: "outline" })}
         >
           Kembali ke daftar pesanan

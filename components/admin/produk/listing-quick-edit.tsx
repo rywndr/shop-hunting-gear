@@ -67,7 +67,7 @@ function ListingQuickEdit({
             setError(null)
             startTransition(async () => {
               const { quickEditListing } =
-                await import("@/app/admin/produk/actions")
+                await import("@/app/admin/products/actions")
               const result = await quickEditListing({
                 productId,
                 field,

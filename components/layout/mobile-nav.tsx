@@ -72,9 +72,9 @@ function MobileNav({
 
     event.preventDefault()
     close()
-    window.history.replaceState(null, "", "/#produk")
+    window.history.replaceState(null, "", "/#products")
     window.requestAnimationFrame(() => {
-      document.getElementById("produk")?.scrollIntoView({ block: "start" })
+      document.getElementById("products")?.scrollIntoView({ block: "start" })
     })
   }
 
@@ -138,7 +138,7 @@ function MobileNav({
             )}
             <li>
               <Link
-                href="/#produk"
+                href="/#products"
                 onClick={navigateToProducts}
                 className={ROW}
               >
@@ -151,7 +151,7 @@ function MobileNav({
             )}
             <MobileNavLink
               label="Tentang Kami"
-              href="/tentang-kami"
+              href="/about"
               onNavigate={close}
             />
             <li>
