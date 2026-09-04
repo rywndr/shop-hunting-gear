@@ -1,15 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import {
-  CaretLeftIcon,
-  CaretRightIcon,
-  MagnifyingGlassPlusIcon,
-} from "@phosphor-icons/react"
+import { MagnifyingGlassPlusIcon } from "@phosphor-icons/react"
 
+import {
+  ImageLightboxDialog,
+  type LightboxImage,
+} from "@/components/products/image-lightbox-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 import type { ProductImage } from "@/lib/products/config"
 import { cn } from "@/lib/utils"
 
@@ -18,11 +16,6 @@ type ProductGalleryProps = {
   name: string
   className?: string
 }
-
-const ARROW_STEPS = {
-  ArrowLeft: -1,
-  ArrowRight: 1,
-} as const
 
 type ProductImageSize = "thumbnail" | "detail"
 
@@ -66,10 +59,6 @@ function imageUrl(image: ProductImage, size: ProductImageSize) {
   return undefined
 }
 
-function isArrowKey(key: string): key is keyof typeof ARROW_STEPS {
-  return key in ARROW_STEPS
-}
-
 function ProductGallery({ images, name, className }: ProductGalleryProps) {
   const [index, setIndex] = useState(0)
   const [enlarged, setEnlarged] = useState(false)
@@ -77,8 +66,16 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
   const total = images.length
   const position = Math.min(index, total - 1)
   const active = images[position]
-  const step = (offset: number) =>
-    setIndex((current) => (current + offset + total) % total)
+  const [firstImage, ...otherImages] = images
+  const lightboxImage = (image: ProductImage): LightboxImage => ({
+    id: image.id,
+    src: imageUrl(image, "detail"),
+    label: image.alt,
+  })
+  const lightboxImages = [
+    lightboxImage(firstImage),
+    ...otherImages.map(lightboxImage),
+  ] satisfies readonly [LightboxImage, ...LightboxImage[]]
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
@@ -131,49 +128,13 @@ function ProductGallery({ images, name, className }: ProductGalleryProps) {
         </ul>
       )}
 
-      <Dialog open={enlarged} onOpenChange={(open) => setEnlarged(open)}>
-        <DialogContent
-          aria-label={active.alt}
-          onKeyDown={(event) => {
-            if (total > 1 && isArrowKey(event.key)) {
-              event.preventDefault()
-              step(ARROW_STEPS[event.key])
-            }
-          }}
-          className="w-full gap-0 p-0 sm:max-w-2xl"
-        >
-          <ProductThumbnail
-            src={imageUrl(active, "detail")}
-            label={active.alt}
-            className="aspect-square w-full"
-            iconClassName="size-16"
-            sizes="(min-width: 640px) 672px, 100vw"
-          />
-
-          {total > 1 && (
-            <>
-              <Button
-                variant="outline"
-                size="icon-lg"
-                aria-label="Foto sebelumnya"
-                onClick={() => step(-1)}
-                className="absolute inset-y-0 left-3 my-auto"
-              >
-                <CaretLeftIcon />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-lg"
-                aria-label="Foto berikutnya"
-                onClick={() => step(1)}
-                className="absolute inset-y-0 right-3 my-auto"
-              >
-                <CaretRightIcon />
-              </Button>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ImageLightboxDialog
+        images={lightboxImages}
+        index={index}
+        open={enlarged}
+        onIndexChange={setIndex}
+        onOpenChange={setEnlarged}
+      />
     </div>
   )
 }

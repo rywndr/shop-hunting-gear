@@ -1,9 +1,9 @@
-import Image from "next/image"
 import { ChatCircleTextIcon, StarIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
 import { ProductSection } from "@/components/products/product-section"
 import { RatingStars } from "@/components/products/rating-stars"
+import { ReviewMediaGallery } from "@/components/products/review-media-gallery"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
@@ -116,27 +116,7 @@ function ReviewRow({ review }: { review: Review }) {
         <p className="text-sm/relaxed text-pretty">{review.body}</p>
 
         {review.media && review.media.length > 0 && (
-          <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {review.media.map((media, index) => (
-              <li key={media.id} className="min-w-0">
-                <a
-                  href={media.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Buka gambar ulasan ${index + 1} dari ${review.author}`}
-                  className="block outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-                >
-                  <Image
-                    src={media.thumbnailUrl}
-                    alt={`Gambar ulasan ${index + 1} dari ${review.author}`}
-                    width={320}
-                    height={320}
-                    className="aspect-square w-full border object-cover"
-                  />
-                </a>
-              </li>
-            ))}
-          </ul>
+          <ReviewMediaGallery media={review.media} author={review.author} />
         )}
       </div>
     </li>
