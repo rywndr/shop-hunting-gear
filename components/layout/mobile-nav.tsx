@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, type MouseEvent } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -165,14 +166,24 @@ function MobileNav({
                   />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="w-full">
-                  <ul>
+                  <ul className="py-1">
                     {MARKETPLACE_LINKS.map((link) => (
                       <li key={link.label}>
                         <a
                           href={link.href}
                           onClick={close}
-                          className="mx-8 flex items-center py-2 pl-4 text-sm font-normal transition-colors hover:text-navbar-foreground/70"
+                          className="mx-8 flex items-center gap-2 py-3 pl-4 text-sm font-normal transition-colors hover:text-navbar-foreground/70"
                         >
+                          <span className="flex size-8 shrink-0 items-center justify-center bg-navbar-foreground p-1">
+                            <Image
+                              src={link.image}
+                              width={24}
+                              height={24}
+                              alt=""
+                              unoptimized
+                              className="size-6 object-contain"
+                            />
+                          </span>
                           {link.label}
                         </a>
                       </li>

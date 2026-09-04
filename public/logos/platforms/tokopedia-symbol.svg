@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="9 9 86 86" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bagLeft" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#55C451"/>
+      <stop offset="1" stop-color="#359B36"/>
+    </linearGradient>
+    <linearGradient id="bagRight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#45AD4B"/>
+      <stop offset="1" stop-color="#278B34"/>
+    </linearGradient>
+    <linearGradient id="beakTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD829"/>
+      <stop offset="1" stop-color="#FFB300"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Classic Tokopedia owl / shopping-bag emblem -->
+  <g transform="translate(1 1) scale(.53)">
+    <!-- handle -->
+    <path fill="#414345" d="M96 16A39 39 0 0 0 57 55h13a26 26 0 0 1 52 0h13A39 39 0 0 0 96 16z"/>
+
+    <!-- bag body, split for the characteristic shading -->
+    <path fill="url(#bagLeft)" d="M26 56c-5.54 0-10 4.46-10 10v100c0 5.54 4.46 10 10 10h70V56z"/>
+    <path fill="url(#bagRight)" d="M96 56h70c5.53-.28 10 4.46 10 10v60c0 27.7-22.3 50-50 50H96z"/>
+
+    <!-- subtle upper highlight -->
+    <path fill="#fff" opacity=".13" d="M26 56c-5.54 0-10 4.46-10 10v2c0-5.54 4.46-10 10-10h140c5.53-.28 10 4.46 10 10v-2c0-5.54-4.47-10.28-10-10z"/>
+
+    <!-- lower face/chest -->
+    <path fill="#72C95B" d="M96 130a58 58 0 0 0-56.6 46H126c9.09 0 17.59-2.41 24.91-6.62A58 58 0 0 0 96 130z"/>
+
+    <!-- eyes -->
+    <circle cx="67" cy="111" r="27" fill="#fff"/>
+    <circle cx="125" cy="111" r="27" fill="#fff"/>
+
+    <!-- pupils with highlights -->
+    <path fill="#3F3F3F" d="M53.56 101.79A18 18 0 1 0 69 93c-.84 0-1.68.06-2.5.2A8 8 0 1 1 53.56 101.79z"/>
+    <path fill="#3F3F3F" d="M107.56 101.79A18 18 0 1 0 123 93c-.84 0-1.68.06-2.5.2a8 8 0 1 1-12.94 8.6z"/>
+
+    <!-- beak -->
+    <path fill="url(#beakTop)" d="M113.7 135.97 104.85 146.98 96 158l-8.85-11.02-8.85-11.01S82.58 130 96 130s17.7 5.97 17.7 5.97z"/>
+    <path fill="#F47A20" d="M86.8 146.55 96 153.5l9.2-6.95L96 158z" opacity=".95"/>
+  </g>
+
+</svg>

@@ -1,15 +1,21 @@
+import Image from "next/image"
 import Link from "next/link"
 import { EnvelopeSimpleIcon, PhoneIcon } from "@phosphor-icons/react/ssr"
 
 import { BrandLogo } from "@/components/layout/brand-logo"
-import { CATEGORIES, INFO_LINKS, SITE } from "@/lib/site/config"
+import {
+  CATEGORIES,
+  INFO_LINKS,
+  MARKETPLACE_LINKS,
+  SITE,
+} from "@/lib/site/config"
 import { cn } from "@/lib/utils"
 
 function ColumnHeading({ id, children }: { id: string; children: string }) {
   return (
     <h2
       id={id}
-      className="font-heading text-sm font-bold tracking-wide text-navbar-foreground uppercase"
+      className="font-heading text-sm font-medium tracking-wide text-navbar-foreground uppercase"
     >
       {children}
     </h2>
@@ -22,7 +28,7 @@ const linkClassName =
 function SiteFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("bg-navbar text-navbar-foreground", className)}>
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-3 sm:gap-6">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
         <div className="flex flex-col items-start gap-4">
           <BrandLogo />
 
@@ -65,6 +71,35 @@ function SiteFooter({ className }: { className?: string }) {
                 <Link href={link.href} className={linkClassName}>
                   {link.label}
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <nav aria-labelledby="footer-platform" className="flex flex-col gap-3">
+          <ColumnHeading id="footer-platform">Platform lain</ColumnHeading>
+          <ul className="flex flex-col gap-3 text-sm">
+            {MARKETPLACE_LINKS.map((link) => (
+              <li key={link.label}>
+                <a
+                  href={link.href}
+                  className={cn(
+                    "inline-flex items-center gap-2",
+                    linkClassName
+                  )}
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center bg-navbar-foreground p-1">
+                    <Image
+                      src={link.image}
+                      width={24}
+                      height={24}
+                      alt=""
+                      unoptimized
+                      className="size-6 object-contain"
+                    />
+                  </span>
+                  {link.label}
+                </a>
               </li>
             ))}
           </ul>

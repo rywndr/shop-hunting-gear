@@ -172,11 +172,32 @@ export const AUTH_SHOWCASE = {
 }
 
 export const MARKETPLACE_LINKS = [
-  { label: "Tokopedia", href: "#" },
-  { label: "Shopee", href: "#" },
-  { label: "Lazada", href: "#" },
-  { label: "Blibli", href: "#" },
-] as const satisfies readonly NavLink[]
+  {
+    label: "Lazada",
+    href: "#",
+    image: "/logos/platforms/lazada-symbol.svg",
+  },
+  {
+    label: "Tokopedia",
+    href: "#",
+    image: "/logos/platforms/tokopedia-symbol.svg",
+  },
+  {
+    label: "Shopee",
+    href: "#",
+    image: "/logos/platforms/shopee-symbol.svg",
+  },
+  {
+    label: "Blibli",
+    href: "#",
+    image: "/logos/platforms/blibli-symbol.svg",
+  },
+  {
+    label: "TikTok Shop",
+    href: "#",
+    image: "/logos/platforms/tiktok-shop-symbol.svg",
+  },
+] as const satisfies readonly (NavLink & { image: string })[]
 
 export const ACCOUNT_LINKS = [
   { label: "Masuk", href: AUTH_ROUTES.signIn },
