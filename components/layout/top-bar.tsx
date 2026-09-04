@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { PhoneIcon } from "@phosphor-icons/react/ssr"
 
-import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { getCurrentSession } from "@/lib/auth/session"
 import { ACCOUNT_LINKS, SITE } from "@/lib/site/config"
 import { cn } from "@/lib/utils"
@@ -18,10 +17,6 @@ async function TopBar({
   return (
     <div className={cn("text-navbar-foreground/70", className)}>
       <div className="mx-auto flex h-9 max-w-7xl items-center justify-end gap-4 px-4 text-[11px] tracking-wide uppercase sm:text-xs md:h-8">
-        {!session && (
-          <ThemeToggle className="text-navbar-foreground/70 hover:bg-navbar-foreground/10 hover:text-navbar-foreground" />
-        )}
-
         <a
           href={SITE.phone.href}
           className="inline-flex items-center gap-1.5 transition-colors hover:text-navbar-foreground"
