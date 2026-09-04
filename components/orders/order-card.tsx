@@ -6,6 +6,7 @@ import { ShipmentTrackingDialog } from "@/components/orders/shipment-tracking-di
 import { CancelOrderButton } from "@/components/orders/cancel-order-button"
 import { ConfirmOrderReceivedDialog } from "@/components/orders/confirm-order-received-dialog"
 import { OrderPaymentButton } from "@/components/orders/order-payment-button"
+import { LeaveReviewDialog } from "@/components/orders/leave-review-dialog"
 import { OrderStatusBadge } from "@/components/orders/order-status-badge"
 import { ReturnOrderDialog } from "@/components/orders/return-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
@@ -107,15 +108,13 @@ function OrderCard({
       <CardContent className="py-4">
         <ul className="flex flex-col gap-4">
           {order.items.map((item) => (
-            <OrderItemRow key={item.name} item={item} />
+            <OrderItemRow key={item.id} item={item} />
           ))}
         </ul>
 
         {order.customerNote !== null && (
           <div className="mt-4 border-t border-border pt-3 text-xs">
-            <p className="font-medium text-foreground">
-              Catatan untuk penjual
-            </p>
+            <p className="font-medium text-foreground">Catatan untuk penjual</p>
             <p className="mt-1 break-words whitespace-pre-wrap text-muted-foreground">
               {order.customerNote}
             </p>
@@ -160,6 +159,14 @@ function OrderCard({
             secondaryAction && (
               <ConfirmOrderReceivedDialog
                 orderId={order.id}
+                triggerLabel={secondaryAction}
+              />
+            )
+          ) : order.status === "completed" ? (
+            secondaryAction && (
+              <LeaveReviewDialog
+                orderId={order.id}
+                items={order.items}
                 triggerLabel={secondaryAction}
               />
             )

@@ -27,6 +27,7 @@ import {
   type OrderAddressSnapshot,
 } from "@/lib/db/schema/order"
 import { user } from "@/lib/db/schema/auth"
+import { productReview } from "@/lib/db/schema/review"
 import type { Address } from "@/lib/account/types"
 import { ALL_FILTER } from "@/lib/admin/config"
 import {
@@ -133,6 +134,7 @@ type JoinedOrderRow = {
   readonly order: OrderRow
   readonly item: OrderItemRow
   readonly buyer?: string
+  readonly reviewed?: boolean
 }
 
 export type PreparedCheckoutOrder = {
@@ -199,13 +201,15 @@ function variantLabel(variants: readonly { label: string; value: string }[]) {
   return variants.map(({ label, value }) => `${label}: ${value}`).join(", ")
 }
 
-function orderItemFromRow(row: OrderItemRow): OrderItem {
+function orderItemFromRow(row: OrderItemRow, reviewed = false): OrderItem {
   return {
+    id: row.id,
     productSlug: row.productSlug,
     name: row.name,
     variant: variantLabel(row.variants),
     quantity: row.quantity,
     price: row.price,
+    reviewed,
   }
 }
 
@@ -251,9 +255,11 @@ function orderStatusFromRow(row: OrderRow): OrderStatus {
 function orderFromRow({
   order,
   items,
+  reviewedItems = new Set<string>(),
 }: {
   readonly order: OrderRow
   readonly items: readonly OrderItemRow[]
+  readonly reviewedItems?: ReadonlySet<string>
 }): Order {
   const status = orderStatusFromRow(order)
 
@@ -276,7 +282,9 @@ function orderFromRow({
         order.paymentSessionExpiresAt.getTime() > Date.now())
         ? order.snapToken
         : null,
-    items: items.map(orderItemFromRow),
+    items: items.map((item) =>
+      orderItemFromRow(item, reviewedItems.has(item.id))
+    ),
   }
 }
 
@@ -327,7 +335,10 @@ function groupOrders(rows: readonly JoinedOrderRow[]): readonly SalesOrder[] {
     {
       readonly order: OrderRow
       readonly buyer: string
-      readonly items: OrderItemRow[]
+      readonly items: {
+        readonly row: OrderItemRow
+        readonly reviewed: boolean
+      }[]
     }
   >()
 
@@ -335,20 +346,26 @@ function groupOrders(rows: readonly JoinedOrderRow[]): readonly SalesOrder[] {
     const existing = grouped.get(row.order.id)
 
     if (existing) {
-      existing.items.push(row.item)
+      existing.items.push({ row: row.item, reviewed: row.reviewed ?? false })
       continue
     }
 
     grouped.set(row.order.id, {
       order: row.order,
       buyer: row.buyer ?? "Pembeli",
-      items: [row.item],
+      items: [{ row: row.item, reviewed: row.reviewed ?? false }],
     })
   }
 
   return [...grouped.values()].map(({ buyer, order, items }) => ({
     buyer,
-    order: orderFromRow({ order, items }),
+    order: orderFromRow({
+      order,
+      items: items.map(({ row }) => row),
+      reviewedItems: new Set(
+        items.filter(({ reviewed }) => reviewed).map(({ row }) => row.id)
+      ),
+    }),
     shipping: {
       courier: order.shippingCourier,
       service: order.shippingService,
@@ -1651,11 +1668,19 @@ export async function ordersForUserPage({
   }
 
   const rows = await db
-    .select({ order: customerOrder, item: customerOrderItem })
+    .select({
+      order: customerOrder,
+      item: customerOrderItem,
+      reviewed: sql<boolean>`${productReview.id} is not null`,
+    })
     .from(customerOrder)
     .innerJoin(
       customerOrderItem,
       eq(customerOrderItem.orderId, customerOrder.id)
+    )
+    .leftJoin(
+      productReview,
+      eq(productReview.orderItemId, customerOrderItem.id)
     )
     .where(
       inArray(

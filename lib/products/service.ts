@@ -33,6 +33,8 @@ import {
 } from "./config"
 import { presignedProductImageUrl } from "./storage"
 import { storedProductDataSchema, storedProductImageSchema } from "./schema"
+import { mergeReviews } from "../reviews/merge"
+import { storefrontReviewsForProduct } from "../reviews/service"
 
 const EMPTY_RATINGS = {
   5: 0,
@@ -324,7 +326,13 @@ export async function storefrontProductDetailBySlug(
   slug: string
 ): Promise<ProductDetail | undefined> {
   const row = await storefrontProductRowBySlug(slug)
-  return row ? domainProduct(row, "detail") : undefined
+  if (!row) return undefined
+
+  const [detail, customerReviews] = await Promise.all([
+    domainProduct(row, "detail"),
+    storefrontReviewsForProduct(row.id),
+  ])
+  return { ...detail, reviews: mergeReviews(detail.reviews, customerReviews) }
 }
 
 export async function storefrontProductMetadataBySlug(

@@ -117,6 +117,9 @@ export const serverEnv = {
   get databaseUrl() {
     return readRequiredEnvironmentVariable("DATABASE_URL")
   },
+  get reviewUploadSecret() {
+    return readRequiredEnvironmentVariable("REVIEW_UPLOAD_SECRET")
+  },
   get googleCredentials() {
     return readGoogleCredentials()
   },

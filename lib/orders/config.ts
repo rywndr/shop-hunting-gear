@@ -79,11 +79,13 @@ export const ORDER_STATUS_ORDER = [
 ] as const satisfies readonly OrderStatus[]
 
 export type OrderItem = {
+  readonly id: string
   readonly productSlug: string
   readonly name: string
   readonly variant: string
   readonly quantity: number
   readonly price: number
+  readonly reviewed: boolean
 }
 
 export type Order = {

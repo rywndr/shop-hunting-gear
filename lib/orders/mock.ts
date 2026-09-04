@@ -16,17 +16,21 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        id: "jaket-kamuflase-bottomland-item",
         productSlug: "jaket-kamuflase-bottomland",
         name: "Jaket Kamuflase Bottomland",
         variant: "Ukuran L",
         quantity: 1,
+        reviewed: false,
         price: 685000,
       },
       {
+        id: "sarung-tangan-taktis-item",
         productSlug: "sarung-tangan-taktis",
         name: "Sarung Tangan Taktis",
         variant: "Hitam / M",
         quantity: 2,
+        reviewed: false,
         price: 145000,
       },
     ],
@@ -46,10 +50,12 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        id: "reel-spinning-4000-series-item",
         productSlug: "reel-spinning-4000-series",
         name: "Reel Spinning 4000 Series",
         variant: "Gear ratio 5.2:1",
         quantity: 1,
+        reviewed: false,
         price: 1250000,
       },
     ],
@@ -69,17 +75,21 @@ export const MOCK_ORDERS = [
     tracking: "JT4820193857",
     items: [
       {
+        id: "joran-carbon-fiber-210-cm-item",
         productSlug: "joran-carbon-fiber-210-cm",
         name: "Joran Carbon Fiber 210 cm",
         variant: "Medium action",
         quantity: 1,
+        reviewed: false,
         price: 780000,
       },
       {
+        id: "kotak-umpan-6-sekat-item",
         productSlug: "kotak-umpan-6-sekat",
         name: "Kotak Umpan 6 Sekat",
         variant: "Bening",
         quantity: 1,
+        reviewed: false,
         price: 95000,
       },
     ],
@@ -99,10 +109,12 @@ export const MOCK_ORDERS = [
     tracking: "JNE0099213847",
     items: [
       {
+        id: "tenda-dome-2-orang-item",
         productSlug: "tenda-dome-2-orang",
         name: "Tenda Dome 2 Orang",
         variant: "Olive",
         quantity: 1,
+        reviewed: false,
         price: 1180000,
       },
     ],
@@ -122,10 +134,12 @@ export const MOCK_ORDERS = [
     tracking: null,
     items: [
       {
+        id: "sparepart-piston-set-item",
         productSlug: "sparepart-piston-set",
         name: "Sparepart Piston Set",
         variant: "Kaliber 5.5 mm",
         quantity: 1,
+        reviewed: false,
         price: 320000,
       },
     ],

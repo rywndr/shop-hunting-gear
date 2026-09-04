@@ -266,7 +266,15 @@ const SETTLED_TIME = "14:05:00+07:00"
 function toItem([product, variant, quantity]: ItemEntry): OrderItem {
   const { name, price } = CATALOG[product]
 
-  return { productSlug: product, name, variant, quantity, price }
+  return {
+    id: `${product}-${variant}`,
+    productSlug: product,
+    name,
+    variant,
+    quantity,
+    price,
+    reviewed: false,
+  }
 }
 
 export const MOCK_TRANSACTIONS: readonly Transaction[] =

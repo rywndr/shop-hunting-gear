@@ -21,6 +21,12 @@ export type ProductVariant = {
   readonly options: NonEmptyReadonlyArray<string>
 }
 
+export type ReviewMedia = {
+  readonly id: string
+  readonly url: string
+  readonly thumbnailUrl: string
+}
+
 export type Review = {
   readonly id: string
   readonly author: string
@@ -28,6 +34,7 @@ export type Review = {
   readonly createdAt: string
   readonly variant: string | null
   readonly body: string
+  readonly media?: readonly ReviewMedia[]
 }
 
 export type Product = {

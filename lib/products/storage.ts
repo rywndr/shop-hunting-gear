@@ -1,17 +1,18 @@
 import "server-only"
 
-import {
-  DeleteObjectsCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3"
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { GetObjectCommand } from "@aws-sdk/client-s3"
 import { unstable_cache } from "next/cache"
-import sharp from "sharp"
 
+import { webpDerivativeBuffers } from "./image-derivatives"
 import type { StoredProductImage } from "./schema"
-import { serverEnv } from "../env/server"
+import {
+  b2Bucket,
+  b2Client,
+  b2SigningIdentity,
+  deleteB2Objects,
+  putB2Object,
+  signedB2GetUrl,
+} from "../storage/b2"
 
 const IMAGE_EXTENSIONS = {
   "image/jpeg": "jpg",
@@ -21,7 +22,6 @@ const IMAGE_EXTENSIONS = {
 
 const THUMBNAIL_WIDTH = 480
 const DETAIL_WIDTH = 1200
-const DERIVATIVE_QUALITY = 82
 
 export const PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS = {
   storefront: 12 * 60 * 60,
@@ -35,36 +35,6 @@ export type ProductImageMime = keyof typeof IMAGE_EXTENSIONS
 
 export function isProductImageMime(value: string): value is ProductImageMime {
   return Object.hasOwn(IMAGE_EXTENSIONS, value)
-}
-
-function b2Config() {
-  const config = serverEnv.backblazeB2
-
-  if (!config) {
-    throw new Error("No Backblaze B2 configuration.")
-  }
-
-  return config
-}
-
-let configuredB2Client: S3Client | undefined
-
-function b2Client() {
-  if (configuredB2Client) {
-    return configuredB2Client
-  }
-
-  const config = b2Config()
-  configuredB2Client = new S3Client({
-    endpoint: `https://s3.${config.region}.backblazeb2.com`,
-    region: config.region,
-    credentials: {
-      accessKeyId: config.keyId,
-      secretAccessKey: config.applicationKey,
-    },
-  })
-
-  return configuredB2Client
 }
 
 function imageObjectKeys({
@@ -109,56 +79,15 @@ export function productImageObjectKeys(image: StoredProductImage) {
 }
 
 async function putProductObject({
-  client,
-  bucket,
   key,
   body,
   contentType,
 }: {
-  readonly client: S3Client
-  readonly bucket: string
   readonly key: string
   readonly body: Uint8Array
   readonly contentType: ProductImageMime
 }) {
-  await client.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      Body: body,
-      ContentLength: body.byteLength,
-      ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
-    })
-  )
-}
-
-async function derivativeBuffers(bytes: Uint8Array) {
-  const source = sharp(bytes).rotate()
-  const [thumbnail, detail] = await Promise.all([
-    source
-      .clone()
-      .resize({
-        width: THUMBNAIL_WIDTH,
-        height: THUMBNAIL_WIDTH,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: DERIVATIVE_QUALITY })
-      .toBuffer(),
-    source
-      .clone()
-      .resize({
-        width: DETAIL_WIDTH,
-        height: DETAIL_WIDTH,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: DERIVATIVE_QUALITY })
-      .toBuffer(),
-  ])
-
-  return { thumbnail, detail }
+  await putB2Object({ key, body, contentType })
 }
 
 export class ProductImageUploadError extends Error {
@@ -188,34 +117,30 @@ export async function uploadProductImage({
     throw new Error("Unsupported product image type.")
   }
 
-  const config = b2Config()
-  const client = b2Client()
   const keys = imageObjectKeys({ productId, id, mime })
   const uploadedObjectKeys: string[] = []
 
   try {
     uploadedObjectKeys.push(keys.objectKey)
     await putProductObject({
-      client,
-      bucket: config.bucket,
       key: keys.objectKey,
       body: bytes,
       contentType: mime,
     })
 
-    const derivatives = await derivativeBuffers(bytes)
+    const derivatives = await webpDerivativeBuffers({
+      bytes,
+      thumbnailSize: THUMBNAIL_WIDTH,
+      detailSize: DETAIL_WIDTH,
+    })
     uploadedObjectKeys.push(keys.thumbnailObjectKey, keys.detailObjectKey)
     const derivativeUploads = await Promise.allSettled([
       putProductObject({
-        client,
-        bucket: config.bucket,
         key: keys.thumbnailObjectKey,
         body: derivatives.thumbnail,
         contentType: "image/webp",
       }),
       putProductObject({
-        client,
-        bucket: config.bucket,
         key: keys.detailObjectKey,
         body: derivatives.detail,
         contentType: "image/webp",
@@ -274,11 +199,9 @@ export type ProductImageDownload =
 export async function downloadProductImage(
   objectKey: string
 ): Promise<ProductImageDownload> {
-  const config = b2Config()
-
   try {
     const result = await b2Client().send(
-      new GetObjectCommand({ Bucket: config.bucket, Key: objectKey })
+      new GetObjectCommand({ Bucket: b2Bucket(), Key: objectKey })
     )
 
     const mime = result.ContentType ?? ""
@@ -306,29 +229,23 @@ export async function downloadProductImage(
 
 const STOREFRONT_URL_CACHE_TTL_SECONDS = 3 * 60 * 60
 
-function b2SigningIdentity(config: ReturnType<typeof b2Config>) {
-  return [config.keyId, config.bucket, config.region].join(":")
-}
-
 function cachedStorefrontProductImageUrl(
   objectKey: string,
   rendition: ProductImageRendition
 ) {
-  const config = b2Config()
   const cacheWindow = Math.floor(
     Date.now() / (STOREFRONT_URL_CACHE_TTL_SECONDS * 1000)
   )
 
   return unstable_cache(
     async () =>
-      getSignedUrl(
-        b2Client(),
-        new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
-        { expiresIn: PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS.storefront }
+      signedB2GetUrl(
+        objectKey,
+        PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS.storefront
       ),
     [
       "product-image-storefront-url",
-      b2SigningIdentity(config),
+      b2SigningIdentity(),
       objectKey,
       rendition,
       String(cacheWindow),
@@ -352,13 +269,7 @@ export async function presignedProductImageUrl({
     return cachedStorefrontProductImageUrl(objectKey, rendition)
   }
 
-  const config = b2Config()
-
-  return getSignedUrl(
-    b2Client(),
-    new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
-    { expiresIn: PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS[access] }
-  )
+  return signedB2GetUrl(objectKey, PRODUCT_IMAGE_SIGNED_URL_TTL_SECONDS[access])
 }
 
 export async function deleteProductImages(objectKeys: readonly string[]) {
@@ -368,15 +279,5 @@ export async function deleteProductImages(objectKeys: readonly string[]) {
     return
   }
 
-  const config = b2Config()
-  const result = await b2Client().send(
-    new DeleteObjectsCommand({
-      Bucket: config.bucket,
-      Delete: { Objects: uniqueObjectKeys.map((Key) => ({ Key })) },
-    })
-  )
-
-  if (result.Errors && result.Errors.length > 0) {
-    throw new Error("Some product images could not be deleted.")
-  }
+  await deleteB2Objects(uniqueObjectKeys)
 }
