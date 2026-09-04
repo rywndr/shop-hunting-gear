@@ -1,12 +1,25 @@
 import { z } from "zod"
 
 const nonEmptyString = z.string().trim().min(1)
+const reviewUploadSecretSchema = z.string().trim().min(32)
 
 function readRequiredEnvironmentVariable(name: string): string {
   const result = nonEmptyString.safeParse(process.env[name])
 
   if (!result.success) {
     throw new Error(`No env ${name}`)
+  }
+
+  return result.data
+}
+
+function readReviewUploadSecret(): string {
+  const result = reviewUploadSecretSchema.safeParse(
+    process.env.REVIEW_UPLOAD_SECRET
+  )
+
+  if (!result.success) {
+    throw new Error("Invalid REVIEW_UPLOAD_SECRET.")
   }
 
   return result.data
@@ -118,7 +131,7 @@ export const serverEnv = {
     return readRequiredEnvironmentVariable("DATABASE_URL")
   },
   get reviewUploadSecret() {
-    return readRequiredEnvironmentVariable("REVIEW_UPLOAD_SECRET")
+    return readReviewUploadSecret()
   },
   get googleCredentials() {
     return readGoogleCredentials()
