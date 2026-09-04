@@ -65,6 +65,7 @@ export async function applyListingAction({
     })
     revalidatePath("/")
     revalidatePath("/admin/produk")
+    revalidatePath("/c/[category]/p/[slug]", "page")
     return { kind: "success" }
   } catch {
     return {
