@@ -3,12 +3,14 @@ import Link from "next/link"
 
 import { AccountShell } from "@/components/account/account-shell"
 import { CheckoutForm } from "@/components/checkout/checkout-form"
+import { PreparedCheckout } from "@/components/checkout/prepared-checkout"
 import { Button } from "@/components/ui/button"
 import { addressesForUser } from "@/lib/account/service"
 import { getCurrentSession } from "@/lib/auth/session"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import { checkoutProductQuerySchema } from "@/lib/checkout/schema"
 import { checkoutItemsWithThumbnailsForUser } from "@/lib/checkout/service"
+import { preparedCheckoutOrderForUser } from "@/lib/orders/service"
 import { midtransBrowserConfig } from "@/lib/payments/midtrans/config"
 
 export const metadata: Metadata = {
@@ -34,6 +36,30 @@ export default async function CheckoutPage({
   if (!session) return null
 
   const query = await searchParams
+  const preparedOrderId = queryValue(query.pesanan)
+
+  if (preparedOrderId) {
+    const preparedOrder = await preparedCheckoutOrderForUser({
+      userId: session.user.id,
+      orderId: preparedOrderId,
+    })
+
+    if (preparedOrder) {
+      return (
+        <AccountShell
+          title="Checkout"
+          description="Lanjutkan pembayaran untuk pesanan yang sudah dibuat."
+          className="max-w-7xl"
+        >
+          <PreparedCheckout
+            order={preparedOrder}
+            midtrans={midtransBrowserConfig()}
+          />
+        </AccountShell>
+      )
+    }
+  }
+
   const hasProduct = query.produk !== undefined
   const parsedProduct = hasProduct
     ? checkoutProductQuerySchema.safeParse({

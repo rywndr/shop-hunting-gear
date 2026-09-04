@@ -111,6 +111,17 @@ function OrderCard({
           ))}
         </ul>
 
+        {order.customerNote !== null && (
+          <div className="mt-4 border-t border-border pt-3 text-xs">
+            <p className="font-medium text-foreground">
+              Catatan untuk penjual
+            </p>
+            <p className="mt-1 break-words whitespace-pre-wrap text-muted-foreground">
+              {order.customerNote}
+            </p>
+          </div>
+        )}
+
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
           <dt>Pengiriman</dt>
           <dd className="text-right tabular-nums">

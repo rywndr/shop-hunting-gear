@@ -62,9 +62,11 @@ function CheckoutForm({
   )
   const [shippingId, setShippingId] = useState("")
   const [customerNote, setCustomerNote] = useState("")
+  const [orderPreparing, setOrderPreparing] = useState(false)
   const [orderPrepared, setOrderPrepared] = useState(false)
   const { clearCart } = useCart()
   const subtotal = cartSubtotal(items)
+  const checkoutLocked = orderPreparing || orderPrepared
 
   useEffect(() => {
     if (!addressId) {
@@ -165,7 +167,7 @@ function CheckoutForm({
                       <Radio.Root
                         key={address.id}
                         value={address.id}
-                        disabled={!usable}
+                        disabled={!usable || checkoutLocked}
                         className="group flex w-full items-start gap-3 border border-border p-4 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60 data-checked:border-primary data-checked:bg-primary/5"
                       >
                         <CheckCircleIcon
@@ -265,6 +267,7 @@ function CheckoutForm({
                               <Radio.Root
                                 key={shippingOptionId(option)}
                                 value={shippingOptionId(option)}
+                                disabled={checkoutLocked}
                                 className="group flex w-full items-start gap-3 p-4 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset data-checked:bg-primary/5"
                               >
                                 <CheckCircleIcon
@@ -315,7 +318,7 @@ function CheckoutForm({
                 value={customerNote}
                 onChange={(event) => setCustomerNote(event.target.value)}
                 maxLength={500}
-                readOnly={orderPrepared}
+                readOnly={checkoutLocked}
                 description={
                   orderPrepared
                     ? "Catatan tidak dapat diubah setelah pesanan dibuat."
@@ -413,9 +416,19 @@ function CheckoutForm({
                   : undefined
               }
               source={source}
-              onOrderPrepared={(preparedCustomerNote) => {
-                setCustomerNote(preparedCustomerNote)
+              onPreparingChange={setOrderPreparing}
+              onOrderPrepared={(preparedOrder) => {
+                setCustomerNote(preparedOrder.customerNote ?? "")
+                setOrderPreparing(false)
                 setOrderPrepared(true)
+
+                const params = new URLSearchParams(window.location.search)
+                params.set("pesanan", preparedOrder.orderId)
+                window.history.replaceState(
+                  null,
+                  "",
+                  `${window.location.pathname}?${params.toString()}${window.location.hash}`
+                )
               }}
               onOrderCreated={async () => {
                 if (source.kind === "cart") await clearCart()

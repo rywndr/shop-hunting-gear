@@ -46,6 +46,7 @@ function SnapPaymentButton({
   customerNote,
   shipping,
   source,
+  onPreparingChange,
   onOrderPrepared,
   onOrderCreated,
 }: {
@@ -59,7 +60,11 @@ function SnapPaymentButton({
       }
     | undefined
   source: CheckoutSource
-  onOrderPrepared: (customerNote: string) => void
+  onPreparingChange: (preparing: boolean) => void
+  onOrderPrepared: (order: {
+    readonly orderId: string
+    readonly customerNote: string | null
+  }) => void
   onOrderCreated: () => Promise<void>
 }) {
   const router = useRouter()
@@ -179,20 +184,26 @@ function SnapPaymentButton({
       source,
     } satisfies CreateSnapPaymentInput
 
+    onPreparingChange(true)
     setPaymentState({ kind: "requesting" })
 
     try {
       const result = await createPaymentAction(input)
 
       if (result.kind === "error") {
+        onPreparingChange(false)
         setPaymentState(result)
         return
       }
 
-      onOrderPrepared(result.customerNote ?? "")
+      onOrderPrepared({
+        orderId: result.orderId,
+        customerNote: result.customerNote,
+      })
       openSnap(result, checkoutKey)
       void onOrderCreated()
     } catch {
+      onPreparingChange(false)
       setPaymentState({
         kind: "error",
         message: "Tidak dapat terhubung ke pembayaran. Coba lagi.",

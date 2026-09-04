@@ -135,6 +135,21 @@ type JoinedOrderRow = {
   readonly buyer?: string
 }
 
+export type PreparedCheckoutOrder = {
+  readonly id: string
+  readonly items: readonly OrderItem[]
+  readonly address: OrderAddressSnapshot
+  readonly shipping: {
+    readonly courier: ShippingCourierCode
+    readonly courierName: string
+    readonly service: string
+    readonly cost: number
+  }
+  readonly grossAmount: number
+  readonly customerNote: string | null
+  readonly snapToken: string
+}
+
 const REVENUE_PAYMENT_STATUSES: PaymentStatus[] = [
   "paid",
   "partial_refund",
@@ -655,6 +670,61 @@ async function insertLocalOrder({
     customerNote,
     adminNote: null,
   })
+}
+
+export async function preparedCheckoutOrderForUser({
+  userId,
+  orderId,
+}: {
+  readonly userId: string
+  readonly orderId: string
+}): Promise<PreparedCheckoutOrder | null> {
+  const rows = await db
+    .select({ order: customerOrder, item: customerOrderItem })
+    .from(customerOrder)
+    .innerJoin(
+      customerOrderItem,
+      eq(customerOrderItem.orderId, customerOrder.id)
+    )
+    .where(
+      and(
+        eq(customerOrder.id, orderId),
+        eq(customerOrder.userId, userId),
+        inArray(customerOrder.sourceKind, ["cart", "product"]),
+        eq(customerOrder.fulfillmentStatus, "awaiting_payment"),
+        inArray(customerOrder.paymentStatus, ["pending", "authorized"]),
+        eq(customerOrder.paymentInitStatus, "ready"),
+        isNotNull(customerOrder.snapToken)
+      )
+    )
+    .orderBy(asc(customerOrderItem.id))
+
+  const first = rows[0]
+  if (!first) return null
+
+  const { order } = first
+  if (
+    order.snapToken === null ||
+    (order.paymentSessionExpiresAt !== null &&
+      order.paymentSessionExpiresAt.getTime() <= Date.now())
+  ) {
+    return null
+  }
+
+  return {
+    id: order.id,
+    items: rows.map(({ item }) => orderItemFromRow(item)),
+    address: order.addressSnapshot,
+    shipping: {
+      courier: order.shippingCourier,
+      courierName: order.shippingCourierName,
+      service: order.shippingService,
+      cost: order.shippingCost,
+    },
+    grossAmount: order.grossAmount,
+    customerNote: order.customerNote,
+    snapToken: order.snapToken,
+  }
 }
 
 export async function paymentOrderForId(
