@@ -156,14 +156,16 @@ export async function readB2ObjectBytes(key: string, maxBytes: number) {
     new GetObjectCommand({ Bucket: b2Bucket(), Key: key })
   )
   if (!result.Body) throw new Error("B2 object has no body.")
-  if (result.ContentLength !== undefined && result.ContentLength > maxBytes) {
-    throw new Error("B2 object exceeds byte limit.")
-  }
 
   const reader = result.Body.transformToWebStream().getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   try {
+    if (result.ContentLength !== undefined && result.ContentLength > maxBytes) {
+      await reader.cancel("B2 object exceeds byte limit.")
+      throw new Error("B2 object exceeds byte limit.")
+    }
+
     while (true) {
       const item = await reader.read()
       if (item.done) break
@@ -177,5 +179,10 @@ export async function readB2ObjectBytes(key: string, maxBytes: number) {
   } finally {
     reader.releaseLock()
   }
-  return new Uint8Array(Buffer.concat(chunks, size))
+
+  return {
+    bytes: new Uint8Array(Buffer.concat(chunks, size)),
+    contentLength: result.ContentLength ?? null,
+    contentType: result.ContentType ?? null,
+  }
 }

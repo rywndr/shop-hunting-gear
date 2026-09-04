@@ -7,7 +7,6 @@ import { webpDerivativeBuffers } from "@/lib/products/image-derivatives"
 import {
   b2SigningIdentity,
   deleteB2Objects,
-  headB2Object,
   putB2Object,
   readB2ObjectBytes,
   signedB2GetUrl,
@@ -111,28 +110,29 @@ export async function processStagedReviewImage({
   readonly reviewId: string
   readonly file: ReviewUploadTokenPayload["files"][number]
 }): Promise<StoredReviewMedia> {
-  const metadata = await headB2Object(file.stagingKey)
+  const staged = await readB2ObjectBytes(
+    file.stagingKey,
+    REVIEW_LIMITS.maxImageBytes
+  )
   if (
-    metadata.kind !== "found" ||
-    metadata.contentLength !== file.expectedSize ||
-    metadata.contentType !== file.expectedMime
+    staged.contentType !== file.expectedMime ||
+    (staged.contentLength !== null &&
+      staged.contentLength !== file.expectedSize)
   ) {
     throw new ReviewImageValidationError(
       "Staged review image does not match upload token."
     )
   }
-
-  const bytes = await readB2ObjectBytes(
-    file.stagingKey,
-    REVIEW_LIMITS.maxImageBytes
-  )
-  if (bytes.byteLength !== file.expectedSize) {
+  if (staged.bytes.byteLength !== file.expectedSize) {
     throw new ReviewImageValidationError("Staged review image size changed.")
   }
-  await validateReviewImageBytes({ bytes, expectedMime: file.expectedMime })
+  await validateReviewImageBytes({
+    bytes: staged.bytes,
+    expectedMime: file.expectedMime,
+  })
 
   const derivatives = await webpDerivativeBuffers({
-    bytes,
+    bytes: staged.bytes,
     thumbnailSize: THUMBNAIL_WIDTH,
     detailSize: DETAIL_WIDTH,
   })

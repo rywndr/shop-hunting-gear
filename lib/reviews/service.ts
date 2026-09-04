@@ -154,6 +154,47 @@ function matchingUploadPayload({
   return verified.payload
 }
 
+async function processReviewImages({
+  files,
+  productId,
+  reviewId,
+  uploaded,
+  canonicalKeys,
+}: {
+  readonly files: ReviewUploadTokenPayload["files"]
+  readonly productId: string
+  readonly reviewId: string
+  readonly uploaded: StoredReviewMedia[]
+  readonly canonicalKeys: string[]
+}) {
+  for (let index = 0; index < files.length; index += 2) {
+    const batch = files.slice(index, index + 2)
+    const results = await Promise.allSettled(
+      batch.map((file) =>
+        processStagedReviewImage({ productId, reviewId, file })
+      )
+    )
+    let failure: { readonly reason: unknown } | null = null
+
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        uploaded.push(result.value)
+        canonicalKeys.push(
+          result.value.thumbnailObjectKey,
+          result.value.objectKey
+        )
+      } else {
+        failure ??= { reason: result.reason }
+        if (result.reason instanceof ReviewImageUploadError) {
+          canonicalKeys.push(...result.reason.uploadedObjectKeys)
+        }
+      }
+    }
+
+    if (failure) throw failure.reason
+  }
+}
+
 export async function createReview({
   userId,
   author,
@@ -186,22 +227,13 @@ export async function createReview({
   const canonicalKeys: string[] = []
 
   try {
-    for (const file of upload?.files ?? []) {
-      try {
-        const stored = await processStagedReviewImage({
-          productId: eligibility.product.id,
-          reviewId,
-          file,
-        })
-        uploaded.push(stored)
-        canonicalKeys.push(stored.thumbnailObjectKey, stored.objectKey)
-      } catch (error) {
-        if (error instanceof ReviewImageUploadError) {
-          canonicalKeys.push(...error.uploadedObjectKeys)
-        }
-        throw error
-      }
-    }
+    await processReviewImages({
+      files: upload?.files ?? [],
+      productId: eligibility.product.id,
+      reviewId,
+      uploaded,
+      canonicalKeys,
+    })
 
     const mediaValues =
       uploaded.length === 0
