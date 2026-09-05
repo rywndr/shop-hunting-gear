@@ -16,6 +16,11 @@ import {
 import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import type { CheckoutSource } from "@/lib/checkout/config"
+import {
+  completePaymentNavigation,
+  normalizeOrderCreated,
+  type OrderCreatedResult,
+} from "@/lib/checkout/order-created"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import type { CreateSnapPaymentInput } from "@/lib/payments/midtrans/schema"
 import type { RajaOngkirCourierCode } from "@/lib/shipping/config"
@@ -49,25 +54,7 @@ type PaymentState =
       readonly message: string
     }
 
-type CartCleanupState =
-  | { readonly kind: "idle" }
-  | {
-      readonly kind: "pending"
-      readonly attemptId: number
-      readonly orderId: string
-    }
-  | {
-      readonly kind: "error"
-      readonly attemptId: number
-      readonly orderId: string
-      readonly message: string
-    }
-
 type SnapScriptState = "loading" | "ready" | "error"
-
-type OrderCreatedResult =
-  | { readonly kind: "success" }
-  | { readonly kind: "error"; readonly message: string }
 
 type CartCleanupTask = {
   readonly attemptId: number
@@ -106,9 +93,6 @@ function SnapPaymentButton({
   const { showNotification } = useNotification()
   const [scriptState, setScriptState] = useState<SnapScriptState>("loading")
   const [paymentState, setPaymentState] = useState<PaymentState>({
-    kind: "idle",
-  })
-  const [cartCleanupState, setCartCleanupState] = useState<CartCleanupState>({
     kind: "idle",
   })
   const nextAttemptId = useRef(0)
@@ -152,58 +136,50 @@ function SnapPaymentButton({
     }))
     if (!confirmationStarted) return
 
-    let notice: PaymentNotice
-
-    try {
-      const result = await confirmPaymentAction({ orderId })
-      notice = paymentNoticeForConfirmation(result)
-    } catch {
-      notice = {
-        kind: "info",
-        message:
-          "Pembayaran selesai di Midtrans. Status pesanan akan diperbarui setelah konfirmasi.",
-      }
-    }
-
-    const current = paymentStateRef.current
-    if (
-      !isActiveAttempt(attemptId) ||
-      current.kind !== "confirming" ||
-      current.attemptId !== attemptId ||
-      current.orderId !== orderId
-    ) {
-      return
-    }
-
-    replacePaymentState({ kind: "snap-completed", attemptId, orderId, notice })
-
     const cleanupTask = cartCleanupTask.current
     const cleanupResult =
       cleanupTask?.attemptId === attemptId && cleanupTask.orderId === orderId
-        ? await cleanupTask.result
+        ? cleanupTask.result
         : undefined
-    const completed = paymentStateRef.current
-    if (
-      !isActiveAttempt(attemptId) ||
-      completed.kind !== "snap-completed" ||
-      completed.attemptId !== attemptId ||
-      completed.orderId !== orderId
-    ) {
-      return
-    }
 
-    if (cleanupResult?.kind === "error") {
-      setCartCleanupState((current) =>
-        current.kind === "error" &&
-        current.attemptId === attemptId &&
-        current.orderId === orderId
-          ? { kind: "idle" }
-          : current
-      )
-      showNotification({ variant: "error", message: cleanupResult.message })
-    }
-    router.push(`/orders?order=${encodeURIComponent(orderId)}`)
-    router.refresh()
+    await completePaymentNavigation({
+      async confirm(): Promise<PaymentNotice> {
+        try {
+          const result = await confirmPaymentAction({ orderId })
+          return paymentNoticeForConfirmation(result)
+        } catch {
+          return {
+            kind: "info",
+            message:
+              "Pembayaran selesai di Midtrans. Status pesanan akan diperbarui setelah konfirmasi.",
+          }
+        }
+      },
+      isCurrent() {
+        const current = paymentStateRef.current
+        return (
+          isActiveAttempt(attemptId) &&
+          current.kind === "confirming" &&
+          current.attemptId === attemptId &&
+          current.orderId === orderId
+        )
+      },
+      onConfirmed(notice) {
+        replacePaymentState({ kind: "snap-completed", attemptId, orderId, notice })
+      },
+      cleanupResult,
+      onCleanupError(message) {
+        if (!isActiveAttempt(attemptId)) return
+
+        showNotification({ variant: "error", message })
+      },
+      navigate() {
+        router.push(`/orders?order=${encodeURIComponent(orderId)}`)
+      },
+      refresh() {
+        router.refresh()
+      },
+    })
   }
 
   function openSnap(
@@ -294,7 +270,6 @@ function SnapPaymentButton({
     const attemptId = nextAttemptId.current
     activeAttemptId.current = attemptId
     cartCleanupTask.current = null
-    setCartCleanupState({ kind: "idle" })
     onPreparingChange(true)
     replacePaymentState({ kind: "requesting", attemptId })
 
@@ -317,32 +292,12 @@ function SnapPaymentButton({
         orderId: result.orderId,
         customerNote: result.customerNote,
       })
-      const cleanupResult = onOrderCreated()
+      const cleanupResult = normalizeOrderCreated(onOrderCreated)
       cartCleanupTask.current = {
         attemptId,
         orderId: result.orderId,
         result: cleanupResult,
       }
-      setCartCleanupState({
-        kind: "pending",
-        attemptId,
-        orderId: result.orderId,
-      })
-      void cleanupResult.then((orderCreatedResult) => {
-        if (!isActiveAttempt(attemptId)) return
-
-        if (orderCreatedResult.kind === "error") {
-          setCartCleanupState({
-            kind: "error",
-            attemptId,
-            orderId: result.orderId,
-            message: orderCreatedResult.message,
-          })
-          return
-        }
-
-        setCartCleanupState({ kind: "idle" })
-      })
       openSnap(result, checkoutKey, attemptId)
     } catch {
       if (!isActiveAttempt(attemptId)) return
@@ -396,16 +351,6 @@ function SnapPaymentButton({
                   "Layanan pembayaran tidak dapat dimuat. Muat ulang halaman.",
               }
             : undefined
-  const paymentAttemptId =
-    paymentState.kind === "idle" ? undefined : paymentState.attemptId
-  const cartCleanupNotice =
-    cartCleanupState.kind === "error" &&
-    cartCleanupState.attemptId === paymentAttemptId
-      ? ({
-          kind: "error",
-          message: cartCleanupState.message,
-        } satisfies PaymentNotice)
-      : undefined
 
   return (
     <>
@@ -426,7 +371,6 @@ function SnapPaymentButton({
         {buttonLabel}
       </Button>
       {paymentNotice && <PaymentNoticeMessage notice={paymentNotice} />}
-      {cartCleanupNotice && <PaymentNoticeMessage notice={cartCleanupNotice} />}
     </>
   )
 }

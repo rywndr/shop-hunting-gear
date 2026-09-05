@@ -3,6 +3,7 @@ const AUTH_NOTIFICATION_TTL_MS = 10 * 60 * 1_000
 
 const AUTH_NOTIFICATION_MESSAGES = {
   "sign-in": "Berhasil masuk ke akun.",
+  "sign-up": "Akun berhasil dibuat.",
 } as const
 
 type AuthNotificationKind = keyof typeof AUTH_NOTIFICATION_MESSAGES
@@ -14,6 +15,13 @@ type PendingAuthNotification = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function isAuthNotificationKind(value: unknown): value is AuthNotificationKind {
+  return (
+    typeof value === "string" &&
+    Object.hasOwn(AUTH_NOTIFICATION_MESSAGES, value)
+  )
 }
 
 function queueAuthNotification(kind: AuthNotificationKind) {
@@ -64,7 +72,7 @@ function readAuthNotification(): PendingAuthNotification | null {
 
   if (
     !isRecord(parsed) ||
-    parsed.kind !== "sign-in" ||
+    !isAuthNotificationKind(parsed.kind) ||
     typeof parsed.expiresAt !== "number" ||
     !Number.isFinite(parsed.expiresAt) ||
     parsed.expiresAt <= Date.now()
