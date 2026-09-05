@@ -79,7 +79,7 @@ function ChangePasswordForm() {
       success={success}
     >
       <PasswordField
-        id="keamanan-sandi-lama"
+        id="security-current-password"
         label="Kata Sandi Saat Ini"
         autoComplete="current-password"
         placeholder="Masukkan kata sandi saat ini"
@@ -88,7 +88,7 @@ function ChangePasswordForm() {
       />
 
       <PasswordField
-        id="keamanan-sandi-baru"
+        id="security-new-password"
         label="Kata Sandi Baru"
         autoComplete="new-password"
         placeholder="Masukkan kata sandi baru"
@@ -98,7 +98,7 @@ function ChangePasswordForm() {
       />
 
       <PasswordField
-        id="keamanan-sandi-ulang"
+        id="security-confirm-password"
         label="Ulangi Kata Sandi Baru"
         autoComplete="new-password"
         placeholder="Ulangi kata sandi baru"
@@ -109,7 +109,7 @@ function ChangePasswordForm() {
   )
 }
 
-const CONFIRM_ID = "keamanan-hapus-konfirmasi"
+const CONFIRM_ID = "security-delete-confirmation"
 const CONFIRM_PHRASE = "iya, saya yakin"
 
 function DeleteAccountCard({ account }: { account: Account }) {

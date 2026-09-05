@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 
-import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
+import { OrderQueueBadge } from "@/components/admin/orders/order-queue-badge"
 import { TextField } from "@/components/form/fields"
 import { Button } from "@/components/ui/button"
 import {

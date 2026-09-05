@@ -3,20 +3,19 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
-import { OrderQueueBadge } from "@/components/admin/pesanan/order-queue-badge"
+import { OrderQueueBadge } from "@/components/admin/orders/order-queue-badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
+function MarkOrderPaidDialog({ orderId }: { orderId: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,9 +31,9 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
   function confirm() {
     setError(null)
     startTransition(async () => {
-      const { markOrderCompletedAction } =
+      const { markOrderPaidAction } =
         await import("@/app/admin/orders/actions")
-      const result = await markOrderCompletedAction(orderId)
+      const result = await markOrderPaidAction(orderId)
 
       if (result.kind === "error") {
         setError(result.message)
@@ -48,16 +47,13 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>
-        Tandai selesai
+      <DialogTrigger render={<Button size="sm" />}>
+        Tandai dibayar
       </DialogTrigger>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tandai pesanan selesai?</DialogTitle>
-          <DialogDescription>
-            Gunakan ini setelah barang diterima atau diambil pelanggan di toko.
-          </DialogDescription>
+          <DialogTitle>Tandai pesanan sudah dibayar?</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-5">
@@ -70,7 +66,7 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
             <div className="flex items-center justify-between gap-2 text-xs sm:justify-start">
               <dt className="text-muted-foreground">Status baru</dt>
               <dd>
-                <OrderQueueBadge queue="completed" />
+                <OrderQueueBadge queue="toShip" />
               </dd>
             </div>
           </dl>
@@ -87,7 +83,7 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
             Batal
           </DialogClose>
           <Button type="button" onClick={confirm} disabled={pending}>
-            {pending ? "Menyimpan..." : "Tandai selesai"}
+            {pending ? "Menyimpan..." : "Konfirmasi sudah dibayar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -95,4 +91,4 @@ function MarkOrderCompletedDialog({ orderId }: { orderId: string }) {
   )
 }
 
-export { MarkOrderCompletedDialog }
+export { MarkOrderPaidDialog }

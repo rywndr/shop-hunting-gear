@@ -21,7 +21,7 @@ import {
   type ShippingLocation,
 } from "@/lib/shipping/schema"
 
-const PRIMARY_ID = "alamat-utama"
+const PRIMARY_ID = "primary-address"
 
 type AddressFormProps = {
   submitLabel: string
@@ -299,7 +299,7 @@ function AddressForm({
     <form noValidate onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
       <FieldGroup className="flex-1 gap-4 overflow-y-auto px-6 py-5">
         <TextField
-          id="alamat-label"
+          id="address-label"
           label="Label Alamat"
           placeholder="Rumah, Kantor, Kos"
           error={errors.label?.message}
@@ -308,7 +308,7 @@ function AddressForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            id="alamat-penerima"
+            id="address-recipient"
             label="Nama Penerima"
             autoComplete="name"
             placeholder="Nama lengkap penerima"
@@ -317,7 +317,7 @@ function AddressForm({
           />
 
           <TextField
-            id="alamat-telepon"
+            id="address-phone"
             label="Nomor HP"
             type="tel"
             inputMode="tel"
@@ -329,7 +329,7 @@ function AddressForm({
         </div>
 
         <TextareaField
-          id="alamat-jalan"
+          id="address-street"
           label="Alamat Lengkap"
           autoComplete="street-address"
           placeholder="Nama jalan, nomor rumah, RT/RW, patokan terdekat"
@@ -344,7 +344,7 @@ function AddressForm({
             name="provinceId"
             render={({ field }) => (
               <ComboboxField
-                id="alamat-province"
+                id="address-province"
                 label="Provinsi"
                 placeholder={
                   regionLoading("province")
@@ -370,7 +370,7 @@ function AddressForm({
             name="cityId"
             render={({ field }) => (
               <ComboboxField
-                id="alamat-city"
+                id="address-city"
                 label="Kota / Kabupaten"
                 placeholder={
                   regionLoading("city")
@@ -396,7 +396,7 @@ function AddressForm({
             name="districtId"
             render={({ field }) => (
               <ComboboxField
-                id="alamat-district"
+                id="address-district"
                 label="Kecamatan"
                 placeholder={
                   regionLoading("district")
@@ -424,7 +424,7 @@ function AddressForm({
             name="subdistrictId"
             render={({ field }) => (
               <ComboboxField
-                id="alamat-subdistrict"
+                id="address-subdistrict"
                 label="Kelurahan / Desa"
                 placeholder={
                   regionLoading("subdistrict")
@@ -449,7 +449,7 @@ function AddressForm({
           />
 
           <TextField
-            id="alamat-kode-pos"
+            id="address-postal-code"
             label="Kode Pos"
             inputMode="numeric"
             autoComplete="postal-code"

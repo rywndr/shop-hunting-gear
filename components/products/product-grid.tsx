@@ -35,7 +35,7 @@ function ProductGridSkeleton({ className }: { readonly className?: string }) {
       className={cn(PRODUCT_GRID_CLASS, className)}
     >
       {Array.from({ length: INITIAL_PRODUCT_COUNT }, (_, index) => (
-        <li key={`produk-skeleton-${index}`}>
+        <li key={`product-skeleton-${index}`}>
           <ProductCardSkeleton />
         </li>
       ))}

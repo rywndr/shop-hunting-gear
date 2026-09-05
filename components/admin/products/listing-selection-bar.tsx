@@ -7,7 +7,7 @@ import { XIcon } from "@phosphor-icons/react"
 import {
   ListingActionButton,
   ListingActionMenu,
-} from "@/components/admin/produk/listing-actions"
+} from "@/components/admin/products/listing-actions"
 import { Button } from "@/components/ui/button"
 import { SELECTION_ACTIONS, type ListingStateFilter } from "@/lib/admin/catalog"
 import { formatNumber } from "@/utils/format/intl"

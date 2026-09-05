@@ -20,9 +20,9 @@ export function checkoutHref({
   variants: readonly CartVariant[]
 }) {
   const params = new URLSearchParams({
-    produk: product.slug,
-    jumlah: String(quantity),
-    pilihan: JSON.stringify(variants),
+    product: product.slug,
+    quantity: String(quantity),
+    variants: JSON.stringify(variants),
   })
 
   return `/checkout?${params}`

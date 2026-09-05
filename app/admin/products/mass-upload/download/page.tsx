@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { BulkPage } from "@/components/admin/produk/bulk-page"
+import { BulkPage } from "@/components/admin/products/bulk-page"
 import { bulkMetadata, BULK_MODES, type BulkStepKind } from "@/lib/admin/bulk"
 
 const MODE = BULK_MODES.upload

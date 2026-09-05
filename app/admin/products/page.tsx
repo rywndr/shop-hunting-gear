@@ -3,9 +3,9 @@ import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { AdminPage } from "@/components/admin/admin-page"
-import { CatalogActions } from "@/components/admin/produk/catalog-actions"
-import { ListingTable } from "@/components/admin/produk/listing-table"
-import { ListingTableSkeleton } from "@/components/admin/produk/listing-table-skeleton"
+import { CatalogActions } from "@/components/admin/products/catalog-actions"
+import { ListingTable } from "@/components/admin/products/listing-table"
+import { ListingTableSkeleton } from "@/components/admin/products/listing-table-skeleton"
 import {
   listingCategoryFromParam,
   listingFilterFromTab,

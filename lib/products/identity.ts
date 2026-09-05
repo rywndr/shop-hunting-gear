@@ -13,7 +13,7 @@ export function productSlug({ name, id }: { name: string; id: string }) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
 
-  return `${stem || "produk"}-${id.slice(-8)}`
+  return `${stem || "product"}-${id.slice(-8)}`
 }
 
 export function descriptionParagraphs(

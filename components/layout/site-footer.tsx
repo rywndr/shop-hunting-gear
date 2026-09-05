@@ -50,8 +50,8 @@ function SiteFooter({ className }: { className?: string }) {
           </div>
         </div>
 
-        <nav aria-labelledby="footer-kategori" className="flex flex-col gap-3">
-          <ColumnHeading id="footer-kategori">Kategori</ColumnHeading>
+        <nav aria-labelledby="footer-categories" className="flex flex-col gap-3">
+          <ColumnHeading id="footer-categories">Kategori</ColumnHeading>
           <ul className="flex flex-col gap-2 text-sm">
             {CATEGORIES.map((category) => (
               <li key={category.href}>
@@ -63,8 +63,8 @@ function SiteFooter({ className }: { className?: string }) {
           </ul>
         </nav>
 
-        <nav aria-labelledby="footer-informasi" className="flex flex-col gap-3">
-          <ColumnHeading id="footer-informasi">Informasi</ColumnHeading>
+        <nav aria-labelledby="footer-information" className="flex flex-col gap-3">
+          <ColumnHeading id="footer-information">Informasi</ColumnHeading>
           <ul className="flex flex-col gap-2 text-sm">
             {INFO_LINKS.map((link) => (
               <li key={link.href}>

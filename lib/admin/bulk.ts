@@ -93,9 +93,9 @@ const FILE_NAME_DATE = new Intl.DateTimeFormat("en-CA", {
 export function bulkFileName(mode: BulkModeKind) {
   switch (mode) {
     case "upload":
-      return `template-mass-upload-produk${XLSX_EXTENSION}`
+      return `template-mass-upload-products${XLSX_EXTENSION}`
     case "update":
-      return `mass-update-produk-${FILE_NAME_DATE.format(new Date())}${XLSX_EXTENSION}`
+      return `mass-update-products-${FILE_NAME_DATE.format(new Date())}${XLSX_EXTENSION}`
     default: {
       const _exhaustive: never = mode
       return _exhaustive

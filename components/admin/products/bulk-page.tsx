@@ -1,10 +1,10 @@
 import { AdminCard } from "@/components/admin/admin-card"
 import { AdminPage } from "@/components/admin/admin-page"
-import { BulkColumnTable } from "@/components/admin/produk/bulk-column-table"
-import { BulkDownloadButton } from "@/components/admin/produk/bulk-download-button"
-import { BulkFileDrop } from "@/components/admin/produk/bulk-file-drop"
-import { BulkGuideCard } from "@/components/admin/produk/bulk-guide-card"
-import { BulkStepToggle } from "@/components/admin/produk/bulk-step-toggle"
+import { BulkColumnTable } from "@/components/admin/products/bulk-column-table"
+import { BulkDownloadButton } from "@/components/admin/products/bulk-download-button"
+import { BulkFileDrop } from "@/components/admin/products/bulk-file-drop"
+import { BulkGuideCard } from "@/components/admin/products/bulk-guide-card"
+import { BulkStepToggle } from "@/components/admin/products/bulk-step-toggle"
 import type { BulkMode, BulkStepKind } from "@/lib/admin/bulk"
 
 function BulkStepCard({

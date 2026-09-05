@@ -6,10 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeftIcon, ArrowRightIcon, PlusIcon } from "@phosphor-icons/react"
 import { useForm, useWatch } from "react-hook-form"
 
-import { ManualOrderItemStep } from "@/components/admin/pesanan/manual-order-item-step"
-import { ManualOrderReviewStep } from "@/components/admin/pesanan/manual-order-review-step"
-import { ManualOrderShippingStep } from "@/components/admin/pesanan/manual-order-shipping-step"
-import { ManualOrderStepList } from "@/components/admin/pesanan/manual-order-step-list"
+import { ManualOrderItemStep } from "@/components/admin/orders/manual-order-item-step"
+import { ManualOrderReviewStep } from "@/components/admin/orders/manual-order-review-step"
+import { ManualOrderShippingStep } from "@/components/admin/orders/manual-order-shipping-step"
+import { ManualOrderStepList } from "@/components/admin/orders/manual-order-step-list"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

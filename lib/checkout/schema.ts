@@ -14,9 +14,9 @@ export const checkoutSourceSchema = z.discriminatedUnion("kind", [
 ]) satisfies z.ZodType<CheckoutSource>
 
 export const checkoutProductQuerySchema = z.object({
-  produk: z.string().trim().min(1),
-  jumlah: z.coerce.number().int().positive().safe(),
-  pilihan: z.string().transform((value, context) => {
+  product: z.string().trim().min(1),
+  quantity: z.coerce.number().int().positive().safe(),
+  variants: z.string().transform((value, context) => {
     try {
       const parsed: unknown = JSON.parse(value)
       const result = z.array(cartVariantSchema).safeParse(parsed)

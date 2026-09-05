@@ -8,7 +8,7 @@ import {
   UploadSimpleIcon,
 } from "@phosphor-icons/react"
 
-import { BulkResultTable } from "@/components/admin/produk/bulk-result-table"
+import { BulkResultTable } from "@/components/admin/products/bulk-result-table"
 import { Button } from "@/components/ui/button"
 import {
   bulkImportHref,

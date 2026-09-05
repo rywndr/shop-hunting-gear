@@ -156,7 +156,7 @@ function VariantOptionFields({
                   </div>
 
                   <TextField
-                    id={`varian-${variantIndex}-pilihan-${index}-harga`}
+                    id={`variant-${variantIndex}-option-${index}-price`}
                     label="Harga"
                     type="number"
                     inputMode="numeric"
@@ -168,7 +168,7 @@ function VariantOptionFields({
                   />
 
                   <TextField
-                    id={`varian-${variantIndex}-pilihan-${index}-berat`}
+                    id={`variant-${variantIndex}-option-${index}-weight`}
                     label="Berat (gram)"
                     type="number"
                     inputMode="numeric"
@@ -239,7 +239,7 @@ function ProductVariantFields({
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1 sm:max-w-md">
                 <TextField
-                  id={`produk-varian-${position}`}
+                  id={`product-variant-${position}`}
                   label={`Varian ${position}`}
                   description="Nama kelompok pilihan, misalnya Ukuran atau Warna."
                   error={errors.variants?.[index]?.label?.message}

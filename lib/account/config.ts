@@ -10,9 +10,9 @@ export type AccountTab = {
 }
 
 export const ACCOUNT_TABS = [
-  { value: "profil", label: "Info Dasar" },
-  { value: "alamat", label: "Alamat" },
-  { value: "keamanan", label: "Keamanan" },
+  { value: "profile", label: "Info Dasar" },
+  { value: "addresses", label: "Alamat" },
+  { value: "security", label: "Keamanan" },
 ] as const satisfies readonly AccountTab[]
 
 export type RegionField = {

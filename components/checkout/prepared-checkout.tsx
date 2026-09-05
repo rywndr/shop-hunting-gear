@@ -57,11 +57,11 @@ async function PreparedCheckout({
           </div>
         </div>
 
-        <section aria-labelledby="prepared-alamat-title">
+        <section aria-labelledby="prepared-address-title">
           <Card className={FLAT_CARD}>
             <CardHeader>
               <CardTitle
-                id="prepared-alamat-title"
+                id="prepared-address-title"
                 className="flex items-center gap-2 uppercase"
               >
                 <MapPinIcon aria-hidden />
@@ -80,10 +80,10 @@ async function PreparedCheckout({
           </Card>
         </section>
 
-        <section aria-labelledby="prepared-pengiriman-title">
+        <section aria-labelledby="prepared-shipping-title">
           <Card className={FLAT_CARD}>
             <CardHeader>
-              <CardTitle id="prepared-pengiriman-title" className="uppercase">
+              <CardTitle id="prepared-shipping-title" className="uppercase">
                 Pilihan Pengiriman
               </CardTitle>
             </CardHeader>
@@ -104,10 +104,10 @@ async function PreparedCheckout({
         </section>
 
         {order.customerNote !== null && (
-          <section aria-labelledby="prepared-catatan-title">
+          <section aria-labelledby="prepared-note-title">
             <Card className={FLAT_CARD}>
               <CardHeader>
-                <CardTitle id="prepared-catatan-title" className="uppercase">
+                <CardTitle id="prepared-note-title" className="uppercase">
                   Catatan untuk Penjual
                 </CardTitle>
               </CardHeader>
@@ -122,13 +122,13 @@ async function PreparedCheckout({
       </div>
 
       <aside
-        aria-labelledby="prepared-ringkasan-title"
+        aria-labelledby="prepared-summary-title"
         className="lg:sticky lg:top-5"
       >
         <Card className={FLAT_CARD}>
           <CardHeader>
             <CardTitle
-              id="prepared-ringkasan-title"
+              id="prepared-summary-title"
               className="flex items-center gap-2 uppercase"
             >
               <PackageIcon aria-hidden />

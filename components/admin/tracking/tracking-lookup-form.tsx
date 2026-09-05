@@ -98,7 +98,7 @@ function TrackingLookupForm() {
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
         <TextField
-          id="nomor-resi"
+          id="tracking-number"
           label="Nomor Resi"
           placeholder={TRACKING_PLACEHOLDER}
           value={awb}
@@ -125,7 +125,7 @@ function TrackingLookupForm() {
               melacak resi yang tidak terkait pesanan.
             </p>
             <SelectField
-              id="jasa-kirim-pelacakan"
+              id="tracking-courier"
               label="Jasa kirim"
               placeholder="Pilih jasa kirim"
               options={COURIER_OPTIONS}
@@ -134,7 +134,7 @@ function TrackingLookupForm() {
               disabled={pending}
             />
             <TextField
-              id="nomor-telepon-terakhir"
+              id="last-phone-digits"
               label="5 digit terakhir nomor telepon"
               description="Masukkan angka saja, tanpa spasi atau tanda baca."
               value={lastPhoneNumber}

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
-import { ProductImageUploader } from "@/components/admin/produk/product-image-uploader"
-import { ProductVariantFields } from "@/components/admin/produk/product-variant-fields"
+import { ProductImageUploader } from "@/components/admin/products/product-image-uploader"
+import { ProductVariantFields } from "@/components/admin/products/product-variant-fields"
 import { AdminCard } from "@/components/admin/admin-card"
 import {
   NumberField,
@@ -139,7 +139,7 @@ function ProductForm() {
       >
         <FieldGroup className="gap-4">
           <TextField
-            id="produk-nama"
+            id="product-name"
             label="Nama Produk"
             description="Sebutkan jenis barang, merek, dan keterangan singkat."
             error={errors.name?.message}
@@ -152,7 +152,7 @@ function ProductForm() {
               name="category"
               render={({ field }) => (
                 <SelectField
-                  id="produk-kategori"
+                  id="product-category"
                   label="Kategori"
                   options={CATEGORY_OPTIONS}
                   name={field.name}
@@ -167,7 +167,7 @@ function ProductForm() {
           </div>
 
           <TextareaField
-            id="produk-deskripsi"
+            id="product-description"
             label="Deskripsi Produk"
             description="Tulis detail yang sering ditanyakan pembeli agar tidak perlu chat."
             error={errors.description?.message}
@@ -185,7 +185,7 @@ function ProductForm() {
           {!hasVariants && (
             <div className="grid gap-4 sm:grid-cols-2">
               <NumberField
-                id="produk-harga"
+                id="product-price"
                 label="Harga Jual"
                 prefix="Rp"
                 error={errors.price?.message}
@@ -194,7 +194,7 @@ function ProductForm() {
 
               <div className="flex flex-col gap-2">
                 <NumberField
-                  id="produk-harga-coret"
+                  id="product-original-price"
                   label="Harga Sebelum Diskon"
                   prefix="Rp"
                   description="Opsional. Isi untuk menampilkan harga coret dan label diskon."
@@ -210,7 +210,7 @@ function ProductForm() {
           )}
 
           <NumberField
-            id="produk-stok"
+            id="product-stock"
             label="Stok"
             description={`Jumlah barang siap kirim, maksimal ${formatNumber(MAX_STOCK)}.`}
             error={errors.stock?.message}
@@ -219,7 +219,7 @@ function ProductForm() {
           />
 
           <NumberField
-            id="produk-berat"
+            id="product-weight"
             label="Berat Produk"
             suffix="gram"
             description={`Berat pengiriman, maksimal ${formatNumber(MAX_WEIGHT)} gram.`}

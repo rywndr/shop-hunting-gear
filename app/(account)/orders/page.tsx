@@ -1,6 +1,5 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
-import { permanentRedirect } from "next/navigation"
 
 import { AccountShell } from "@/components/account/account-shell"
 import { SectionTabs, type SectionTab } from "@/components/account/section-tabs"
@@ -23,7 +22,7 @@ const PAGE_SIZE = 6
 type HistoryTab = "all" | OrderStatus
 
 export const metadata: Metadata = {
-  title: "History",
+  title: "Orders",
   description: "Lacak pembayaran, pengiriman, dan riwayat pesanan Anda.",
 }
 
@@ -199,24 +198,6 @@ async function HistoryTabs({
 
 export default async function HistoryPage(props: PageProps<"/orders">) {
   const params = await props.searchParams
-  const legacyOrder =
-    typeof params.pesanan === "string" ? params.pesanan : undefined
-  const legacyStatus = params.status === "semua"
-
-  if (legacyOrder || legacyStatus) {
-    const query = new URLSearchParams()
-    const order =
-      typeof params.order === "string" ? params.order : legacyOrder
-
-    if (order) query.set("order", order)
-    if (typeof params.page === "string") query.set("page", params.page)
-    if (typeof params.status === "string") {
-      query.set("status", legacyStatus ? "all" : params.status)
-    }
-
-    permanentRedirect(`/orders?${query.toString()}`)
-  }
-
   const activeTab = historyTab(
     typeof params.status === "string" ? params.status : undefined
   )

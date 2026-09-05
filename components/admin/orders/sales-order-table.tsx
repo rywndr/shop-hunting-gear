@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { ShoppingBagIcon } from "@phosphor-icons/react"
 
 import { AdminCard, TABLE_EDGE } from "@/components/admin/admin-card"
-import { OrderQueueToggle } from "@/components/admin/pesanan/order-queue-toggle"
-import { SalesOrderRow } from "@/components/admin/pesanan/sales-order-row"
+import { OrderQueueToggle } from "@/components/admin/orders/order-queue-toggle"
+import { SalesOrderRow } from "@/components/admin/orders/sales-order-row"
 import { SearchField } from "@/components/admin/search-field"
 import { TablePagination } from "@/components/admin/table-pagination"
 import {

@@ -5,7 +5,7 @@ import { Controller } from "react-hook-form"
 import {
   fieldError,
   type ManualOrderForm,
-} from "@/components/admin/pesanan/manual-order-form"
+} from "@/components/admin/orders/manual-order-form"
 import {
   ComboboxField,
   NumberField,

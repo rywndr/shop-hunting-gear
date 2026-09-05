@@ -111,12 +111,12 @@ function sectionCopy(filter: BrowseFilter): {
     case "category":
       return {
         title: categoryLabels(filter.categories),
-        description: "Produk dari category yang dipilih.",
+        description: "Produk dari kategori yang dipilih.",
       }
     case "all":
       return {
         title: "Semua Produk",
-        description: "Seluruh katalog dari empat category dalam satu daftar.",
+        description: "Seluruh katalog dari empat kategori dalam satu daftar.",
       }
     default: {
       const _exhaustive: never = filter

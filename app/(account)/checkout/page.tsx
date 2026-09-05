@@ -60,21 +60,21 @@ export default async function CheckoutPage({
     }
   }
 
-  const hasProduct = query.produk !== undefined
+  const hasProduct = query.product !== undefined
   const parsedProduct = hasProduct
     ? checkoutProductQuerySchema.safeParse({
-        produk: queryValue(query.produk),
-        jumlah: queryValue(query.jumlah),
-        pilihan: queryValue(query.pilihan),
+        product: queryValue(query.product),
+        quantity: queryValue(query.quantity),
+        variants: queryValue(query.variants),
       })
     : undefined
   const source: CheckoutSource =
     parsedProduct?.success === true
       ? {
           kind: "product",
-          productSlug: parsedProduct.data.produk,
-          quantity: parsedProduct.data.jumlah,
-          variants: parsedProduct.data.pilihan,
+          productSlug: parsedProduct.data.product,
+          quantity: parsedProduct.data.quantity,
+          variants: parsedProduct.data.variants,
         }
       : { kind: "cart" }
   const [addresses, items] = await Promise.all([

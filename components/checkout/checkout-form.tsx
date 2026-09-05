@@ -132,11 +132,11 @@ function CheckoutForm({
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <div className="flex min-w-0 flex-col gap-5">
-        <section aria-labelledby="checkout-alamat-title">
+        <section aria-labelledby="checkout-address-title">
           <Card className={FLAT_CARD}>
             <CardHeader>
               <CardTitle
-                id="checkout-alamat-title"
+                id="checkout-address-title"
                 className="flex items-center gap-2 uppercase"
               >
                 <MapPinIcon aria-hidden />
@@ -155,7 +155,7 @@ function CheckoutForm({
                 </div>
               ) : (
                 <RadioGroup
-                  aria-labelledby="checkout-alamat-title"
+                  aria-labelledby="checkout-address-title"
                   value={addressId}
                   onValueChange={(value) => selectAddress(String(value))}
                   className="grid gap-3"
@@ -200,11 +200,11 @@ function CheckoutForm({
           </Card>
         </section>
 
-        <section aria-labelledby="checkout-kurir-title">
+        <section aria-labelledby="checkout-courier-title">
           <Card className={FLAT_CARD}>
             <CardHeader>
               <CardTitle
-                id="checkout-kurir-title"
+                id="checkout-courier-title"
                 className="flex items-center gap-2 uppercase"
               >
                 Pilihan Pengiriman
@@ -225,7 +225,7 @@ function CheckoutForm({
                 </p>
               ) : (
                 <RadioGroup
-                  aria-labelledby="checkout-kurir-title"
+                  aria-labelledby="checkout-courier-title"
                   value={shippingId}
                   onValueChange={(value) => setShippingId(String(value))}
                   className="grid gap-3"
@@ -234,7 +234,7 @@ function CheckoutForm({
                     const options = quoteState.options.filter(
                       (option) => option.courier === courier.code
                     )
-                    const headingId = `checkout-kurir-${courier.code}`
+                    const headingId = `checkout-courier-${courier.code}`
 
                     return (
                       <div
@@ -304,10 +304,10 @@ function CheckoutForm({
           </Card>
         </section>
 
-        <section aria-labelledby="checkout-catatan-title">
+        <section aria-labelledby="checkout-note-title">
           <Card className={FLAT_CARD}>
             <CardHeader>
-              <CardTitle id="checkout-catatan-title" className="uppercase">
+              <CardTitle id="checkout-note-title" className="uppercase">
                 Catatan untuk Penjual
               </CardTitle>
             </CardHeader>
@@ -332,13 +332,13 @@ function CheckoutForm({
       </div>
 
       <aside
-        aria-labelledby="checkout-ringkasan-title"
+        aria-labelledby="checkout-summary-title"
         className="lg:sticky lg:top-5"
       >
         <Card className={FLAT_CARD}>
           <CardHeader>
             <CardTitle
-              id="checkout-ringkasan-title"
+              id="checkout-summary-title"
               className="flex items-center gap-2 uppercase"
             >
               <PackageIcon aria-hidden />

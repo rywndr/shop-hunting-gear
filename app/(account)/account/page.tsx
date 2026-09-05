@@ -61,9 +61,9 @@ function AccountTabsSkeleton() {
     (typeof ACCOUNT_TABS)[number]["value"],
     React.ReactNode
   > = {
-    profil: <FormCardSkeleton />,
-    alamat: <AddressTabSkeleton />,
-    keamanan: (
+    profile: <FormCardSkeleton />,
+    addresses: <AddressTabSkeleton />,
+    security: (
       <div className="flex flex-col gap-4">
         <FormCardSkeleton fields={3} />
         <FormCardSkeleton fields={1} />
@@ -101,9 +101,9 @@ async function AccountTabs() {
     (typeof ACCOUNT_TABS)[number]["value"],
     React.ReactNode
   > = {
-    profil: <ProfileForm account={account} />,
-    alamat: <AddressTab addresses={addresses} />,
-    keamanan: <SecurityTab account={account} />,
+    profile: <ProfileForm account={account} />,
+    addresses: <AddressTab addresses={addresses} />,
+    security: <SecurityTab account={account} />,
   }
   const tabs: readonly SectionTab[] = ACCOUNT_TABS.map((tab) => ({
     ...tab,

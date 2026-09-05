@@ -206,7 +206,7 @@ export const ACCOUNT_LINKS = [
 
 export const USER_LINKS = {
   account: { label: "Akun Saya", href: "/account" },
-  history: { label: "Pesanan", href: "/orders" },
+  orders: { label: "Pesanan", href: "/orders" },
   logout: { label: "Keluar", href: "/logout" },
 } as const satisfies Record<string, NavLink>
 

@@ -15,7 +15,7 @@ import { PlusIcon, TrashIcon } from "@phosphor-icons/react"
 
 import { editProductAction } from "@/app/admin/products/actions"
 import { AdminCard } from "@/components/admin/admin-card"
-import { ProductImageUploader } from "@/components/admin/produk/product-image-uploader"
+import { ProductImageUploader } from "@/components/admin/products/product-image-uploader"
 import {
   NumberField,
   SelectField,
@@ -123,7 +123,7 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
       >
         <FieldGroup className="gap-4">
           <TextField
-            id="produk-nama"
+            id="product-name"
             label="Nama Produk"
             error={errors.name?.message}
             {...register("name")}
@@ -133,7 +133,7 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
             name="category"
             render={({ field }) => (
               <SelectField
-                id="produk-kategori"
+                id="product-category"
                 label="Kategori"
                 options={CATEGORY_OPTIONS}
                 value={field.value}
@@ -143,7 +143,7 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
             )}
           />
           <TextareaField
-            id="produk-deskripsi"
+            id="product-description"
             label="Deskripsi Produk"
             className="min-h-32"
             error={errors.description?.message}
@@ -158,14 +158,14 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
       >
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <NumberField
-            id="produk-harga"
+            id="product-price"
             label="Harga Jual"
             prefix="Rp"
             error={errors.price?.message}
             {...register("price", { setValueAs: parseOptionalNumberInput })}
           />
           <NumberField
-            id="produk-harga-coret"
+            id="product-original-price"
             label="Harga Sebelum Diskon"
             prefix="Rp"
             error={errors.compareAtPrice?.message}
@@ -174,13 +174,13 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
             })}
           />
           <NumberField
-            id="produk-stok"
+            id="product-stock"
             label="Stok"
             error={errors.stock?.message}
             {...register("stock", { setValueAs: parseNumberInput })}
           />
           <NumberField
-            id="produk-berat"
+            id="product-weight"
             label="Berat Produk"
             suffix="gram"
             error={errors.weight?.message}
@@ -267,7 +267,7 @@ function VariantEditor({
     >
       <div className="flex items-start gap-2">
         <TextField
-          id={`varian-${variantIndex}`}
+          id={`variant-${variantIndex}`}
           label={`Varian ${variantIndex + 1}`}
           className="flex-1"
           error={errors.variants?.[variantIndex]?.label?.message}
@@ -291,7 +291,7 @@ function VariantEditor({
             className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-start"
           >
             <TextField
-              id={`varian-${variantIndex}-${optionIndex}-nama`}
+              id={`variant-${variantIndex}-${optionIndex}-name`}
               label="Pilihan"
               error={
                 errors.variants?.[variantIndex]?.options?.[optionIndex]?.value
@@ -302,7 +302,7 @@ function VariantEditor({
               )}
             />
             <NumberField
-              id={`varian-${variantIndex}-${optionIndex}-harga`}
+              id={`variant-${variantIndex}-${optionIndex}-price`}
               label="Harga"
               prefix="Rp"
               error={
@@ -315,7 +315,7 @@ function VariantEditor({
               )}
             />
             <NumberField
-              id={`varian-${variantIndex}-${optionIndex}-berat`}
+              id={`variant-${variantIndex}-${optionIndex}-weight`}
               label="Berat"
               suffix="gram"
               error={

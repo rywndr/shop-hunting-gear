@@ -70,7 +70,7 @@ function ProfileForm({ account }: { account: Account }) {
       </div>
 
       <TextField
-        id="profil-nama"
+        id="profile-name"
         label="Nama Tampilan"
         autoComplete="name"
         placeholder="Nama lengkap Anda"
@@ -79,7 +79,7 @@ function ProfileForm({ account }: { account: Account }) {
       />
 
       <TextField
-        id="profil-email"
+        id="profile-email"
         label="Email"
         type="email"
         readOnly

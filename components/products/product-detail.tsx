@@ -149,7 +149,7 @@ function ProductDetail({ product, related }: ProductDetailProps) {
       </div>
 
       <div className="mt-10 flex flex-col gap-10 md:mt-12 md:gap-12">
-        <ProductSection id="deskripsi" title="Deskripsi Produk">
+        <ProductSection id="description" title="Deskripsi Produk">
           <div className="flex max-w-3xl flex-col gap-3 text-sm/relaxed text-pretty">
             {product.description.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -161,7 +161,7 @@ function ProductDetail({ product, related }: ProductDetailProps) {
 
         {related.length > 0 && (
           <ProductSection
-            id="produk-terkait"
+            id="related-products"
             title="Produk Terkait"
             description="Perlengkapan lain dari kategori yang sama."
           >
