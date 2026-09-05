@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form"
 
 import { OrderQueueBadge } from "@/components/admin/orders/order-queue-badge"
 import { TextField } from "@/components/form/fields"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -35,6 +36,7 @@ type ShipOrderDialogProps = {
 
 function ShipOrderDialog({ orderId, buyer, courier }: ShipOrderDialogProps) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -65,6 +67,10 @@ function ShipOrderDialog({ orderId, buyer, courier }: ShipOrderDialogProps) {
         return
       }
 
+      showNotification({
+        variant: "success",
+        message: "Pesanan berhasil ditandai sedang dikirim.",
+      })
       setOpen(false)
       form.reset(SHIP_ORDER_DEFAULT_VALUES)
       router.refresh()

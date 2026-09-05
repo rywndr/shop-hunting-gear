@@ -8,10 +8,15 @@ import { Controller, useForm } from "react-hook-form"
 
 import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { authClient } from "@/lib/auth/client"
 import { authErrorMessage } from "@/lib/auth/errors"
+import {
+  clearAuthNotification,
+  queueAuthNotification,
+} from "@/lib/auth/notification"
 import { signInSchema, type SignInValues } from "@/lib/auth/schema"
 import { AUTH_ROUTES } from "@/lib/site/config"
 
@@ -19,6 +24,7 @@ const REMEMBER_ID = "sign-in-remember"
 
 function SignInForm({ callbackURL }: { callbackURL: string }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [authError, setAuthError] = useState<string>()
   const [googlePending, setGooglePending] = useState(false)
   const {
@@ -33,6 +39,7 @@ function SignInForm({ callbackURL }: { callbackURL: string }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setAuthError(undefined)
+    clearAuthNotification()
 
     try {
       const { error } = await authClient.signIn.email({
@@ -46,6 +53,7 @@ function SignInForm({ callbackURL }: { callbackURL: string }) {
         return
       }
 
+      showNotification({ variant: "success", message: "Berhasil masuk ke akun." })
       router.push(callbackURL)
       router.refresh()
     } catch {
@@ -56,6 +64,7 @@ function SignInForm({ callbackURL }: { callbackURL: string }) {
   async function signInWithGoogle() {
     setAuthError(undefined)
     setGooglePending(true)
+    queueAuthNotification("sign-in")
 
     try {
       const { error } = await authClient.signIn.social({
@@ -64,10 +73,12 @@ function SignInForm({ callbackURL }: { callbackURL: string }) {
       })
 
       if (error) {
+        clearAuthNotification()
         setAuthError(authErrorMessage(error))
         setGooglePending(false)
       }
     } catch {
+      clearAuthNotification()
       setAuthError(authErrorMessage(null))
       setGooglePending(false)
     }

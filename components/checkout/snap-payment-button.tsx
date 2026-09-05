@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Script from "next/script"
 
@@ -13,6 +13,7 @@ import {
   paymentNoticeForConfirmation,
   type PaymentNotice,
 } from "@/components/checkout/payment-notice"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import type { CheckoutSource } from "@/lib/checkout/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
@@ -23,22 +24,56 @@ type SnapTransaction = Extract<CreatePaymentResult, { readonly kind: "ready" }>
 
 type PaymentState =
   | { readonly kind: "idle" }
-  | { readonly kind: "requesting" }
-  | { readonly kind: "confirming"; readonly orderId: string }
+  | { readonly kind: "requesting"; readonly attemptId: number }
+  | {
+      readonly kind: "confirming"
+      readonly attemptId: number
+      readonly orderId: string
+    }
   | {
       readonly kind: "prepared"
+      readonly attemptId: number
       readonly transaction: SnapTransaction
       readonly checkoutKey: string
       readonly notice?: PaymentNotice
     }
   | {
       readonly kind: "snap-completed"
+      readonly attemptId: number
       readonly orderId: string
       readonly notice: PaymentNotice
     }
-  | { readonly kind: "error"; readonly message: string }
+  | {
+      readonly kind: "error"
+      readonly attemptId: number
+      readonly message: string
+    }
+
+type CartCleanupState =
+  | { readonly kind: "idle" }
+  | {
+      readonly kind: "pending"
+      readonly attemptId: number
+      readonly orderId: string
+    }
+  | {
+      readonly kind: "error"
+      readonly attemptId: number
+      readonly orderId: string
+      readonly message: string
+    }
 
 type SnapScriptState = "loading" | "ready" | "error"
+
+type OrderCreatedResult =
+  | { readonly kind: "success" }
+  | { readonly kind: "error"; readonly message: string }
+
+type CartCleanupTask = {
+  readonly attemptId: number
+  readonly orderId: string
+  readonly result: Promise<OrderCreatedResult>
+}
 
 function SnapPaymentButton({
   addressId,
@@ -65,18 +100,57 @@ function SnapPaymentButton({
     readonly orderId: string
     readonly customerNote: string | null
   }) => void
-  onOrderCreated: () => Promise<void>
+  onOrderCreated: () => Promise<OrderCreatedResult>
 }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [scriptState, setScriptState] = useState<SnapScriptState>("loading")
   const [paymentState, setPaymentState] = useState<PaymentState>({
     kind: "idle",
   })
+  const [cartCleanupState, setCartCleanupState] = useState<CartCleanupState>({
+    kind: "idle",
+  })
+  const nextAttemptId = useRef(0)
+  const activeAttemptId = useRef<number | null>(null)
+  const paymentStateRef = useRef<PaymentState>({ kind: "idle" })
+  const cartCleanupTask = useRef<CartCleanupTask | null>(null)
   const normalizedCustomerNote = customerNote.trim() || undefined
   const checkoutKey = JSON.stringify({ addressId, shipping, source })
 
-  async function finishPayment(orderId: string) {
-    setPaymentState({ kind: "confirming", orderId })
+  function isActiveAttempt(attemptId: number) {
+    return activeAttemptId.current === attemptId
+  }
+
+  function replacePaymentState(next: PaymentState) {
+    paymentStateRef.current = next
+    setPaymentState(next)
+  }
+
+  function transitionPreparedAttempt(
+    attemptId: number,
+    transition: (
+      current: Extract<PaymentState, { readonly kind: "prepared" }>
+    ) => PaymentState
+  ) {
+    if (!isActiveAttempt(attemptId)) return false
+
+    const current = paymentStateRef.current
+    if (current.kind !== "prepared" || current.attemptId !== attemptId) {
+      return false
+    }
+
+    replacePaymentState(transition(current))
+    return true
+  }
+
+  async function finishPayment(attemptId: number, orderId: string) {
+    const confirmationStarted = transitionPreparedAttempt(attemptId, () => ({
+      kind: "confirming",
+      attemptId,
+      orderId,
+    }))
+    if (!confirmationStarted) return
 
     let notice: PaymentNotice
 
@@ -91,68 +165,100 @@ function SnapPaymentButton({
       }
     }
 
-    setPaymentState({ kind: "snap-completed", orderId, notice })
+    const current = paymentStateRef.current
+    if (
+      !isActiveAttempt(attemptId) ||
+      current.kind !== "confirming" ||
+      current.attemptId !== attemptId ||
+      current.orderId !== orderId
+    ) {
+      return
+    }
+
+    replacePaymentState({ kind: "snap-completed", attemptId, orderId, notice })
+
+    const cleanupTask = cartCleanupTask.current
+    const cleanupResult =
+      cleanupTask?.attemptId === attemptId && cleanupTask.orderId === orderId
+        ? await cleanupTask.result
+        : undefined
+    const completed = paymentStateRef.current
+    if (
+      !isActiveAttempt(attemptId) ||
+      completed.kind !== "snap-completed" ||
+      completed.attemptId !== attemptId ||
+      completed.orderId !== orderId
+    ) {
+      return
+    }
+
+    if (cleanupResult?.kind === "error") {
+      setCartCleanupState((current) =>
+        current.kind === "error" &&
+        current.attemptId === attemptId &&
+        current.orderId === orderId
+          ? { kind: "idle" }
+          : current
+      )
+      showNotification({ variant: "error", message: cleanupResult.message })
+    }
     router.push(`/orders?order=${encodeURIComponent(orderId)}`)
     router.refresh()
   }
 
   function openSnap(
     transaction: SnapTransaction,
-    transactionCheckoutKey: string
+    transactionCheckoutKey: string,
+    attemptId: number
   ) {
+    if (!isActiveAttempt(attemptId)) return
+
     if (!window.snap) {
-      setPaymentState({
+      replacePaymentState({
         kind: "error",
+        attemptId,
         message: "Layanan pembayaran belum selesai dimuat. Coba lagi.",
       })
       return
     }
 
-    setPaymentState({
+    replacePaymentState({
       kind: "prepared",
+      attemptId,
       transaction,
       checkoutKey: transactionCheckoutKey,
     })
     window.snap.pay(transaction.token, {
       onSuccess() {
-        void finishPayment(transaction.orderId)
+        void finishPayment(attemptId, transaction.orderId)
       },
       onPending() {
-        setPaymentState({
-          kind: "prepared",
-          transaction,
-          checkoutKey: transactionCheckoutKey,
+        transitionPreparedAttempt(attemptId, (current) => ({
+          ...current,
           notice: {
             kind: "info",
             message:
               "Instruksi pembayaran sudah dibuat. Selesaikan pembayaran sesuai petunjuk Midtrans.",
           },
-        })
+        }))
       },
       onError() {
-        setPaymentState({
-          kind: "prepared",
-          transaction,
-          checkoutKey: transactionCheckoutKey,
+        transitionPreparedAttempt(attemptId, (current) => ({
+          ...current,
           notice: {
             kind: "error",
             message: "Pembayaran gagal diproses. Coba metode lain.",
           },
-        })
+        }))
       },
       onClose() {
-        setPaymentState((current) => {
-          if (
-            current.kind === "confirming" ||
-            current.kind === "snap-completed"
-          ) {
+        transitionPreparedAttempt(attemptId, (current) => {
+          if (current.notice) {
             return current
           }
 
           return {
-            kind: "prepared",
-            transaction,
-            checkoutKey: transactionCheckoutKey,
+            ...current,
             notice: {
               kind: "info",
               message:
@@ -169,7 +275,7 @@ function SnapPaymentButton({
       paymentState.kind === "prepared" &&
       paymentState.checkoutKey === checkoutKey
     ) {
-      openSnap(paymentState.transaction, checkoutKey)
+      openSnap(paymentState.transaction, checkoutKey, paymentState.attemptId)
       return
     }
 
@@ -184,15 +290,26 @@ function SnapPaymentButton({
       source,
     } satisfies CreateSnapPaymentInput
 
+    nextAttemptId.current += 1
+    const attemptId = nextAttemptId.current
+    activeAttemptId.current = attemptId
+    cartCleanupTask.current = null
+    setCartCleanupState({ kind: "idle" })
     onPreparingChange(true)
-    setPaymentState({ kind: "requesting" })
+    replacePaymentState({ kind: "requesting", attemptId })
 
     try {
       const result = await createPaymentAction(input)
 
+      if (!isActiveAttempt(attemptId)) return
+
       if (result.kind === "error") {
         onPreparingChange(false)
-        setPaymentState(result)
+        replacePaymentState({
+          kind: "error",
+          attemptId,
+          message: result.message,
+        })
         return
       }
 
@@ -200,12 +317,40 @@ function SnapPaymentButton({
         orderId: result.orderId,
         customerNote: result.customerNote,
       })
-      openSnap(result, checkoutKey)
-      void onOrderCreated()
+      const cleanupResult = onOrderCreated()
+      cartCleanupTask.current = {
+        attemptId,
+        orderId: result.orderId,
+        result: cleanupResult,
+      }
+      setCartCleanupState({
+        kind: "pending",
+        attemptId,
+        orderId: result.orderId,
+      })
+      void cleanupResult.then((orderCreatedResult) => {
+        if (!isActiveAttempt(attemptId)) return
+
+        if (orderCreatedResult.kind === "error") {
+          setCartCleanupState({
+            kind: "error",
+            attemptId,
+            orderId: result.orderId,
+            message: orderCreatedResult.message,
+          })
+          return
+        }
+
+        setCartCleanupState({ kind: "idle" })
+      })
+      openSnap(result, checkoutKey, attemptId)
     } catch {
+      if (!isActiveAttempt(attemptId)) return
+
       onPreparingChange(false)
-      setPaymentState({
+      replacePaymentState({
         kind: "error",
+        attemptId,
         message: "Tidak dapat terhubung ke pembayaran. Coba lagi.",
       })
     }
@@ -233,7 +378,7 @@ function SnapPaymentButton({
             : configured
               ? "Bayar sekarang"
               : "Pembayaran belum tersedia"
-  const notice =
+  const paymentNotice =
     paymentState.kind === "error"
       ? { kind: "error" as const, message: paymentState.message }
       : (paymentState.kind === "prepared" && hasReusableTransaction) ||
@@ -251,6 +396,16 @@ function SnapPaymentButton({
                   "Layanan pembayaran tidak dapat dimuat. Muat ulang halaman.",
               }
             : undefined
+  const paymentAttemptId =
+    paymentState.kind === "idle" ? undefined : paymentState.attemptId
+  const cartCleanupNotice =
+    cartCleanupState.kind === "error" &&
+    cartCleanupState.attemptId === paymentAttemptId
+      ? ({
+          kind: "error",
+          message: cartCleanupState.message,
+        } satisfies PaymentNotice)
+      : undefined
 
   return (
     <>
@@ -270,21 +425,26 @@ function SnapPaymentButton({
       >
         {buttonLabel}
       </Button>
-      {notice && (
-        <p
-          role={notice.kind === "error" ? "alert" : "status"}
-          className={
-            notice.kind === "error"
-              ? "text-sm text-destructive"
-              : notice.kind === "success"
-                ? "text-sm text-primary"
-                : "text-sm text-muted-foreground"
-          }
-        >
-          {notice.message}
-        </p>
-      )}
+      {paymentNotice && <PaymentNoticeMessage notice={paymentNotice} />}
+      {cartCleanupNotice && <PaymentNoticeMessage notice={cartCleanupNotice} />}
     </>
+  )
+}
+
+function PaymentNoticeMessage({ notice }: { notice: PaymentNotice }) {
+  return (
+    <p
+      role={notice.kind === "error" ? "alert" : "status"}
+      className={
+        notice.kind === "error"
+          ? "text-sm text-destructive"
+          : notice.kind === "success"
+            ? "text-sm text-primary"
+            : "text-sm text-muted-foreground"
+      }
+    >
+      {notice.message}
+    </p>
   )
 }
 

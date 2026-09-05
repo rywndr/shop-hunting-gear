@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { PencilSimpleIcon } from "@phosphor-icons/react"
 
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -35,6 +36,7 @@ function ListingQuickEdit({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { showNotification } = useNotification()
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,6 +79,13 @@ function ListingQuickEdit({
               })
               if (result.kind === "error") setError(result.message)
               else {
+                showNotification({
+                  variant: "success",
+                  message:
+                    field === "price"
+                      ? "Harga produk berhasil diperbarui."
+                      : "Stok produk berhasil diperbarui.",
+                })
                 setOpen(false)
                 router.refresh()
               }

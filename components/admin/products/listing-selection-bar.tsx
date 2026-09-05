@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { XIcon } from "@phosphor-icons/react"
 
@@ -8,8 +8,13 @@ import {
   ListingActionButton,
   ListingActionMenu,
 } from "@/components/admin/products/listing-actions"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
-import { SELECTION_ACTIONS, type ListingStateFilter } from "@/lib/admin/catalog"
+import {
+  LISTING_ACTIONS,
+  SELECTION_ACTIONS,
+  type ListingStateFilter,
+} from "@/lib/admin/catalog"
 import { formatNumber } from "@/utils/format/intl"
 
 function ListingSelectionBar({
@@ -25,8 +30,8 @@ function ListingSelectionBar({
 }) {
   const layout = SELECTION_ACTIONS[state]
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
   if (count === 0) {
     return null
@@ -37,15 +42,20 @@ function ListingSelectionBar({
       typeof import("@/app/admin/products/actions").applyListingAction
     >[0]["action"]
   ) {
-    setError(null)
     startTransition(async () => {
       const { applyListingAction } = await import("@/app/admin/products/actions")
       const result = await applyListingAction({
         action,
         productIds: selectedIds,
       })
-      if (result.kind === "error") setError(result.message)
+      if (result.kind === "error") {
+        showNotification({ variant: "error", message: result.message })
+      }
       else {
+        showNotification({
+          variant: "success",
+          message: `${formatNumber(count)} produk berhasil ${LISTING_ACTIONS[action].successVerb}.`,
+        })
         onClear()
         router.refresh()
       }
@@ -109,11 +119,6 @@ function ListingSelectionBar({
         {formatNumber(count)} dipilih
       </span>
       {renderActions()}
-      {error && (
-        <span role="alert" className="px-2 text-xs text-destructive-foreground">
-          {error}
-        </span>
-      )}
     </div>
   )
 }

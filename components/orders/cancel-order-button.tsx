@@ -4,27 +4,34 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { cancelOrderAction } from "@/app/(account)/orders/actions"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 
 function CancelOrderButton({ orderId }: { readonly orderId: string }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [pending, setPending] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
 
   async function cancelOrder() {
     setPending(true)
-    setMessage(null)
 
     try {
       const result = await cancelOrderAction(orderId)
 
       if (result.kind === "success") {
+        showNotification({
+          variant: "success",
+          message: "Pesanan berhasil dibatalkan.",
+        })
         router.refresh()
       } else {
-        setMessage(result.message)
+        showNotification({ variant: "error", message: result.message })
       }
     } catch {
-      setMessage("Pembatalan belum dapat diproses. Coba lagi.")
+      showNotification({
+        variant: "error",
+        message: "Pembatalan belum dapat diproses. Coba lagi.",
+      })
     } finally {
       setPending(false)
     }
@@ -41,14 +48,6 @@ function CancelOrderButton({ orderId }: { readonly orderId: string }) {
       >
         {pending ? "Membatalkan..." : "Batalkan Pesanan"}
       </Button>
-      {message && (
-        <p
-          role="alert"
-          className="max-w-60 text-right text-xs text-destructive"
-        >
-          {message}
-        </p>
-      )}
     </div>
   )
 }

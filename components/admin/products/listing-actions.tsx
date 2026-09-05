@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react"
 import type { Icon } from "@phosphor-icons/react"
 
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -98,19 +99,26 @@ function ListingActionMenu({
 function ListingActions({ listing }: { listing: Listing }) {
   const { actions, editable } = LISTING_STATES[listing.state]
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
   function runAction(action: ListingActionKind) {
-    setError(null)
     startTransition(async () => {
       const { applyListingAction } = await import("@/app/admin/products/actions")
       const result = await applyListingAction({
         action,
         productIds: [listing.id],
       })
-      if (result.kind === "error") setError(result.message)
-      else router.refresh()
+      if (result.kind === "error") {
+        showNotification({ variant: "error", message: result.message })
+      }
+      else {
+        showNotification({
+          variant: "success",
+          message: `Produk berhasil ${LISTING_ACTIONS[action].successVerb}.`,
+        })
+        router.refresh()
+      }
     })
   }
 
@@ -133,11 +141,6 @@ function ListingActions({ listing }: { listing: Listing }) {
         onAction={runAction}
         disabled={pending}
       />
-      {error && (
-        <span role="alert" className="sr-only">
-          {error}
-        </span>
-      )}
     </div>
   )
 }

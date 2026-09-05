@@ -7,8 +7,13 @@ import { useForm } from "react-hook-form"
 
 import { PasswordField, TextField } from "@/components/form/fields"
 import { AuthForm } from "@/components/auth/auth-form"
+import { useNotification } from "@/components/notification/notification-provider"
 import { authClient } from "@/lib/auth/client"
 import { authErrorMessage } from "@/lib/auth/errors"
+import {
+  clearAuthNotification,
+  queueAuthNotification,
+} from "@/lib/auth/notification"
 import {
   MIN_PASSWORD_LENGTH,
   registerSchema,
@@ -17,6 +22,7 @@ import {
 
 function RegisterForm({ callbackURL }: { callbackURL: string }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [authError, setAuthError] = useState<string>()
   const [googlePending, setGooglePending] = useState(false)
   const {
@@ -35,6 +41,7 @@ function RegisterForm({ callbackURL }: { callbackURL: string }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setAuthError(undefined)
+    clearAuthNotification()
 
     try {
       const { error } = await authClient.signUp.email({
@@ -48,6 +55,7 @@ function RegisterForm({ callbackURL }: { callbackURL: string }) {
         return
       }
 
+      showNotification({ variant: "success", message: "Akun berhasil dibuat." })
       router.push(callbackURL)
       router.refresh()
     } catch {
@@ -58,6 +66,7 @@ function RegisterForm({ callbackURL }: { callbackURL: string }) {
   async function registerWithGoogle() {
     setAuthError(undefined)
     setGooglePending(true)
+    queueAuthNotification("sign-in")
 
     try {
       const { error } = await authClient.signIn.social({
@@ -66,10 +75,12 @@ function RegisterForm({ callbackURL }: { callbackURL: string }) {
       })
 
       if (error) {
+        clearAuthNotification()
         setAuthError(authErrorMessage(error))
         setGooglePending(false)
       }
     } catch {
+      clearAuthNotification()
       setAuthError(authErrorMessage(null))
       setGooglePending(false)
     }

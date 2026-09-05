@@ -16,6 +16,7 @@ import {
 } from "@/components/form/fields"
 import { Button } from "@/components/ui/button"
 import { FieldGroup } from "@/components/ui/field"
+import { useNotification } from "@/components/notification/notification-provider"
 import {
   CATEGORY_OPTIONS,
   EMPTY_PRODUCT_FORM,
@@ -62,6 +63,7 @@ function DiscountNote({ control }: { control: ProductFormControl }) {
 
 function ProductForm() {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const {
@@ -89,6 +91,13 @@ function ProductForm() {
       const result = await createProductAction(formData)
 
       if (result.kind === "success") {
+        showNotification({
+          variant: "success",
+          message:
+            mode === "draft"
+              ? "Draf produk berhasil disimpan."
+              : "Produk berhasil diterbitkan.",
+        })
         router.push(result.href)
         router.refresh()
         return

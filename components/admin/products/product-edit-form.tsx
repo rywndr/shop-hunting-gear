@@ -24,6 +24,7 @@ import {
 } from "@/components/form/fields"
 import { Button } from "@/components/ui/button"
 import { FieldError, FieldGroup } from "@/components/ui/field"
+import { useNotification } from "@/components/notification/notification-provider"
 import {
   CATEGORY_OPTIONS,
   EMPTY_VARIANT,
@@ -39,6 +40,7 @@ import type { EditableProduct } from "@/lib/products/service"
 
 function ProductEditForm({ product }: { product: EditableProduct }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [pending, startTransition] = useTransition()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const {
@@ -95,6 +97,10 @@ function ProductEditForm({ product }: { product: EditableProduct }) {
       })
       if (result.kind === "error") setSubmitError(result.message)
       else {
+        showNotification({
+          variant: "success",
+          message: "Produk berhasil diperbarui.",
+        })
         router.push("/admin/products?tab=all")
         router.refresh()
       }

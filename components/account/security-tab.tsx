@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form"
 
 import { AccountCard, AccountFormCard } from "@/components/account/account-card"
 import { CONTROL, PasswordField } from "@/components/form/fields"
+import { useNotification } from "@/components/notification/notification-provider"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +31,8 @@ import {
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/schema"
 
 function ChangePasswordForm() {
+  const { showNotification } = useNotification()
   const [formError, setFormError] = useState<string>()
-  const [success, setSuccess] = useState<string>()
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -48,7 +49,6 @@ function ChangePasswordForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(undefined)
-    setSuccess(undefined)
 
     try {
       const { error } = await authClient.changePassword({
@@ -63,7 +63,10 @@ function ChangePasswordForm() {
       }
 
       reset()
-      setSuccess("Kata sandi berhasil diperbarui.")
+      showNotification({
+        variant: "success",
+        message: "Kata sandi berhasil diperbarui.",
+      })
     } catch {
       setFormError(authErrorMessage(null))
     }
@@ -76,7 +79,6 @@ function ChangePasswordForm() {
       onSubmit={onSubmit}
       pending={isSubmitting}
       error={formError}
-      success={success}
     >
       <PasswordField
         id="security-current-password"
@@ -114,6 +116,7 @@ const CONFIRM_PHRASE = "iya, saya yakin"
 
 function DeleteAccountCard({ account }: { account: Account }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [open, setOpen] = useState(false)
   const [confirmation, setConfirmation] = useState("")
   const [password, setPassword] = useState("")
@@ -135,6 +138,7 @@ function DeleteAccountCard({ account }: { account: Account }) {
         return
       }
 
+      showNotification({ variant: "success", message: "Akun berhasil dihapus." })
       router.push("/")
       router.refresh()
     } catch {

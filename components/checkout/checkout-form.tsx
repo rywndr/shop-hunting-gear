@@ -431,7 +431,17 @@ function CheckoutForm({
                 )
               }}
               onOrderCreated={async () => {
-                if (source.kind === "cart") await clearCart()
+                if (source.kind !== "cart") return { kind: "success" }
+
+                const result = await clearCart({ errorPresentation: "caller" })
+
+                return result.kind === "success"
+                  ? result
+                  : {
+                      kind: "error" as const,
+                      message:
+                        "Pesanan berhasil dibuat, tetapi keranjang belum dapat dikosongkan. Coba muat ulang halaman.",
+                    }
               }}
             />
           </CardContent>

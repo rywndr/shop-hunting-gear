@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form"
 
 import { AccountFormCard } from "@/components/account/account-card"
 import { TextField } from "@/components/form/fields"
+import { useNotification } from "@/components/notification/notification-provider"
 import { profileSchema, type ProfileValues } from "@/lib/account/schema"
 import type { Account } from "@/lib/account/types"
 import { authClient } from "@/lib/auth/client"
@@ -16,8 +17,8 @@ import { formatShortDate } from "@/utils/format/intl"
 
 function ProfileForm({ account }: { account: Account }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [formError, setFormError] = useState<string>()
-  const [success, setSuccess] = useState<string>()
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
@@ -29,7 +30,6 @@ function ProfileForm({ account }: { account: Account }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(undefined)
-    setSuccess(undefined)
 
     try {
       const { error } = await authClient.updateUser({ name: values.name })
@@ -39,7 +39,10 @@ function ProfileForm({ account }: { account: Account }) {
         return
       }
 
-      setSuccess("Nama berhasil diperbarui.")
+      showNotification({
+        variant: "success",
+        message: "Profil berhasil diperbarui.",
+      })
       router.refresh()
     } catch {
       setFormError(authErrorMessage(null))
@@ -54,7 +57,6 @@ function ProfileForm({ account }: { account: Account }) {
       onSubmit={onSubmit}
       pending={isSubmitting}
       error={formError}
-      success={success}
     >
       <div className="flex items-center gap-3">
         <UserCircleIcon

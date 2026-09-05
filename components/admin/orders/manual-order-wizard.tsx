@@ -10,6 +10,7 @@ import { ManualOrderItemStep } from "@/components/admin/orders/manual-order-item
 import { ManualOrderReviewStep } from "@/components/admin/orders/manual-order-review-step"
 import { ManualOrderShippingStep } from "@/components/admin/orders/manual-order-shipping-step"
 import { ManualOrderStepList } from "@/components/admin/orders/manual-order-step-list"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -40,6 +41,7 @@ type ManualOrderWizardProps = {
 
 function ManualOrderWizard({ customers, products }: ManualOrderWizardProps) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<ManualOrderStep>("item")
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +92,7 @@ function ManualOrderWizard({ customers, products }: ManualOrderWizardProps) {
         return
       }
 
+      showNotification({ variant: "success", message: "Pesanan berhasil dibuat." })
       setOpen(false)
       setStep("item")
       form.reset(MANUAL_ORDER_DEFAULT_VALUES)

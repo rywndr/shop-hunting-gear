@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { CheckIcon, CopyIcon } from "@phosphor-icons/react"
 
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -16,13 +17,19 @@ function CopyIdButton({
   className?: string
 }) {
   const [copied, setCopied] = useState(false)
+  const { showNotification } = useNotification()
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(value)
       setCopied(true)
+      showNotification({ variant: "success", message: "ID berhasil disalin." })
     } catch {
       setCopied(false)
+      showNotification({
+        variant: "error",
+        message: "ID tidak dapat disalin. Coba lagi.",
+      })
     }
   }
 

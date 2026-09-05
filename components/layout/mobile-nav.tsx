@@ -16,6 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { useNotification } from "@/components/notification/notification-provider"
 import { authClient } from "@/lib/auth/client"
 import { ADMIN_LINK } from "@/lib/admin/config"
 import {
@@ -62,6 +63,7 @@ function MobileNav({
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const router = useRouter()
+  const { showNotification } = useNotification()
   const close = () => setOpen(false)
 
   function navigateToProducts(event: MouseEvent<HTMLAnchorElement>) {
@@ -80,16 +82,30 @@ function MobileNav({
 
   async function signOut() {
     setSigningOut(true)
-    const { error } = await authClient.signOut()
 
-    if (error) {
+    try {
+      const { error } = await authClient.signOut()
+
+      if (error) {
+        showNotification({
+          variant: "error",
+          message: "Tidak dapat keluar dari akun. Coba lagi.",
+        })
+        setSigningOut(false)
+        return
+      }
+
+      showNotification({ variant: "success", message: "Berhasil keluar dari akun." })
+      close()
+      router.push("/")
+      router.refresh()
+    } catch {
+      showNotification({
+        variant: "error",
+        message: "Tidak dapat keluar dari akun. Coba lagi.",
+      })
       setSigningOut(false)
-      return
     }
-
-    close()
-    router.push("/")
-    router.refresh()
   }
 
   useEffect(() => {
@@ -147,7 +163,7 @@ function MobileNav({
             </li>
             {(accountState === "authenticated" ||
               accountState === "admin") && (
-              <MobileNavLink {...USER_LINKS.history} onNavigate={close} />
+              <MobileNavLink {...USER_LINKS.orders} onNavigate={close} />
             )}
             <MobileNavLink
               label="Tentang Kami"

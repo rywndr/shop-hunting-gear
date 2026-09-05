@@ -5,6 +5,8 @@ import { Geist_Mono, Roboto, Roboto_Slab } from "next/font/google"
 import "./globals.css"
 import { CartProvider } from "@/components/cart/cart-provider"
 import { RouteProgress } from "@/components/layout/route-progress"
+import { AuthNotificationBridge } from "@/components/notification/auth-notification-bridge"
+import { NotificationProvider } from "@/components/notification/notification-provider"
 import { ROOT_METADATA } from "@/lib/site/metadata"
 import { cn } from "@/lib/utils"
 
@@ -39,12 +41,15 @@ export default function RootLayout({
       )}
     >
       <body>
-        <CartProvider>
-          <Suspense fallback={null}>
-            <RouteProgress />
-          </Suspense>
-          {children}
-        </CartProvider>
+        <NotificationProvider>
+          <AuthNotificationBridge />
+          <CartProvider>
+            <Suspense fallback={null}>
+              <RouteProgress />
+            </Suspense>
+            {children}
+          </CartProvider>
+        </NotificationProvider>
       </body>
     </html>
   )

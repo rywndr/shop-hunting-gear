@@ -17,11 +17,14 @@ export type ListingStateMeta = {
 }
 
 export const LISTING_ACTIONS = {
-  activate: { label: "Aktifkan" },
-  deactivate: { label: "Nonaktifkan" },
-  delete: { label: "Hapus" },
-  restore: { label: "Pulihkan" },
-} as const satisfies Record<string, { readonly label: string }>
+  activate: { label: "Aktifkan", successVerb: "diaktifkan" },
+  deactivate: { label: "Nonaktifkan", successVerb: "dinonaktifkan" },
+  delete: { label: "Hapus", successVerb: "dihapus" },
+  restore: { label: "Pulihkan", successVerb: "dipulihkan" },
+} as const satisfies Record<
+  string,
+  { readonly label: string; readonly successVerb: string }
+>
 
 export type ListingActionKind = keyof typeof LISTING_ACTIONS
 

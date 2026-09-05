@@ -11,6 +11,7 @@ import {
 
 import { FLAT_CARD } from "@/components/account/account-card"
 import { AddressForm } from "@/components/account/address-form"
+import { useNotification } from "@/components/notification/notification-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -133,12 +134,13 @@ function AddressCard({
 }
 
 function AddressTab({ addresses }: { addresses: readonly Address[] }) {
+  const { showNotification } = useNotification()
   const [editing, setEditing] = useState<Editing | null>(null)
   const [currentAddresses, setCurrentAddresses] =
     useState<readonly Address[]>(addresses)
   const [pendingId, setPendingId] = useState<string>()
   const [deleteTarget, setDeleteTarget] = useState<Address | null>(null)
-  const [actionError, setActionError] = useState<string>()
+  const [deleteError, setDeleteError] = useState<string>()
   const copy = DIALOG_COPY[editing?.mode ?? "new"]
 
   async function mutateAddresses({
@@ -151,7 +153,6 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
     pendingKey: string
   }): Promise<string | undefined> {
     setPendingId(pendingKey)
-    setActionError(undefined)
 
     try {
       const response = await fetch("/api/account/addresses", {
@@ -179,20 +180,34 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
     }
   }
 
-  function saveAddress(values: AddressValues) {
+  async function saveAddress(values: AddressValues) {
     if (editing?.mode === "edit") {
-      return mutateAddresses({
+      const error = await mutateAddresses({
         method: "PUT",
         body: { id: editing.address.id, values },
         pendingKey: editing.address.id,
       })
+      if (!error) {
+        showNotification({
+          variant: "success",
+          message: "Alamat berhasil diperbarui.",
+        })
+      }
+      return error
     }
 
-    return mutateAddresses({
+    const error = await mutateAddresses({
       method: "POST",
       body: values,
       pendingKey: "new",
     })
+    if (!error) {
+      showNotification({
+        variant: "success",
+        message: "Alamat berhasil ditambahkan.",
+      })
+    }
+    return error
   }
 
   async function setPrimary(id: string) {
@@ -201,13 +216,19 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
       body: { id },
       pendingKey: id,
     })
-    setActionError(error)
+    showNotification(
+      error
+        ? { variant: "error", message: error }
+        : { variant: "success", message: "Alamat utama berhasil diubah." }
+    )
   }
 
   async function deleteAddress() {
     if (!deleteTarget) {
       return
     }
+
+    setDeleteError(undefined)
 
     const error = await mutateAddresses({
       method: "DELETE",
@@ -216,21 +237,17 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
     })
 
     if (error) {
-      setActionError(error)
+      setDeleteError(error)
       return
     }
 
     setDeleteTarget(null)
+    setDeleteError(undefined)
+    showNotification({ variant: "success", message: "Alamat berhasil dihapus." })
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
       {currentAddresses.length === 0 ? (
         <Empty className={cn(FLAT_CARD, "border-dashed py-10")}>
           <EmptyHeader>
@@ -252,7 +269,10 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
                 address={address}
                 onEdit={() => setEditing({ mode: "edit", address })}
                 onSetPrimary={() => void setPrimary(address.id)}
-                onDelete={() => setDeleteTarget(address)}
+                onDelete={() => {
+                  setDeleteError(undefined)
+                  setDeleteTarget(address)
+                }}
                 pending={pendingId === address.id}
               />
             </li>
@@ -301,7 +321,10 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
+          if (!open) {
+            setDeleteTarget(null)
+            setDeleteError(undefined)
+          }
         }}
       >
         <AlertDialogContent>
@@ -311,6 +334,11 @@ function AddressTab({ addresses }: { addresses: readonly Address[] }) {
               Alamat {deleteTarget?.label} akan dihapus dari akun Anda.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-destructive">
+              {deleteError}
+            </p>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={pendingId !== undefined}>
               Batal

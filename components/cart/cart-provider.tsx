@@ -17,6 +17,7 @@ import {
 } from "@/lib/cart/config"
 import { cartItemsResponseSchema } from "@/lib/cart/schema"
 import { authClient } from "@/lib/auth/client"
+import { useNotification } from "@/components/notification/notification-provider"
 
 type CartContextValue = {
   readonly items: readonly CartItem[]
@@ -26,12 +27,20 @@ type CartContextValue = {
   readonly error: string | undefined
   readonly addItem: (input: AddToCartInput) => Promise<void>
   readonly removeItem: (itemId: string) => Promise<void>
-  readonly clearCart: () => Promise<void>
+  readonly clearCart: (options?: ClearCartOptions) => Promise<CartMutationResult>
   readonly setItemQuantity: (input: {
     readonly itemId: string
     readonly quantity: number
   }) => Promise<void>
   readonly setOpen: (open: boolean) => void
+}
+
+type CartMutationResult =
+  | { readonly kind: "success" }
+  | { readonly kind: "error"; readonly message: string }
+
+type ClearCartOptions = {
+  readonly errorPresentation?: "notification" | "caller"
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
@@ -48,6 +57,7 @@ type UserCartError = {
 }
 
 function CartProvider({ children }: { children: ReactNode }) {
+  const { showNotification } = useNotification()
   const { data: session, isPending: sessionPending } = authClient.useSession()
   const userId = session?.user.id
   const [cartState, setCartState] = useState<UserCartState>()
@@ -68,25 +78,26 @@ function CartProvider({ children }: { children: ReactNode }) {
   const replaceFromResponse = useCallback(
     async (response: Response, responseUserId: string) => {
       if (!response.ok) {
-        setCartError({
-          userId: responseUserId,
-          message: "Keranjang tidak dapat diperbarui. Coba lagi.",
-        })
-        return
+        return "Keranjang tidak dapat diperbarui. Coba lagi."
       }
 
-      const result = cartItemsResponseSchema.safeParse(await response.json())
+      let responseBody: unknown
+
+      try {
+        responseBody = await response.json()
+      } catch {
+        return "Data keranjang dari server tidak valid."
+      }
+
+      const result = cartItemsResponseSchema.safeParse(responseBody)
 
       if (!result.success) {
-        setCartError({
-          userId: responseUserId,
-          message: "Data keranjang dari server tidak valid.",
-        })
-        return
+        return "Data keranjang dari server tidak valid."
       }
 
       setCartState({ userId: responseUserId, items: result.data.items })
       setCartError(undefined)
+      return undefined
     },
     []
   )
@@ -95,15 +106,37 @@ function CartProvider({ children }: { children: ReactNode }) {
     async ({
       method,
       body,
+      successMessage,
+      errorPresentation = "inline",
     }: {
       method: "POST" | "PATCH" | "DELETE"
       body: unknown
-    }) => {
+      successMessage?: string
+      errorPresentation?: "inline" | "notification" | "caller"
+    }): Promise<CartMutationResult> => {
+      const reportError = (
+        message: string,
+        mutationUserId?: string
+      ): CartMutationResult => {
+        if (errorPresentation === "notification") {
+          showNotification({ variant: "error", message })
+        } else if (errorPresentation === "inline" && mutationUserId) {
+          setCartError({ userId: mutationUserId, message })
+        }
+
+        return { kind: "error", message }
+      }
+
       if (!userId) {
-        return
+        return reportError(
+          "Sesi Anda sudah berakhir. Masuk kembali untuk memperbarui keranjang."
+        )
       }
 
       setMutationPending(true)
+      if (errorPresentation !== "inline") {
+        setCartError(undefined)
+      }
 
       try {
         const response = await fetch("/api/cart", {
@@ -111,17 +144,26 @@ function CartProvider({ children }: { children: ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         })
-        await replaceFromResponse(response, userId)
+        const errorMessage = await replaceFromResponse(response, userId)
+
+        if (errorMessage) {
+          return reportError(errorMessage, userId)
+        }
+
+        if (successMessage) {
+          showNotification({ variant: "success", message: successMessage })
+        }
+        return { kind: "success" }
       } catch {
-        setCartError({
-          userId,
-          message: "Tidak dapat terhubung ke keranjang. Coba lagi.",
-        })
+        return reportError(
+          "Tidak dapat terhubung ke keranjang. Coba lagi.",
+          userId
+        )
       } finally {
         setMutationPending(false)
       }
     },
-    [replaceFromResponse, userId]
+    [replaceFromResponse, showNotification, userId]
   )
 
   useEffect(() => {
@@ -136,7 +178,13 @@ function CartProvider({ children }: { children: ReactNode }) {
     const abortController = new AbortController()
 
     fetch("/api/cart", { signal: abortController.signal })
-      .then((response) => replaceFromResponse(response, userId))
+      .then(async (response) => {
+        const errorMessage = await replaceFromResponse(response, userId)
+
+        if (errorMessage) {
+          setCartError({ userId, message: errorMessage })
+        }
+      })
       .catch((fetchError: unknown) => {
         if (fetchError instanceof Error && fetchError.name === "AbortError") {
           return
@@ -159,9 +207,10 @@ function CartProvider({ children }: { children: ReactNode }) {
       pending,
       error,
       async addItem(input) {
-        setOpen(true)
         await mutateCart({
           method: "POST",
+          successMessage: "Produk ditambahkan ke keranjang.",
+          errorPresentation: "notification",
           body: {
             productSlug: input.product.slug,
             quantity: input.quantity,
@@ -170,10 +219,17 @@ function CartProvider({ children }: { children: ReactNode }) {
         })
       },
       async removeItem(itemId) {
-        await mutateCart({ method: "DELETE", body: { itemId } })
+        await mutateCart({
+          method: "DELETE",
+          body: { itemId },
+        })
       },
-      async clearCart() {
-        await mutateCart({ method: "DELETE", body: { clear: true } })
+      async clearCart({ errorPresentation = "notification" } = {}) {
+        return mutateCart({
+          method: "DELETE",
+          body: { clear: true },
+          errorPresentation,
+        })
       },
       async setItemQuantity({ itemId, quantity }) {
         await mutateCart({ method: "PATCH", body: { itemId, quantity } })

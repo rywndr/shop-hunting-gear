@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
+import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,6 +24,7 @@ function ConfirmOrderReceivedDialog({
   triggerLabel: string
 }) {
   const router = useRouter()
+  const { showNotification } = useNotification()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -48,6 +50,10 @@ function ConfirmOrderReceivedDialog({
         return
       }
 
+      showNotification({
+        variant: "success",
+        message: "Pesanan berhasil dikonfirmasi sudah diterima.",
+      })
       setOpen(false)
       router.refresh()
     })
