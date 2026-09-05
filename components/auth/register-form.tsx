@@ -66,7 +66,7 @@ function RegisterForm({ callbackURL }: { callbackURL: string }) {
   async function registerWithGoogle() {
     setAuthError(undefined)
     setGooglePending(true)
-    queueAuthNotification("sign-in")
+    queueAuthNotification("sign-up")
 
     try {
       const { error } = await authClient.signIn.social({

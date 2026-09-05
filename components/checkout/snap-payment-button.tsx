@@ -16,6 +16,11 @@ import {
 import { useNotification } from "@/components/notification/notification-provider"
 import { Button } from "@/components/ui/button"
 import type { CheckoutSource } from "@/lib/checkout/config"
+import {
+  completePaymentNavigation,
+  normalizeOrderCreated,
+  type OrderCreatedResult,
+} from "@/lib/checkout/order-created"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import type { CreateSnapPaymentInput } from "@/lib/payments/midtrans/schema"
 import type { RajaOngkirCourierCode } from "@/lib/shipping/config"
@@ -64,10 +69,6 @@ type CartCleanupState =
     }
 
 type SnapScriptState = "loading" | "ready" | "error"
-
-type OrderCreatedResult =
-  | { readonly kind: "success" }
-  | { readonly kind: "error"; readonly message: string }
 
 type CartCleanupTask = {
   readonly attemptId: number
@@ -180,30 +181,30 @@ function SnapPaymentButton({
     const cleanupTask = cartCleanupTask.current
     const cleanupResult =
       cleanupTask?.attemptId === attemptId && cleanupTask.orderId === orderId
-        ? await cleanupTask.result
+        ? cleanupTask.result
         : undefined
-    const completed = paymentStateRef.current
-    if (
-      !isActiveAttempt(attemptId) ||
-      completed.kind !== "snap-completed" ||
-      completed.attemptId !== attemptId ||
-      completed.orderId !== orderId
-    ) {
-      return
-    }
 
-    if (cleanupResult?.kind === "error") {
-      setCartCleanupState((current) =>
-        current.kind === "error" &&
-        current.attemptId === attemptId &&
-        current.orderId === orderId
-          ? { kind: "idle" }
-          : current
-      )
-      showNotification({ variant: "error", message: cleanupResult.message })
-    }
-    router.push(`/orders?order=${encodeURIComponent(orderId)}`)
-    router.refresh()
+    completePaymentNavigation({
+      cleanupResult,
+      onCleanupError(message) {
+        if (!isActiveAttempt(attemptId)) return
+
+        setCartCleanupState((current) =>
+          current.kind === "error" &&
+          current.attemptId === attemptId &&
+          current.orderId === orderId
+            ? { kind: "idle" }
+            : current
+        )
+        showNotification({ variant: "error", message })
+      },
+      navigate() {
+        router.push(`/orders?order=${encodeURIComponent(orderId)}`)
+      },
+      refresh() {
+        router.refresh()
+      },
+    })
   }
 
   function openSnap(
@@ -317,7 +318,7 @@ function SnapPaymentButton({
         orderId: result.orderId,
         customerNote: result.customerNote,
       })
-      const cleanupResult = onOrderCreated()
+      const cleanupResult = normalizeOrderCreated(onOrderCreated)
       cartCleanupTask.current = {
         attemptId,
         orderId: result.orderId,

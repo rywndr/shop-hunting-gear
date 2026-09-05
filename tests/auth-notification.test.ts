@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 
 import {
+  authNotificationMessage,
   clearAuthNotification,
   queueAuthNotification,
   readAuthNotification,
@@ -59,6 +60,24 @@ test("valid OAuth notification remains queued until explicitly consumed", () => 
 
     clearAuthNotification()
     assert.equal(storage.getItem(STORAGE_KEY), null)
+  } finally {
+    restoreWindow()
+  }
+})
+
+test("OAuth registration uses account creation copy", () => {
+  const storage = new MemoryStorage()
+  const restoreWindow = installWindow({ sessionStorage: storage })
+
+  try {
+    queueAuthNotification("sign-up")
+
+    assert.equal(readAuthNotification()?.kind, "sign-up")
+    assert.equal(authNotificationMessage("sign-up"), "Akun berhasil dibuat.")
+    assert.notEqual(
+      authNotificationMessage("sign-up"),
+      authNotificationMessage("sign-in")
+    )
   } finally {
     restoreWindow()
   }

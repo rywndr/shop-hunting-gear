@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Address } from "@/lib/account/types"
 import { cartSubtotal, type CartItem } from "@/lib/cart/config"
 import type { CheckoutSource } from "@/lib/checkout/config"
+import { ORDER_CREATED_CLEANUP_ERROR_MESSAGE } from "@/lib/checkout/order-created"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { shippingOptionId, SHIPPING_COURIERS } from "@/lib/shipping/config"
 import {
@@ -439,8 +440,7 @@ function CheckoutForm({
                   ? result
                   : {
                       kind: "error" as const,
-                      message:
-                        "Pesanan berhasil dibuat, tetapi keranjang belum dapat dikosongkan. Coba muat ulang halaman.",
+                      message: ORDER_CREATED_CLEANUP_ERROR_MESSAGE,
                     }
               }}
             />
