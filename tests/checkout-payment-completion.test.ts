@@ -86,7 +86,7 @@ test("stale payment confirmation cannot complete or navigate", async () => {
   await completePaymentNavigation({
     confirm: async () => {
       activeAttemptId = 2
-    }
+    },
     isCurrent: () => activeAttemptId === attemptId,
     onConfirmed: () => events.push("confirmed"),
     cleanupResult: Promise.resolve({ kind: "error", message: "cleanup failed" }),
