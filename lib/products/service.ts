@@ -1,6 +1,12 @@
 import "server-only"
 
 import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
+import { cacheLife, cacheTag } from "next/cache"
+
+import {
+  invalidateStorefrontProducts,
+  STOREFRONT_PRODUCTS_TAG,
+} from "./cache"
 
 import {
   isListingState,
@@ -259,6 +265,10 @@ async function domainProduct(
 }
 
 async function storefrontProductRows() {
+  "use cache"
+  cacheLife("minutes")
+  cacheTag(STOREFRONT_PRODUCTS_TAG)
+
   return readProductTables({
     query: () =>
       db
@@ -311,6 +321,7 @@ export async function storefrontProductData(): Promise<readonly ProductData[]> {
 export async function storefrontProductDataBySlug(
   slug: string
 ): Promise<ProductData | undefined> {
+  // Checkout validation and manual orders deliberately bypass storefront caching.
   const row = await storefrontProductRowBySlug(slug)
   return row ? domainProduct(row, "data") : undefined
 }
@@ -318,6 +329,7 @@ export async function storefrontProductDataBySlug(
 export async function storefrontProductCardBySlug(
   slug: string
 ): Promise<ProductCard | undefined> {
+  // Cart and checkout previews must read current price and availability.
   const row = await storefrontProductRowBySlug(slug)
   return row ? domainProduct(row, "card") : undefined
 }
@@ -325,6 +337,10 @@ export async function storefrontProductCardBySlug(
 export async function storefrontProductDetailBySlug(
   slug: string
 ): Promise<ProductDetail | undefined> {
+  "use cache"
+  cacheLife("minutes")
+  cacheTag(STOREFRONT_PRODUCTS_TAG)
+
   const row = await storefrontProductRowBySlug(slug)
   if (!row) return undefined
 
@@ -338,6 +354,10 @@ export async function storefrontProductDetailBySlug(
 export async function storefrontProductMetadataBySlug(
   slug: string
 ): Promise<ProductMetadata | undefined> {
+  "use cache"
+  cacheLife("minutes")
+  cacheTag(STOREFRONT_PRODUCTS_TAG)
+
   const row = await storefrontProductRowBySlug(slug)
   return row ? domainProduct(row, "metadata") : undefined
 }
@@ -345,9 +365,12 @@ export async function storefrontProductMetadataBySlug(
 export async function storefrontProductCards(
   products: readonly Pick<ProductData, "slug">[]
 ): Promise<readonly ProductCard[]> {
-  const rows = await storefrontProductRowsBySlugs(
-    products.map(({ slug }) => slug)
-  )
+  "use cache"
+  cacheLife("minutes")
+  cacheTag(STOREFRONT_PRODUCTS_TAG)
+
+  // Reuse the catalog rows already loaded for filtering and pagination.
+  const rows = await storefrontProductRows()
   const productsBySlug = new Map(
     rows.map(({ product }) => [product.slug, product])
   )
@@ -608,6 +631,8 @@ export async function updateProductDetails({
     .update(productTable)
     .set({ ...values, updatedAt: new Date() })
     .where(eq(productTable.id, productId))
+
+  invalidateStorefrontProducts()
 }
 
 export async function storedProductImage({
@@ -700,6 +725,7 @@ export async function createProduct({
     db.insert(productListing).values({ productId: id, state }),
   ])
 
+  invalidateStorefrontProducts()
   return id
 }
 
@@ -812,10 +838,13 @@ export async function updateBulkProduct({
 
   if (productUpdate && listingUpdate) {
     await db.batch([productUpdate, listingUpdate])
+  } else if (productUpdate || listingUpdate) {
+    await (productUpdate ?? listingUpdate)
+  } else {
     return
   }
 
-  await (productUpdate ?? listingUpdate)
+  invalidateStorefrontProducts()
 }
 
 export async function updateProductListingState({
@@ -833,6 +862,8 @@ export async function updateProductListingState({
     .update(productListing)
     .set({ state, updatedAt: new Date() })
     .where(inArray(productListing.productId, productIds))
+
+  invalidateStorefrontProducts()
 }
 
 export async function updateProductInventory({
@@ -856,4 +887,6 @@ export async function updateProductInventory({
         : { stock: value }
     )
     .where(eq(productTable.id, productId))
+
+  invalidateStorefrontProducts()
 }

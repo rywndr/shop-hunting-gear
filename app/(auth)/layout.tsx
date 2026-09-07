@@ -1,4 +1,6 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
+import { cacheLife } from "next/cache"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -8,11 +10,14 @@ import { PRIVATE_ROBOTS } from "@/lib/site/metadata"
 
 export const metadata: Metadata = { robots: PRIVATE_ROBOTS }
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  "use cache"
+  cacheLife("days")
+
   return (
     <div className="flex min-h-svh flex-col">
       <header className="bg-navbar text-navbar-foreground">
@@ -23,7 +28,7 @@ export default function AuthLayout({
 
       <main className="flex flex-1 lg:grid lg:grid-cols-2">
         <div className="flex flex-1 items-center justify-center px-4 py-10 md:py-14">
-          {children}
+          <Suspense fallback={null}>{children}</Suspense>
         </div>
 
         <aside className="relative hidden overflow-hidden bg-navbar lg:block">

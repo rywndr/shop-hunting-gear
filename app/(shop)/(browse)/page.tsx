@@ -31,8 +31,6 @@ import { pageMetadata } from "@/lib/site/metadata"
 
 const PAGE_SIZE = 10
 
-export const dynamic = "force-dynamic"
-
 type SelectedCategory = ReturnType<typeof findCategories>[number]
 
 type BrowseFilter =

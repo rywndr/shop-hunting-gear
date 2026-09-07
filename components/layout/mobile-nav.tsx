@@ -3,7 +3,6 @@
 import { useEffect, useState, type MouseEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   CaretDownIcon,
   ListIcon,
@@ -62,7 +61,6 @@ function MobileNav({
 }) {
   const [open, setOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
-  const router = useRouter()
   const { showNotification } = useNotification()
   const close = () => setOpen(false)
 
@@ -97,8 +95,8 @@ function MobileNav({
 
       showNotification({ variant: "success", message: "Berhasil keluar dari akun." })
       close()
-      router.push("/")
-      router.refresh()
+      // Clear Activity-preserved private UI as well as the router cache.
+      window.location.replace("/")
     } catch {
       showNotification({
         variant: "error",

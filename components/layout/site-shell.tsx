@@ -44,7 +44,9 @@ function SiteShell({ children, variant }: SiteShellProps) {
           chrome.sticky && "sticky top-0 z-20"
         )}
       >
-        <NavBar personalized={chrome.personalized} />
+        <Suspense fallback={<div aria-hidden className="h-15" />}>
+          <NavBar personalized={chrome.personalized} />
+        </Suspense>
       </header>
 
       {chrome.categories && (

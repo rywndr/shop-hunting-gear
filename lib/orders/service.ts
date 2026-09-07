@@ -60,6 +60,7 @@ import {
 import { midtransIdempotencyKey } from "@/lib/payments/midtrans/client"
 import { snapSessionExpiresAt } from "@/lib/payments/midtrans/config"
 import { storefrontProductDataBySlug } from "@/lib/products/service"
+import { invalidateStorefrontProducts } from "@/lib/products/cache"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 import {
@@ -647,6 +648,7 @@ async function insertOrderWithReservations({
     throw new InventoryUnavailableError()
   }
 
+  invalidateStorefrontProducts()
   return row.id
 }
 
@@ -1112,7 +1114,9 @@ async function releaseOrderInventory({
       (SELECT payment_status FROM locked_order) AS payment_status
   `)
 
-  return atomicPaymentMutationResult(result.rows)
+  const mutation = atomicPaymentMutationResult(result.rows)
+  if (mutation.transitioned > 0) invalidateStorefrontProducts()
+  return mutation
 }
 
 export async function failPaymentInitialization({
@@ -1325,6 +1329,8 @@ async function settleOrderPaymentAtomically({
   `)
 
   const [row] = result.rows
+
+  if (row && row.transitioned > 0) invalidateStorefrontProducts()
 
   return (
     row ?? {

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -8,7 +9,7 @@ import { PRIVATE_ROBOTS } from "@/lib/site/metadata"
 
 export const metadata: Metadata = { robots: PRIVATE_ROBOTS }
 
-export default async function AccountLayout({
+async function AuthenticatedAccount({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -19,5 +20,19 @@ export default async function AccountLayout({
     redirect(`${AUTH_ROUTES.signIn}?callbackURL=/account`)
   }
 
-  return <SiteShell variant="account">{children}</SiteShell>
+  return children
+}
+
+export default function AccountLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <SiteShell variant="account">
+      <Suspense fallback={null}>
+        <AuthenticatedAccount>{children}</AuthenticatedAccount>
+      </Suspense>
+    </SiteShell>
+  )
 }

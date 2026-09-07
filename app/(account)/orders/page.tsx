@@ -196,7 +196,7 @@ async function HistoryTabs({
   )
 }
 
-export default async function HistoryPage(props: PageProps<"/orders">) {
+async function HistoryContent(props: PageProps<"/orders">) {
   const params = await props.searchParams
   const activeTab = historyTab(
     typeof params.status === "string" ? params.status : undefined
@@ -206,15 +206,23 @@ export default async function HistoryPage(props: PageProps<"/orders">) {
   )
 
   return (
+    <Suspense
+      key={`${activeTab}:${page}`}
+      fallback={<HistoryTabsSkeleton activeTab={activeTab} />}
+    >
+      <HistoryTabs activeTab={activeTab} page={page} />
+    </Suspense>
+  )
+}
+
+export default function HistoryPage(props: PageProps<"/orders">) {
+  return (
     <AccountShell
       title="Riwayat Pesanan"
       description="Lacak status pembayaran dan pengiriman pesanan Anda."
     >
-      <Suspense
-        key={`${activeTab}:${page}`}
-        fallback={<HistoryTabsSkeleton activeTab={activeTab} />}
-      >
-        <HistoryTabs activeTab={activeTab} page={page} />
+      <Suspense fallback={<HistoryTabsSkeleton activeTab="all" />}>
+        <HistoryContent {...props} />
       </Suspense>
     </AccountShell>
   )

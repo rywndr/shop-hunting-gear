@@ -8,6 +8,7 @@ import { customerOrder, customerOrderItem } from "@/lib/db/schema/order"
 import { product } from "@/lib/db/schema/product"
 import { productReview, productReviewMedia } from "@/lib/db/schema/review"
 import type { RatingStar, Review } from "@/lib/products/config"
+import { invalidateStorefrontProducts } from "@/lib/products/cache"
 import type { ReviewFinalizeRequest } from "./schema"
 import {
   deleteReviewObjects,
@@ -287,6 +288,7 @@ export async function createReview({
       return { kind: "duplicate" }
     }
 
+    invalidateStorefrontProducts()
     return {
       kind: "created",
       reviewId,

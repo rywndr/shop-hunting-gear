@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -7,7 +8,7 @@ import { PRIVATE_ROBOTS } from "@/lib/site/metadata"
 
 export const metadata: Metadata = { robots: PRIVATE_ROBOTS }
 
-export default async function ShippingLabelLayout({
+async function AuthenticatedShippingLabel({
   children,
 }: LayoutProps<"/admin/orders/[orderId]/label">) {
   const session = await getCurrentSession()
@@ -21,4 +22,14 @@ export default async function ShippingLabelLayout({
   }
 
   return children
+}
+
+export default function ShippingLabelLayout(
+  props: LayoutProps<"/admin/orders/[orderId]/label">
+) {
+  return (
+    <Suspense fallback={null}>
+      <AuthenticatedShippingLabel {...props} />
+    </Suspense>
+  )
 }

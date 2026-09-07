@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { UserCircleIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
@@ -20,7 +19,6 @@ function AccountMenu({
   className?: string
   align?: "center" | "end"
 }) {
-  const router = useRouter()
   const [signingOut, setSigningOut] = useState(false)
   const { showNotification } = useNotification()
 
@@ -40,8 +38,8 @@ function AccountMenu({
       }
 
       showNotification({ variant: "success", message: "Berhasil keluar dari akun." })
-      router.push("/")
-      router.refresh()
+      // Clear Activity-preserved private UI as well as the router cache.
+      window.location.replace("/")
     } catch {
       showNotification({
         variant: "error",

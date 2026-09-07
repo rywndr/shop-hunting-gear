@@ -23,12 +23,14 @@ import { categoryBySlug, isCategorySlug } from "@/lib/site/config"
 import { pageMetadata, PRIVATE_ROBOTS } from "@/lib/site/metadata"
 import { formatRating, formatRupiah } from "@/utils/format/intl"
 
-export const revalidate = 21600
-
 export async function generateStaticParams() {
   const products = await storefrontProductData()
 
-  return products.map(({ category, slug }) => ({ category, slug }))
+  // Cache Components requires a validation path even for an empty catalog.
+  // The existing product/category validation returns notFound for this path.
+  return products.length > 0
+    ? products.map(({ category, slug }) => ({ category, slug }))
+    : [{ category: "__placeholder__", slug: "__placeholder__" }]
 }
 
 export async function generateMetadata({
@@ -69,12 +71,9 @@ export async function generateMetadata({
 }
 
 async function ProductContent({
-  category,
-  slug,
-}: {
-  readonly category: string
-  readonly slug: string
-}) {
+  params,
+}: PageProps<"/c/[category]/p/[slug]">) {
+  const { category, slug } = await params
   const [product, products] = await Promise.all([
     storefrontProductDetailBySlug(slug),
     storefrontProductData(),
@@ -91,14 +90,12 @@ async function ProductContent({
   return <ProductDetail product={product} related={related} />
 }
 
-export default async function CategoryProductPage({
-  params,
-}: PageProps<"/c/[category]/p/[slug]">) {
-  const { category, slug } = await params
-
+export default function CategoryProductPage(
+  props: PageProps<"/c/[category]/p/[slug]">
+) {
   return (
     <Suspense fallback={<ProductDetailSkeleton />}>
-      <ProductContent category={category} slug={slug} />
+      <ProductContent {...props} />
     </Suspense>
   )
 }

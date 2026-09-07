@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   robots: PRIVATE_ROBOTS,
 }
 
-export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
+async function AuthenticatedAdmin({ children }: LayoutProps<"/admin">) {
   const session = await getCurrentSession()
 
   if (!session) {
@@ -23,4 +24,12 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   }
 
   return <AdminShell>{children}</AdminShell>
+}
+
+export default function AdminLayout(props: LayoutProps<"/admin">) {
+  return (
+    <Suspense fallback={null}>
+      <AuthenticatedAdmin {...props} />
+    </Suspense>
+  )
 }

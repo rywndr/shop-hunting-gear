@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache"
 import Image from "next/image"
 import Link from "next/link"
 import { EnvelopeSimpleIcon, PhoneIcon } from "@phosphor-icons/react/ssr"
@@ -25,7 +26,10 @@ function ColumnHeading({ id, children }: { id: string; children: string }) {
 const linkClassName =
   "text-navbar-foreground/70 transition-colors hover:text-navbar-foreground"
 
-function SiteFooter({ className }: { className?: string }) {
+async function SiteFooter({ className }: { className?: string }) {
+  "use cache"
+  cacheLife("days")
+
   return (
     <footer className={cn("bg-navbar text-navbar-foreground", className)}>
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
