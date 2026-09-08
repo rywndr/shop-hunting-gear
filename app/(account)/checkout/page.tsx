@@ -89,7 +89,7 @@ async function CheckoutContent({
               ? "Pilihan produk tidak valid atau stoknya sudah habis."
               : "Keranjang kamu masih kosong."}
           </p>
-          <Button render={<Link href="/" />} variant="outline">
+          <Button render={<Link href="/" />} nativeButton={false} variant="outline">
             Kembali Belanja
           </Button>
         </div>
