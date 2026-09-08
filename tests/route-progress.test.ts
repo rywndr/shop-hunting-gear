@@ -76,10 +76,13 @@ test("route progress follows navigation lifecycle", (context) => {
     target: null,
   })
 
-  startRouteProgress("/?q=hunting%20gear")
-  completeRouteProgress("/?q=hunting+gear")
+  startRouteProgress("/?search=hunting%20gear")
+  completeRouteProgress("/?search=hunting+gear")
   assert.equal(getRouteProgressSnapshot().pending, false)
-  assert.equal(getRouteProgressSnapshot().committed, "/?q=hunting+gear")
+  assert.equal(
+    getRouteProgressSnapshot().committed,
+    "/?search=hunting+gear"
+  )
 
   setCommittedRoute("/admin/products?tab=active")
   startRouteProgress("/admin/products?tab=all")

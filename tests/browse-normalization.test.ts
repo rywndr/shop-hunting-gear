@@ -195,11 +195,11 @@ test("params are reordered into the canonical sequence", () => {
 
 test("search is never indexable", () => {
   const { selection, canonical, redirectTo, index } = resolve({
-    q: "joran",
+    search: "joran",
   })
 
   assert.equal(selection.search, "joran")
-  assert.equal(canonical, "/?q=joran")
+  assert.equal(canonical, "/?search=joran")
   assert.equal(redirectTo, null)
   assert.equal(index, false)
 })
@@ -207,30 +207,33 @@ test("search is never indexable", () => {
 test("search with a single category is still not indexable", () => {
   const { canonical, redirectTo, index } = resolve({
     category: "fishing",
-    q: "joran",
+    search: "joran",
   })
 
-  assert.equal(canonical, "/?category=fishing&q=joran")
+  assert.equal(canonical, "/?category=fishing&search=joran")
   assert.equal(redirectTo, null)
   assert.equal(index, false)
 })
 
 test("search keeps its page and stays unindexed", () => {
   const { selection, canonical, redirectTo, index } = resolve({
-    q: "joran",
+    search: "joran",
     page: "2",
   })
 
   assert.equal(selection.page, 2)
-  assert.equal(canonical, "/?q=joran&page=2")
+  assert.equal(canonical, "/?search=joran&page=2")
   assert.equal(redirectTo, null)
   assert.equal(index, false)
 })
 
 test("a padded or empty search normalizes away", () => {
-  assert.equal(resolve({ q: "  joran  " }).redirectTo, "/?q=joran")
-  assert.equal(resolve({ q: "   " }).redirectTo, "/")
-  assert.equal(resolve({ q: "" }).canonical, "/")
+  assert.equal(
+    resolve({ search: "  joran  " }).redirectTo,
+    "/?search=joran"
+  )
+  assert.equal(resolve({ search: "   " }).redirectTo, "/")
+  assert.equal(resolve({ search: "" }).canonical, "/")
 })
 
 test("unrelated params never trigger a redirect", () => {
@@ -242,7 +245,10 @@ test("unrelated params never trigger a redirect", () => {
 })
 
 test("normalization does not depend on the page count", () => {
-  const query: BrowseQuery = { category: ["hobbies", "hunting"], q: " reel " }
+  const query: BrowseQuery = {
+    category: ["hobbies", "hunting"],
+    search: " reel ",
+  }
 
   assert.deepEqual(normalizeBrowseQuery(query), {
     categories: ["hunting", "hobbies"],

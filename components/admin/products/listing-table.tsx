@@ -148,7 +148,7 @@ function ListingTable({
   }) {
     const params = new URLSearchParams()
     params.set("tab", listingTab(nextState))
-    if (nextSearch.trim()) params.set("q", nextSearch.trim())
+    if (nextSearch.trim()) params.set("search", nextSearch.trim())
     if (nextCategory !== ALL_FILTER) params.set("category", nextCategory)
     if (nextSort !== null) params.set("sort", listingSortKey(nextSort))
     if (nextPage > 1) params.set("page", String(nextPage))

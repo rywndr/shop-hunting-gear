@@ -17,7 +17,7 @@ export type Category = NavLink & {
 }
 
 export const CATEGORY_QUERY = "category"
-export const SEARCH_QUERY = "q"
+export const SEARCH_QUERY = "search"
 export const PAGE_QUERY = "page"
 
 export function shopHref({

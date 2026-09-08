@@ -79,7 +79,7 @@ async function ProductListing({
     category: listingCategoryFromParam(
       typeof params.category === "string" ? params.category : undefined
     ),
-    search: typeof params.q === "string" ? params.q : "",
+    search: typeof params.search === "string" ? params.search : "",
     sort: listingSortFromKey(
       typeof params.sort === "string" ? params.sort : undefined
     ),

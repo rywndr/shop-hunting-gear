@@ -144,7 +144,7 @@ function SalesOrderTable({
   }) {
     const params = new URLSearchParams()
     params.set("tab", orderTab(nextQueue))
-    if (nextSearch.trim()) params.set("q", nextSearch.trim())
+    if (nextSearch.trim()) params.set("search", nextSearch.trim())
     if (nextPage > 1) params.set("page", String(nextPage))
     if (nextPageSize !== 10) params.set("size", String(nextPageSize))
     router.push(`/admin/orders?${params.toString()}`)

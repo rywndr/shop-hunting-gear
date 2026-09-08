@@ -99,7 +99,7 @@ async function OrderTable({
 async function AdminOrdersContent(props: PageProps<"/admin/orders">) {
   const params = await props.searchParams
   const tab = typeof params.tab === "string" ? params.tab : undefined
-  const search = typeof params.q === "string" ? params.q : ""
+  const search = typeof params.search === "string" ? params.search : ""
   const queue: OrderQueueFilter = orderFilterFromTab(tab ?? null)
   const currentPage = positiveInteger(
     typeof params.page === "string" ? params.page : undefined,
