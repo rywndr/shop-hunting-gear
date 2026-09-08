@@ -1,5 +1,4 @@
-import { revalidatePath } from "next/cache"
-
+import { revalidateReturnViews } from "@/lib/returns/revalidation"
 import { midtransServerConfig } from "@/lib/payments/midtrans/config"
 import { MidtransApiError } from "@/lib/payments/midtrans/client"
 import { midtransNotificationSchema } from "@/lib/payments/midtrans/schema"
@@ -11,12 +10,10 @@ import {
   UnknownOrderError,
 } from "@/lib/orders/service"
 
-export const maxDuration = 10
+export const maxDuration = 30
 
 function revalidatePaymentViews() {
-  revalidatePath("/orders")
-  revalidatePath("/admin/orders")
-  revalidatePath("/admin/finance")
+  revalidateReturnViews({ finance: true })
 }
 
 export async function POST(request: Request) {
@@ -52,7 +49,10 @@ export async function POST(request: Request) {
   try {
     // The notification only wakes the reconciler. The status endpoint is the
     // source of truth for the state that reaches the database.
-    await reconcileMidtransPayment(notification.order_id)
+    await reconcileMidtransPayment(
+      notification.order_id,
+      notification.transaction_id
+    )
     revalidatePaymentViews()
     return Response.json({ received: true })
   } catch (error) {

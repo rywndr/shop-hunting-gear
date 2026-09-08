@@ -91,6 +91,7 @@ export const customerOrder = pgTable(
       .defaultNow()
       .notNull(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

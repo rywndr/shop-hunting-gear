@@ -77,10 +77,9 @@ function totalCharged(transaction: Transaction) {
 
 function reversalLines(transaction: Transaction): readonly EarningsLine[] {
   const fullAmount = totalCharged(transaction)
-  const refundAmount =
-    transaction.paymentStatus === "refunded"
-      ? transaction.refundAmount || fullAmount
-      : transaction.refundAmount
+  // The data layer supplies confirmed refunds, including a legitimate zero
+  // while a provider refund still awaits bank confirmation.
+  const refundAmount = transaction.refundAmount
   const chargebackAmount =
     transaction.paymentStatus === "chargeback"
       ? transaction.chargebackAmount || fullAmount

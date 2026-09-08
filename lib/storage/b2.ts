@@ -4,6 +4,7 @@ import {
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3"
@@ -76,6 +77,42 @@ export async function deleteB2Objects(keys: readonly string[]) {
   )
   if (result.Errors?.length)
     throw new Error("Some B2 objects could not be deleted.")
+}
+
+export type B2ListedObject = {
+  readonly key: string
+  readonly lastModified: Date | null
+}
+
+export async function listB2Objects(
+  prefix: string
+): Promise<readonly B2ListedObject[]> {
+  const objects: B2ListedObject[] = []
+  let continuationToken: string | undefined
+
+  while (true) {
+    const result = await b2Client().send(
+      new ListObjectsV2Command({
+        Bucket: b2Bucket(),
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      })
+    )
+
+    for (const object of result.Contents ?? []) {
+      if (!object.Key) continue
+      objects.push({
+        key: object.Key,
+        lastModified: object.LastModified ?? null,
+      })
+    }
+
+    if (!result.IsTruncated) return objects
+    if (!result.NextContinuationToken) {
+      throw new Error("B2 object listing did not return a continuation token.")
+    }
+    continuationToken = result.NextContinuationToken
+  }
 }
 
 export function signedB2GetUrl(key: string, expiresIn: number) {

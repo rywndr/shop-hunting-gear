@@ -1,4 +1,9 @@
 import Link from "next/link"
+import {
+  RETURN_STATUSES,
+  REFUND_STATUSES,
+  type CustomerReturnState,
+} from "@/lib/returns/config"
 import { ReceiptIcon } from "@phosphor-icons/react/ssr"
 
 import { FLAT_CARD } from "@/components/account/account-card"
@@ -77,7 +82,9 @@ async function OrderItemRow({ item }: { item: OrderItem }) {
 function OrderCard({
   order,
   midtrans,
+  returnState,
 }: {
+  returnState: CustomerReturnState
   order: Order
   midtrans: MidtransBrowserConfig
 }) {
@@ -111,6 +118,25 @@ function OrderCard({
             <OrderItemRow key={item.id} item={item} />
           ))}
         </ul>
+
+        {returnState.kind === "requested" && (
+          <section
+            className="mt-4 border-t pt-3 text-sm"
+            aria-label="Status retur"
+          >
+            <p className="font-medium">
+              Retur: {RETURN_STATUSES[returnState.status]}
+            </p>
+            {returnState.refundStatus && (
+              <p>{REFUND_STATUSES[returnState.refundStatus]}</p>
+            )}
+            {returnState.note && (
+              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                {returnState.note}
+              </p>
+            )}
+          </section>
+        )}
 
         {order.customerNote !== null && (
           <div className="mt-4 border-t border-border pt-3 text-xs">
@@ -177,7 +203,7 @@ function OrderCard({
               </Button>
             )
           )}
-          {returnAction && (
+          {returnAction && returnState.kind === "eligible" && (
             <ReturnOrderDialog order={order} triggerLabel={returnAction} />
           )}
           {order.status === "unpaid" && order.paymentToken ? (

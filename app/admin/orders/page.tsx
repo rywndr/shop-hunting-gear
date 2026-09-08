@@ -15,6 +15,14 @@ import {
 } from "@/lib/products/service"
 import { orderFilterFromTab, type OrderQueueFilter } from "@/lib/admin/orders"
 
+export default function AdminOrdersPage(props: PageProps<"/admin/orders">) {
+  return (
+    <Suspense fallback={<SalesOrderTableSkeleton />}>
+      <AdminOrdersContent {...props} />
+    </Suspense>
+  )
+}
+
 const SECTION = adminSection("orders")
 type AdminPageSize = 10 | 25 | 50
 
@@ -88,9 +96,7 @@ async function OrderTable({
   )
 }
 
-export default async function AdminOrdersPage(
-  props: PageProps<"/admin/orders">
-) {
+async function AdminOrdersContent(props: PageProps<"/admin/orders">) {
   const params = await props.searchParams
   const tab = typeof params.tab === "string" ? params.tab : undefined
   const search = typeof params.q === "string" ? params.q : ""

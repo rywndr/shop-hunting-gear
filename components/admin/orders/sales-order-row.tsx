@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { PrinterIcon } from "@phosphor-icons/react"
 
+import { ReturnReviewDialog } from "@/components/admin/orders/return-review-dialog"
+import { RETURN_STATUSES, REFUND_STATUSES } from "@/lib/returns/config"
 import { TABLE_EDGE } from "@/components/admin/admin-card"
 import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { MarkOrderCompletedDialog } from "@/components/admin/orders/mark-order-completed-dialog"
@@ -110,6 +112,15 @@ function SalesOrderRow({
           className="mt-2"
         />
 
+        {salesOrder.returnRequest && (
+          <div className="mt-2 text-xs">
+            <p>{RETURN_STATUSES[salesOrder.returnRequest.status]}</p>
+            {salesOrder.returnRequest.refund && (
+              <p>{REFUND_STATUSES[salesOrder.returnRequest.refund.status]}</p>
+            )}
+          </div>
+        )}
+
         {order.customerNote !== null && (
           <div className="mt-2 border-l-2 border-border pl-2 text-xs">
             <span className="block font-medium">Catatan pembeli</span>
@@ -151,6 +162,9 @@ function SalesOrderRow({
 
       <TableCell className={cn(TABLE_EDGE, "text-right align-top")}>
         <div className="flex flex-col items-end gap-2">
+          {salesOrder.returnRequest && (
+            <ReturnReviewDialog request={salesOrder.returnRequest} />
+          )}
           {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
           )}

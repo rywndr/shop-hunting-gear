@@ -13,6 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import type { CustomerReturnState } from "@/lib/returns/config"
 import type { Order } from "@/lib/orders/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
@@ -24,7 +25,9 @@ function OrderList({
   page,
   pageSize,
   total,
+  returnStates,
 }: {
+  readonly returnStates: ReadonlyMap<string, CustomerReturnState>
   readonly orders: readonly Order[]
   readonly emptyMessage: string
   readonly midtrans: MidtransBrowserConfig
@@ -60,7 +63,13 @@ function OrderList({
       <ul className="flex flex-col gap-4" aria-label="Daftar riwayat pesanan">
         {orders.map((order) => (
           <li key={order.id}>
-            <OrderCard order={order} midtrans={midtrans} />
+            <OrderCard
+              order={order}
+              midtrans={midtrans}
+              returnState={
+                returnStates.get(order.id) ?? { kind: "unavailable" }
+              }
+            />
           </li>
         ))}
       </ul>

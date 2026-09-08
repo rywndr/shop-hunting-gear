@@ -1,6 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { randomUUID } from "node:crypto"
+import {
+  customerReturnStates,
+  createReturnRequest,
+} from "@/lib/returns/service"
+import { returnRequestSchema } from "@/lib/returns/schema"
+import { uploadReturnPhotos, cleanupReturnPhotos } from "@/lib/returns/photos"
+import { revalidateReturnViews } from "@/lib/returns/revalidation"
 import { z } from "zod"
 
 import { getCurrentSession } from "@/lib/auth/session"
@@ -16,6 +24,75 @@ export type CancelOrderResult =
 export type ConfirmOrderReceivedResult =
   | { readonly kind: "success" }
   | { readonly kind: "error"; readonly message: string }
+
+export async function submitReturnAction(
+  form: FormData
+): Promise<ConfirmOrderReceivedResult> {
+  const session = await getCurrentSession()
+  if (!session)
+    return { kind: "error", message: "Silakan masuk untuk melanjutkan." }
+  const parsed = returnRequestSchema.safeParse({
+    orderId: form.get("orderId"),
+    reason: form.get("reason"),
+    details: form.get("details"),
+  })
+  const entries = form.getAll("photos")
+  const files = entries.filter((entry): entry is File => entry instanceof File)
+  if (
+    !parsed.success ||
+    files.length !== entries.length ||
+    files.length < 1 ||
+    files.length > 4
+  )
+    return {
+      kind: "error",
+      message: "Periksa alasan, penjelasan, dan foto retur.",
+    }
+  const id = randomUUID()
+  try {
+    const states = await customerReturnStates({
+      userId: session.user.id,
+      orderIds: [parsed.data.orderId],
+    })
+    if (states.get(parsed.data.orderId)?.kind !== "eligible")
+      return {
+        kind: "error",
+        message:
+          "Pesanan tidak memenuhi syarat retur atau sudah pernah diajukan.",
+      }
+    const photos = await uploadReturnPhotos({ returnId: id, files })
+    // Do not delete evidence on an ambiguous database/network error. The insert
+    // may have committed. Only a definitive rejected insert permits cleanup.
+    const result = await createReturnRequest({
+      ...parsed.data,
+      userId: session.user.id,
+      photos,
+      id,
+    })
+    if (result.kind !== "created") {
+      await cleanupReturnPhotos(photos)
+      revalidateReturnViews()
+      return {
+        kind: "error",
+        message:
+          "Pesanan tidak memenuhi syarat retur atau sudah pernah diajukan.",
+      }
+    }
+    revalidateReturnViews()
+    return { kind: "success" }
+  } catch (error) {
+    console.error("Return submission failed.", {
+      event: "returns.submit_failed",
+      returnId: id,
+      error,
+    })
+    return {
+      kind: "error",
+      message:
+        "Pengajuan belum dapat dikonfirmasi. Muat ulang riwayat pesanan sebelum mencoba lagi.",
+    }
+  }
+}
 
 const orderIdSchema = z.string().trim().min(1)
 
@@ -52,7 +129,8 @@ export async function confirmOrderReceivedAction(
       case "not-eligible":
         return {
           kind: "error",
-          message: "Pesanan ini belum dapat dikonfirmasi sebagai sudah diterima.",
+          message:
+            "Pesanan ini belum dapat dikonfirmasi sebagai sudah diterima.",
         }
       default: {
         const _exhaustive: never = result

@@ -13,6 +13,8 @@ import {
   ORDER_STATUS_ORDER,
   type OrderStatus,
 } from "@/lib/orders/config"
+import { customerReturnStates } from "@/lib/returns/service"
+import type { CustomerReturnState } from "@/lib/returns/config"
 import { ordersForUserPage } from "@/lib/orders/service"
 import { midtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
@@ -48,7 +50,9 @@ function buildTabs({
   orders,
   page,
   total,
+  returnStates,
 }: {
+  readonly returnStates: ReadonlyMap<string, CustomerReturnState>
   readonly activeTab: HistoryTab
   readonly counts: Readonly<Record<OrderStatus, number>>
   readonly midtrans: ReturnType<typeof midtransBrowserConfig>
@@ -60,6 +64,7 @@ function buildTabs({
     activeTab === tab ? (
       <OrderList
         orders={orders}
+        returnStates={returnStates}
         emptyMessage={emptyMessage}
         midtrans={midtrans}
         page={page}
@@ -73,11 +78,7 @@ function buildTabs({
       value: "all",
       label: "Semua",
       count: total,
-      panel: panel(
-        "all",
-        "Pesanan yang Anda buat akan muncul di sini.",
-        total
-      ),
+      panel: panel("all", "Pesanan yang Anda buat akan muncul di sini.", total),
     },
     ...ORDER_STATUS_ORDER.map((status) => ({
       value: status,
@@ -94,11 +95,7 @@ function buildTabs({
 
 function OrderCardSkeleton() {
   return (
-    <Card
-      aria-hidden
-      size="sm"
-      className={cn(FLAT_CARD, "gap-0 py-0")}
-    >
+    <Card aria-hidden size="sm" className={cn(FLAT_CARD, "gap-0 py-0")}>
       <CardHeader className="flex-row items-center gap-3 border-b py-3">
         <Skeleton className="h-3.5 w-28 rounded-none" />
         <Skeleton className="h-3.5 w-20 rounded-none" />
@@ -179,12 +176,18 @@ async function HistoryTabs({
     pageSize: PAGE_SIZE,
   })
 
+  const returnStates = await customerReturnStates({
+    userId: session.user.id,
+    orderIds: orderPage.orders.map(({ id }) => id),
+  })
+
   return (
     <SectionTabs
       label="Status pesanan"
       activeValue={activeTab}
       queryParam="status"
       tabs={buildTabs({
+        returnStates,
         activeTab,
         counts: orderPage.counts,
         midtrans: midtransBrowserConfig(),

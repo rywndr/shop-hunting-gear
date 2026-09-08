@@ -1,5 +1,9 @@
 import "server-only"
 
+import { adminReturnRequests } from "@/lib/returns/service"
+import { confirmedOrderRefundSql } from "@/lib/returns/finance"
+import { hasActionableReturnSql } from "@/lib/returns/queue-sql"
+
 import { createHash, randomUUID } from "node:crypto"
 
 import {
@@ -129,6 +133,7 @@ type PaymentOrder = Pick<
   | "snapRedirectUrl"
   | "paymentSessionExpiresAt"
   | "midtransCreateIdempotencyKey"
+  | "midtransTransactionId"
 >
 
 type JoinedOrderRow = {
@@ -1723,15 +1728,18 @@ async function assertAdminAccess() {
 function salesOrderQueueForRow({
   fulfillmentStatus,
   paymentStatus,
+  hasActionableReturn,
 }: {
   readonly fulfillmentStatus: OrderRow["fulfillmentStatus"]
   readonly paymentStatus: OrderRow["paymentStatus"]
+  readonly hasActionableReturn: boolean
 }): OrderQueue {
+  if (hasActionableReturn) return "returns"
   switch (fulfillmentStatus) {
     case "awaiting_payment":
       return paymentStatus === "pending" || paymentStatus === "authorized"
         ? "unpaid"
-        : "returns"
+        : "cancelled"
     case "processing":
       return "toShip"
     case "shipped":
@@ -1739,12 +1747,16 @@ function salesOrderQueueForRow({
     case "completed":
       return "completed"
     case "cancelled":
-      return "returns"
+      return "cancelled"
     default: {
       const _exhaustive: never = fulfillmentStatus
       return _exhaustive
     }
   }
+}
+
+function orderHasActionableReturn() {
+  return hasActionableReturnSql()
 }
 
 function salesOrderFilter({
@@ -1789,7 +1801,15 @@ function salesOrderFilter({
       )
     : undefined
 
-  return and(queueCondition, searchCondition)
+  return and(
+    queue === "returns"
+      ? orderHasActionableReturn()
+      : queue === ALL_FILTER
+        ? undefined
+        : sql`NOT (${orderHasActionableReturn()})`,
+    queue === "returns" ? undefined : queueCondition,
+    searchCondition
+  )
 }
 
 function emptyOrderQueueCounts() {
@@ -1799,6 +1819,7 @@ function emptyOrderQueueCounts() {
     shipped: 0,
     completed: 0,
     returns: 0,
+    cancelled: 0,
   } satisfies Record<OrderQueue, number>
 }
 
@@ -1824,6 +1845,16 @@ export async function salesOrderPage({
   const where = salesOrderFilter({ queue, search })
   const safePage = Math.max(1, Math.floor(page))
   const safePageSize = Math.max(1, Math.floor(pageSize))
+  const orderQueueRows = db
+    .select({
+      fulfillmentStatus: customerOrder.fulfillmentStatus,
+      paymentStatus: customerOrder.paymentStatus,
+      hasActionableReturn: orderHasActionableReturn().as(
+        "has_actionable_return"
+      ),
+    })
+    .from(customerOrder)
+    .as("order_queue")
   const [totalRows, countRows, idRows] = await Promise.all([
     db
       .select({ total: sql<number>`count(distinct ${customerOrder.id})` })
@@ -1836,12 +1867,17 @@ export async function salesOrderPage({
       .where(where),
     db
       .select({
-        fulfillmentStatus: customerOrder.fulfillmentStatus,
-        paymentStatus: customerOrder.paymentStatus,
+        fulfillmentStatus: orderQueueRows.fulfillmentStatus,
+        paymentStatus: orderQueueRows.paymentStatus,
+        hasActionableReturn: orderQueueRows.hasActionableReturn,
         total: sql<number>`count(*)`,
       })
-      .from(customerOrder)
-      .groupBy(customerOrder.fulfillmentStatus, customerOrder.paymentStatus),
+      .from(orderQueueRows)
+      .groupBy(
+        orderQueueRows.fulfillmentStatus,
+        orderQueueRows.paymentStatus,
+        orderQueueRows.hasActionableReturn
+      ),
     db
       .select({ id: customerOrder.id })
       .from(customerOrder)
@@ -1880,7 +1916,8 @@ export async function salesOrderPage({
     .where(inArray(customerOrder.id, ids))
     .orderBy(desc(customerOrder.placedAt), asc(customerOrder.id))
 
-  return { orders: groupOrders(rows), counts, total }
+  const returns = await adminReturnRequests(ids)
+  return { orders: groupOrders(rows).map((entry) => ({ ...entry, returnRequest: returns.get(entry.order.id) })), counts, total }
 }
 
 const CUSTOMER_ROLE = "user"
@@ -2099,6 +2136,7 @@ export async function confirmOrderReceivedForUser({
       UPDATE customer_order AS current_order
       SET
         fulfillment_status = 'completed',
+        completed_at = coalesce(current_order.completed_at, now()),
         updated_at = now()
       FROM locked_order
       WHERE current_order.id = locked_order.id
@@ -2160,6 +2198,7 @@ export async function completeOrderFulfillment(
       UPDATE customer_order AS current_order
       SET
         fulfillment_status = 'completed',
+        completed_at = coalesce(current_order.completed_at, now()),
         updated_at = now()
       FROM locked_order
       WHERE current_order.id = locked_order.id
@@ -2350,9 +2389,11 @@ export async function salesOrders(): Promise<readonly SalesOrder[]> {
 function transactionFromRows({
   order,
   items,
+  confirmedRefund,
 }: {
   readonly order: OrderRow
   readonly items: readonly OrderItemRow[]
+  readonly confirmedRefund: number
 }): Transaction | null {
   const paidAt = order.paidAt
   const orderView = orderFromRow({ order, items })
@@ -2372,7 +2413,7 @@ function transactionFromRows({
     discount: 0,
     fulfillment: fulfillmentForStatus(orderView.status),
     paymentStatus: order.paymentStatus,
-    refundAmount: order.midtransRefundAmount ?? 0,
+    refundAmount: confirmedRefund,
     chargebackAmount: order.midtransChargebackAmount ?? 0,
   }
 }
@@ -2413,7 +2454,7 @@ export async function paidTransactionPage({
   }
 
   const rows = await db
-    .select({ order: customerOrder, item: customerOrderItem })
+    .select({ order: customerOrder, item: customerOrderItem, confirmedRefund: confirmedOrderRefundSql() })
     .from(customerOrder)
     .innerJoin(
       customerOrderItem,
@@ -2426,14 +2467,14 @@ export async function paidTransactionPage({
       )
     )
     .orderBy(desc(customerOrder.paidAt), desc(customerOrder.placedAt))
-  const grouped = new Map<string, { order: OrderRow; items: OrderItemRow[] }>()
+  const grouped = new Map<string, { order: OrderRow; items: OrderItemRow[]; confirmedRefund: number }>()
 
   for (const row of rows) {
     const current = grouped.get(row.order.id)
     if (current) {
       current.items.push(row.item)
     } else {
-      grouped.set(row.order.id, { order: row.order, items: [row.item] })
+      grouped.set(row.order.id, { order: row.order, items: [row.item], confirmedRefund: Number(row.confirmedRefund) })
     }
   }
 
@@ -2452,17 +2493,9 @@ export async function financeSummary() {
   const [row] = await db
     .select({
       total: sql<number>`coalesce(sum(
-        case
-          when ${customerOrder.paymentStatus} = 'refunded'
-            then ${customerOrder.grossAmount} - coalesce(${customerOrder.midtransRefundAmount}, ${customerOrder.grossAmount})
-          when ${customerOrder.paymentStatus} = 'chargeback'
-            then ${customerOrder.grossAmount} - coalesce(${customerOrder.midtransChargebackAmount}, ${customerOrder.grossAmount})
-          when ${customerOrder.paymentStatus} = 'partial_refund'
-            then ${customerOrder.grossAmount} - coalesce(${customerOrder.midtransRefundAmount}, 0)
-          when ${customerOrder.paymentStatus} = 'partial_chargeback'
-            then ${customerOrder.grossAmount} - coalesce(${customerOrder.midtransChargebackAmount}, 0)
-          else ${customerOrder.grossAmount}
-        end - ${customerOrder.shippingCost}
+        ${customerOrder.grossAmount} - (${confirmedOrderRefundSql()})
+        - coalesce(${customerOrder.midtransChargebackAmount}, CASE WHEN ${customerOrder.paymentStatus} = 'chargeback' THEN ${customerOrder.grossAmount} ELSE 0 END)
+        - ${customerOrder.shippingCost}
       ), 0)`,
     })
     .from(customerOrder)

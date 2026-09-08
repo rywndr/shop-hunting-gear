@@ -1,5 +1,7 @@
 import "server-only"
 
+import { reconcileReturnRefunds } from "@/lib/returns/refunds"
+
 import {
   cancelSnapSession,
   cancelSnapTransaction,
@@ -40,19 +42,20 @@ function outcomeForAppliedPayment(
   return outcomeForPaymentStatus(applied.paymentStatus)
 }
 
-export async function reconcileMidtransPayment(orderId: string) {
+export async function reconcileMidtransPayment(orderId: string, notificationTransactionId?: string | null) {
   const order = await paymentOrderForId(orderId)
 
   if (!order) {
     throw new UnknownOrderError(orderId)
   }
 
-  const payment = await getSnapTransactionStatus({ orderId })
+  const payment = await getSnapTransactionStatus({ orderId, transactionId: order.midtransTransactionId ?? notificationTransactionId })
 
-  if (payment.order_id !== orderId) {
-    throw new InvalidPaymentError("Midtrans returned a different order.")
+  if (payment.order_id !== orderId || (order.midtransTransactionId && payment.transaction_id !== order.midtransTransactionId)) {
+    throw new InvalidPaymentError("Midtrans returned a different order or transaction.")
   }
 
+  await reconcileReturnRefunds(payment)
   const applied = await applyMidtransPaymentUpdate(payment)
 
   return {
@@ -85,6 +88,7 @@ type CurrentStatus =
 async function applyStatus(
   payment: MidtransStatusResponse
 ): Promise<MidtransPaymentOutcome> {
+  await reconcileReturnRefunds(payment)
   const applied = await applyMidtransPaymentUpdate(payment)
   return outcomeForAppliedPayment(applied)
 }

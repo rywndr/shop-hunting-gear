@@ -9,6 +9,7 @@ import {
 } from "@/lib/payments/midtrans/config"
 import {
   midtransCancelResponseSchema,
+  midtransRefundResponseSchema,
   midtransStatusCodeSchema,
   midtransStatusResponseSchema,
   snapSessionCancellationErrorSchema,
@@ -20,7 +21,7 @@ import {
 } from "@/lib/payments/midtrans/schema"
 
 type MidtransApiOperation =
-  "create" | "status" | "cancel" | "snap-session-cancel"
+  "create" | "status" | "cancel" | "snap-session-cancel" | "refund"
 
 export class MidtransApiError extends Error {
   readonly operation: MidtransApiOperation
@@ -209,15 +210,17 @@ export async function createSnapTransaction({
 
 export async function getSnapTransactionStatus({
   orderId,
+  transactionId,
 }: {
   readonly orderId: string
+  readonly transactionId?: string | null
 }): Promise<MidtransStatusResponse> {
   const config = midtransServerConfig()
   let response: Response
 
   try {
     response = await fetch(
-      `${config.statusApiUrl}/${encodeURIComponent(orderId)}/status`,
+      `${config.statusApiUrl}/${encodeURIComponent(transactionId ?? orderId)}/status`,
       {
         headers: {
           Accept: "application/json",
@@ -309,6 +312,34 @@ export async function cancelSnapTransaction({
     })
   }
 
+  return parsed.data
+}
+
+// Official /v2 refund API uses `amount`, not the response's `refund_amount`.
+// Callers persist the key before reaching this boundary and reconcile GET status.
+export async function refundMidtransTransaction({ transactionId, refundKey, amount, reason }: {
+  readonly transactionId: string
+  readonly refundKey: string
+  readonly amount: number
+  readonly reason: string
+}) {
+  if (!/^[A-Za-z0-9_-]+$/.test(refundKey) || !Number.isSafeInteger(amount) || amount <= 0 || !reason || reason.length > 255) throw new Error("Invalid Midtrans refund request.")
+  const config = midtransServerConfig()
+  let response: Response
+  try {
+    response = await fetch(`${config.statusApiUrl}/${encodeURIComponent(transactionId)}/refund`, {
+      method: "POST",
+      headers: { Accept: "application/json", Authorization: authorizationHeader(config.serverKey), "Content-Type": "application/json" },
+      body: JSON.stringify({ refund_key: refundKey, amount, reason }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    })
+  } catch (error) { throw requestError("refund", error) }
+  const payload = await responsePayload(response)
+  const statusCode = midtransStatusCodeSchema.safeParse(payload)
+  const providerStatusCode = statusCode.success ? statusCode.data.status_code : null
+  const parsed = midtransRefundResponseSchema.safeParse(payload)
+  if (!response.ok || providerStatusCode !== "200" || !parsed.success) throw httpError({ operation: "refund", status: response.status, providerStatusCode, retryable: providerStatusCode === null ? true : undefined })
   return parsed.data
 }
 

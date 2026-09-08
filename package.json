@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "node --conditions=react-server --import tsx --test \"tests/**/*.test.ts\"",
     "auth:grant-admin": "tsx scripts/grant-admin.ts",
+    "returns:photos:gc": "node --conditions=react-server --import tsx scripts/cleanup-return-photos.ts",
     "db:push": "drizzle-kit push",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"

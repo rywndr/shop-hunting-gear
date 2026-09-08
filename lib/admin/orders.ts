@@ -1,3 +1,5 @@
+import type { AdminReturnRequest } from "@/lib/returns/config"
+import { isActionableReturn } from "@/lib/returns/queue"
 import { ALL_FILTER } from "@/lib/admin/config"
 import type {
   Order,
@@ -23,10 +25,11 @@ export const ORDER_QUEUES = {
   shipped: { label: "Dikirim", badge: "default", counted: true },
   completed: { label: "Selesai", badge: "outline", counted: false },
   returns: {
-    label: "Pengembalian/Pembatalan",
+    label: "Pengembalian",
     badge: "outline",
-    counted: false,
+    counted: true,
   },
+  cancelled: { label: "Dibatalkan", badge: "outline", counted: false },
 } as const satisfies Record<string, OrderQueueMeta>
 
 export type OrderQueue = keyof typeof ORDER_QUEUES
@@ -36,10 +39,11 @@ const QUEUE_BY_STATUS = {
   processing: "toShip",
   shipped: "shipped",
   completed: "completed",
-  cancelled: "returns",
+  cancelled: "cancelled",
 } as const satisfies Record<OrderStatus, OrderQueue>
 
 export type SalesOrder = {
+  readonly returnRequest?: AdminReturnRequest
   readonly buyer: string
   readonly order: Order
   readonly shipping: {
@@ -48,8 +52,17 @@ export type SalesOrder = {
   }
 }
 
-export function salesOrderQueue({ order }: SalesOrder): OrderQueue {
-  return QUEUE_BY_STATUS[order.status]
+export function salesOrderQueue({
+  order,
+  returnRequest,
+}: SalesOrder): OrderQueue {
+  return returnRequest &&
+    isActionableReturn({
+      status: returnRequest.status,
+      refundStatus: returnRequest.refund?.status ?? null,
+    })
+    ? "returns"
+    : QUEUE_BY_STATUS[order.status]
 }
 
 type OrderState = Pick<Order, "paymentStatus" | "fulfillmentStatus">
@@ -155,6 +168,7 @@ export const ORDER_QUEUE_FILTER_ORDER = [
   "shipped",
   "completed",
   "returns",
+  "cancelled",
 ] as const satisfies readonly OrderQueueFilter[]
 
 export function isOrderQueueFilter(value: unknown): value is OrderQueueFilter {
@@ -175,6 +189,7 @@ export const ORDER_TABS = {
   shipped: "shipped",
   completed: "completed",
   returns: "returns",
+  cancelled: "cancelled",
 } as const satisfies Record<string, OrderQueueFilter>
 
 export type OrderTab = keyof typeof ORDER_TABS
@@ -197,6 +212,8 @@ export function orderTab(filter: OrderQueueFilter): OrderTab {
       return "completed"
     case "returns":
       return "returns"
+    case "cancelled":
+      return "cancelled"
     default: {
       const _exhaustive: never = filter
       return _exhaustive
@@ -217,6 +234,7 @@ export function orderQueueCounts(
     shipped: 0,
     completed: 0,
     returns: 0,
+    cancelled: 0,
   } satisfies Record<OrderQueue, number>
 
   for (const entry of orders) {

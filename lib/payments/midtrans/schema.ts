@@ -42,7 +42,18 @@ export const midtransStatusCodeSchema = z.object({
   status_code: z.string().trim().min(1),
 })
 
+export const midtransRefundDetailSchema = z.object({
+  refund_chargeback_id: z.union([z.string().min(1), z.number().int().nonnegative()]).transform(String),
+  refund_amount: z.string().trim().min(1),
+  refund_key: z.string().trim().min(1).nullable().optional(),
+  created_at: z.string().trim().min(1).optional(),
+  reason: z.string().optional(),
+  refund_method: z.string().optional(),
+  bank_confirmed_at: z.string().trim().min(1).nullable().optional(),
+})
+
 const midtransTransactionFields = {
+  refunds: z.array(midtransRefundDetailSchema).nullable().optional(),
   order_id: z.string().trim().min(1),
   status_code: z.string().trim().min(1),
   gross_amount: z.string().trim().min(1),
@@ -76,6 +87,12 @@ export const midtransCancelResponseSchema = z.object({
 export type MidtransCancelResponse = z.infer<
   typeof midtransCancelResponseSchema
 >
+
+export const midtransRefundResponseSchema = z.object({
+  ...midtransTransactionFields,
+  refund_key: z.string().trim().min(1),
+  refund_chargeback_id: z.union([z.string().min(1), z.number().int().nonnegative()]).transform(String),
+})
 
 export const confirmPaymentSchema = z.object({
   orderId: z.string().trim().min(1),

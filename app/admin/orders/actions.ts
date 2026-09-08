@@ -1,6 +1,19 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import {
+  returnReviewSchema,
+  refundActionSchema,
+  type ReturnReviewInput,
+  type RefundActionInput,
+} from "@/lib/returns/schema"
+import { reviewReturn } from "@/lib/returns/service"
+import {
+  startReturnRefund,
+  refreshReturnRefund,
+  confirmOfflineRefund,
+} from "@/lib/returns/refunds"
+import { revalidateReturnViews } from "@/lib/returns/revalidation"
 
 import { canAccessAdmin, getCurrentSession } from "@/lib/auth/session"
 import type { ManualOrderInput } from "@/lib/admin/manual-order"
@@ -16,6 +29,100 @@ import {
 export type OrderMutationResult =
   | { readonly kind: "success" }
   | { readonly kind: "error"; readonly message: string }
+
+export async function reviewReturnAction(
+  input: ReturnReviewInput
+): Promise<OrderMutationResult> {
+  const session = await getCurrentSession()
+  if (!canAccessAdmin(session) || !session)
+    return { kind: "error", message: "Anda tidak dapat memeriksa retur." }
+  const parsed = returnReviewSchema.safeParse(input)
+  if (!parsed.success)
+    return {
+      kind: "error",
+      message: "Periksa catatan dan jumlah barang retur.",
+    }
+  try {
+    const changed = await reviewReturn({
+      actorId: session.user.id,
+      input: parsed.data,
+    })
+    revalidateReturnViews()
+    return changed
+      ? { kind: "success" }
+      : {
+          kind: "error",
+          message:
+            "Status retur berubah atau jumlah barang tidak sesuai. Muat ulang halaman.",
+        }
+  } catch (error) {
+    console.error("Return review failed.", {
+      event: "returns.review_failed",
+      returnId: parsed.data.returnId,
+      error,
+    })
+    return {
+      kind: "error",
+      message: "Pemeriksaan belum dapat dikonfirmasi. Muat ulang halaman.",
+    }
+  }
+}
+
+export async function refundReturnAction(
+  input: RefundActionInput
+): Promise<OrderMutationResult> {
+  const session = await getCurrentSession()
+  if (!canAccessAdmin(session) || !session)
+    return { kind: "error", message: "Anda tidak dapat mengembalikan dana." }
+  const parsed = refundActionSchema.safeParse(input)
+  if (!parsed.success)
+    return { kind: "error", message: "Data pengembalian dana tidak valid." }
+  try {
+    const value = parsed.data
+    let changed: boolean
+    switch (value.kind) {
+      case "refund":
+        changed = await startReturnRefund({
+          returnId: value.returnId,
+          actorId: session.user.id,
+        })
+        break
+      case "reconcile":
+        changed = await refreshReturnRefund(value.returnId)
+        break
+      case "confirm-offline":
+        changed = await confirmOfflineRefund({
+          ...value,
+          actorId: session.user.id,
+        })
+        break
+      default: {
+        const _exhaustive: never = value
+        return _exhaustive
+      }
+    }
+    revalidateReturnViews({ finance: true })
+    return changed
+      ? { kind: "success" }
+      : {
+          kind: "error",
+          message:
+            "Pengembalian dana memerlukan pemeriksaan status, jumlah, atau batas waktu. Jangan melakukan pembayaran lain sebelum status dipastikan.",
+        }
+  } catch (error) {
+    console.error("Return refund failed.", {
+      event: "returns.refund_failed",
+      returnId: parsed.data.returnId,
+      error,
+    })
+    revalidateReturnViews({ finance: true })
+    return {
+      kind: "error",
+      message:
+        "Status pengembalian dana belum dapat dipastikan. Periksa status sebelum mencoba lagi; jangan membayar manual.",
+    }
+  }
+}
 
 const REJECTION_MESSAGES = {
   "invalid-input": "Periksa kembali data pesanan.",
