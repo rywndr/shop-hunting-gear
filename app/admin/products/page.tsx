@@ -69,10 +69,10 @@ async function ProductListingTable({
   )
 }
 
-export default async function AdminProductsPage(
-  props: PageProps<"/admin/products">
-) {
-  const params = await props.searchParams
+async function ProductListing({
+  searchParams,
+}: Pick<PageProps<"/admin/products">, "searchParams">) {
+  const params = await searchParams
   const tab = typeof params.tab === "string" ? params.tab : undefined
   const query: ListingQuery = {
     state: listingFilterFromTab(tab ?? null),
@@ -97,17 +97,25 @@ export default async function AdminProductsPage(
   }
 
   return (
+    <ProductListingTable
+      query={query}
+      currentPage={currentPage}
+      currentPageSize={currentPageSize}
+    />
+  )
+}
+
+export default function AdminProductsPage({
+  searchParams,
+}: PageProps<"/admin/products">) {
+  return (
     <AdminPage
       title={SECTION.label}
       description={SECTION.description}
       action={<CatalogActions />}
     >
       <Suspense fallback={<ListingTableSkeleton />}>
-        <ProductListingTable
-          query={query}
-          currentPage={currentPage}
-          currentPageSize={currentPageSize}
-        />
+        <ProductListing searchParams={searchParams} />
       </Suspense>
     </AdminPage>
   )

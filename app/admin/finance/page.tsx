@@ -63,10 +63,10 @@ async function FinanceContent({
   )
 }
 
-export default async function AdminFinancePage(
-  props: PageProps<"/admin/finance">
-) {
-  const params = await props.searchParams
+async function FinancePageContent({
+  searchParams,
+}: Pick<PageProps<"/admin/finance">, "searchParams">) {
+  const params = await searchParams
   const page = positiveInteger(
     typeof params.page === "string" ? params.page : undefined,
     1
@@ -77,10 +77,16 @@ export default async function AdminFinancePage(
   )
   const pageSize = isPageSize(requestedSize) ? requestedSize : 10
 
+  return <FinanceContent page={page} pageSize={pageSize} />
+}
+
+export default function AdminFinancePage({
+  searchParams,
+}: PageProps<"/admin/finance">) {
   return (
     <AdminPage title={SECTION.label} description={SECTION.description}>
       <Suspense fallback={<FinanceSkeleton />}>
-        <FinanceContent page={page} pageSize={pageSize} />
+        <FinancePageContent searchParams={searchParams} />
       </Suspense>
     </AdminPage>
   )

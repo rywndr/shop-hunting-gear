@@ -1,7 +1,11 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 
 import { AdminPage } from "@/components/admin/admin-page"
-import { LowStockList } from "@/components/admin/dashboard/low-stock-list"
+import {
+  LowStockList,
+  LowStockListSkeleton,
+} from "@/components/admin/dashboard/low-stock-list"
 import { RecentOrders } from "@/components/admin/dashboard/recent-orders"
 import { SalesChart } from "@/components/admin/dashboard/sales-chart"
 import { SalesSummary } from "@/components/admin/dashboard/sales-summary"
@@ -21,21 +25,31 @@ export const metadata: Metadata = {
   description: SECTION.description,
 }
 
-export default async function AdminDashboardPage() {
+async function LowStockContent() {
   const listings = await adminProductListings()
   const products = listings
     .filter(({ state }) => state !== "deleted")
     .map(({ product }) => product)
 
   return (
+    <LowStockList
+      products={lowStockProducts(products, LOW_STOCK_THRESHOLD)}
+      threshold={LOW_STOCK_THRESHOLD}
+    />
+  )
+}
+
+export default function AdminDashboardPage() {
+  return (
     <AdminPage title={SECTION.label} description={SECTION.description}>
       <SalesSummary metrics={MOCK_SALES_METRICS} />
       <SalesChart series={MOCK_DAILY_SALES} />
       <RecentOrders orders={recentOrders(MOCK_ORDERS, RECENT_ORDER_LIMIT)} />
-      <LowStockList
-        products={lowStockProducts(products, LOW_STOCK_THRESHOLD)}
-        threshold={LOW_STOCK_THRESHOLD}
-      />
+      <Suspense
+        fallback={<LowStockListSkeleton threshold={LOW_STOCK_THRESHOLD} />}
+      >
+        <LowStockContent />
+      </Suspense>
     </AdminPage>
   )
 }

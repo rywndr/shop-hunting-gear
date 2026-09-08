@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
@@ -12,7 +13,9 @@ export const metadata: Metadata = {
   description: "Masuk ke akun Anda untuk melanjutkan belanja.",
 }
 
-export default async function Page({ searchParams }: PageProps<"/login">) {
+async function LoginContent({
+  searchParams,
+}: Pick<PageProps<"/login">, "searchParams">) {
   const { callbackURL } = await searchParams
   const redirectTo = safeAuthRedirect(
     typeof callbackURL === "string" ? callbackURL : "/"
@@ -35,5 +38,13 @@ export default async function Page({ searchParams }: PageProps<"/login">) {
     >
       <SignInForm callbackURL={redirectTo} />
     </AuthCard>
+  )
+}
+
+export default function Page({ searchParams }: PageProps<"/login">) {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent searchParams={searchParams} />
+    </Suspense>
   )
 }

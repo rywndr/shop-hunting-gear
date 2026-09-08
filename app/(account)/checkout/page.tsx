@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
 
@@ -18,19 +19,13 @@ export const metadata: Metadata = {
   description: "Pilih alamat dan layanan pengiriman pesanan Anda.",
 }
 
-type CheckoutSearchParams = Promise<
-  Record<string, string | string[] | undefined>
->
-
 function queryValue(value: string | string[] | undefined) {
   return typeof value === "string" ? value : undefined
 }
 
-export default async function CheckoutPage({
+async function CheckoutContent({
   searchParams,
-}: {
-  searchParams: CheckoutSearchParams
-}) {
+}: Pick<PageProps<"/checkout">, "searchParams">) {
   const session = await getCurrentSession()
 
   if (!session) return null
@@ -115,5 +110,15 @@ export default async function CheckoutPage({
         source={source}
       />
     </AccountShell>
+  )
+}
+
+export default function CheckoutPage({
+  searchParams,
+}: PageProps<"/checkout">) {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutContent searchParams={searchParams} />
+    </Suspense>
   )
 }
