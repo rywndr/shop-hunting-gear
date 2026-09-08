@@ -42,6 +42,7 @@ async function NavBar({
         {session ? (
           <AccountMenu
             links={accountMenuLinks(isAdmin)}
+            align="end"
             className="hidden md:inline-flex"
           />
         ) : (

@@ -18,7 +18,7 @@ function GuestAccountMenu({ className }: { className?: string }) {
           <UserCircleIcon className="size-6" />
         </Button>
 
-        <div className="invisible absolute top-full left-1/2 z-30 w-64 -translate-x-1/2 pt-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className="invisible absolute top-full right-0 z-30 w-64 pt-2 opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
           <div className="border border-border bg-popover p-5 text-center text-popover-foreground shadow-lg">
             <Button
               nativeButton={false}
