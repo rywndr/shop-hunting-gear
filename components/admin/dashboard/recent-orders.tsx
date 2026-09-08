@@ -44,27 +44,38 @@ function RecentOrders({ orders }: { orders: readonly Order[] }) {
         </TableHeader>
 
         <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className={`${TABLE_EDGE} font-mono text-xs`}>
-                {order.id}
-              </TableCell>
-              <TableCell className={`${TABLE_EDGE} text-muted-foreground`}>
-                {formatShortDate(order.placedAt)}
-              </TableCell>
-              <TableCell className={TABLE_EDGE}>
-                <OrderStatusBadge status={order.status} />
-              </TableCell>
-              <TableCell className={`${TABLE_EDGE} text-right tabular-nums`}>
-                {formatNumber(orderItemCount(order))}
-              </TableCell>
+          {orders.length === 0 ? (
+            <TableRow>
               <TableCell
-                className={`${TABLE_EDGE} text-right font-medium tabular-nums`}
+                colSpan={5}
+                className={`${TABLE_EDGE} py-8 text-center text-muted-foreground`}
               >
-                {formatRupiah(orderTotal(order))}
+                Belum ada pesanan.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className={`${TABLE_EDGE} font-mono text-xs`}>
+                  {order.id}
+                </TableCell>
+                <TableCell className={`${TABLE_EDGE} text-muted-foreground`}>
+                  {formatShortDate(order.placedAt)}
+                </TableCell>
+                <TableCell className={TABLE_EDGE}>
+                  <OrderStatusBadge status={order.status} />
+                </TableCell>
+                <TableCell className={`${TABLE_EDGE} text-right tabular-nums`}>
+                  {formatNumber(orderItemCount(order))}
+                </TableCell>
+                <TableCell
+                  className={`${TABLE_EDGE} text-right font-medium tabular-nums`}
+                >
+                  {formatRupiah(orderTotal(order))}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </AdminCard>

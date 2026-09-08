@@ -81,6 +81,16 @@ export const ADMIN_MENU_LINKS = [
 export const ALL_FILTER = "all"
 
 export const LOW_STOCK_THRESHOLD = 15
+export const DASHBOARD_RECENT_ORDER_LIMIT = 5
+export const DASHBOARD_SALES_HISTORY_DAYS = 60
+
+export const DASHBOARD_SALES_PERIODS = [
+  { label: "Hari Ini", days: 1 },
+  { label: "7 Hari Terakhir", days: 7 },
+] as const satisfies readonly {
+  readonly label: string
+  readonly days: number
+}[]
 
 export type SalesMetric = {
   readonly label: string
@@ -160,6 +170,45 @@ export function salesTotal(series: readonly DailySales[]) {
 
 export function salesOrderCount(series: readonly DailySales[]) {
   return series.reduce((total, day) => total + day.orderCount, 0)
+}
+
+function dateBefore(date: string, days: number) {
+  const timestamp = Date.parse(`${date}T00:00:00.000Z`)
+
+  if (Number.isNaN(timestamp)) {
+    throw new Error("Invalid dashboard sales date.")
+  }
+
+  return new Date(timestamp - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, date.length)
+}
+
+export function fillDailySalesDays({
+  series,
+  endDate,
+  days,
+}: {
+  readonly series: readonly DailySales[]
+  readonly endDate: string
+  readonly days: number
+}): readonly DailySales[] {
+  const safeDays = Math.max(1, Math.floor(days))
+  const salesByDate = new Map(series.map((day) => [day.date, day]))
+
+  return Array.from({ length: safeDays }, (_, index) => {
+    const date = dateBefore(endDate, safeDays - index - 1)
+
+    return salesByDate.get(date) ?? { date, amount: 0, orderCount: 0 }
+  })
+}
+
+export function dashboardSalesMetrics(
+  series: readonly DailySales[]
+): readonly SalesMetric[] {
+  return DASHBOARD_SALES_PERIODS.map(({ label, days }) =>
+    trailingMetric({ series, label, days })
+  )
 }
 
 export function trailingMetric({

@@ -1,6 +1,17 @@
 import "server-only"
 
-import { and, asc, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  lte,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import { cacheLife, cacheTag } from "next/cache"
 
 import {
@@ -413,6 +424,34 @@ export async function adminProductListings(): Promise<
       updatedAt: listing.updatedAt.toISOString(),
     }))
   )
+}
+
+export async function adminLowStockProducts(
+  threshold: number
+): Promise<readonly Product[]> {
+  await assertAdminAccess()
+
+  const safeThreshold = Math.max(0, Math.floor(threshold))
+  const rows = await readProductTables({
+    query: () =>
+      db
+        .select({ product: productTable })
+        .from(productTable)
+        .innerJoin(
+          productListing,
+          eq(productListing.productId, productTable.id)
+        )
+        .where(
+          and(
+            ne(productListing.state, "deleted"),
+            lte(productTable.stock, safeThreshold)
+          )
+        )
+        .orderBy(asc(productTable.stock), asc(productTable.name)),
+    missingTableValue: [],
+  })
+
+  return Promise.all(rows.map(({ product }) => domainProduct(product, "admin")))
 }
 
 function listingFilter({

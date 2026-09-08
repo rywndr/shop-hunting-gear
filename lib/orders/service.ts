@@ -33,7 +33,11 @@ import {
 import { user } from "@/lib/db/schema/auth"
 import { productReview } from "@/lib/db/schema/review"
 import type { Address } from "@/lib/account/types"
-import { ALL_FILTER } from "@/lib/admin/config"
+import {
+  ALL_FILTER,
+  fillDailySalesDays,
+  type DailySales,
+} from "@/lib/admin/config"
 import {
   canMarkOrderPaid,
   SHIPMENT_PAYMENT_STATUSES,
@@ -2384,6 +2388,101 @@ export async function salesOrders(): Promise<readonly SalesOrder[]> {
   })
 
   return page.orders
+}
+
+export async function recentAdminOrders(
+  limit: number
+): Promise<readonly Order[]> {
+  await assertAdminAccess()
+
+  const safeLimit = Math.max(0, Math.floor(limit))
+
+  if (safeLimit === 0) return []
+
+  const idRows = await db
+    .select({ id: customerOrder.id })
+    .from(customerOrder)
+    .orderBy(desc(customerOrder.placedAt), asc(customerOrder.id))
+    .limit(safeLimit)
+  const ids = idRows.map(({ id }) => id)
+
+  if (ids.length === 0) return []
+
+  const rows = await db
+    .select({ order: customerOrder, item: customerOrderItem })
+    .from(customerOrder)
+    .innerJoin(
+      customerOrderItem,
+      eq(customerOrderItem.orderId, customerOrder.id)
+    )
+    .where(inArray(customerOrder.id, ids))
+    .orderBy(desc(customerOrder.placedAt), asc(customerOrder.id))
+
+  return groupOrders(rows).map(({ order }) => order)
+}
+
+export async function adminDailySales(
+  days: number
+): Promise<readonly DailySales[]> {
+  await assertAdminAccess()
+
+  const safeDays = Math.max(1, Math.floor(days))
+  const salesDate = sql<string>`to_char(
+    ${customerOrder.paidAt} at time zone 'Asia/Jakarta',
+    'YYYY-MM-DD'
+  )`
+  const chargeback = sql<number>`coalesce(
+    ${customerOrder.midtransChargebackAmount},
+    CASE WHEN ${customerOrder.paymentStatus} = 'chargeback'
+      THEN ${customerOrder.grossAmount}
+      ELSE 0
+    END
+  )`
+
+  const [todayResult, rows] = await Promise.all([
+    db.execute<{ today: string }>(sql`
+      SELECT to_char(now() at time zone 'Asia/Jakarta', 'YYYY-MM-DD') AS today
+    `),
+    db
+      .select({
+        date: salesDate.as("date"),
+        amount: sql<number>`coalesce(sum(greatest(
+          0,
+          ${customerOrder.grossAmount}
+            - (${confirmedOrderRefundSql()})
+            - (${chargeback})
+        )), 0)`,
+        orderCount: sql<number>`count(*)`,
+      })
+      .from(customerOrder)
+      .where(
+        and(
+          inArray(customerOrder.paymentStatus, REVENUE_PAYMENT_STATUSES),
+          isNotNull(customerOrder.paidAt),
+          sql`${customerOrder.paidAt} >= (
+            date_trunc('day', now() at time zone 'Asia/Jakarta')
+              - (${safeDays - 1} * interval '1 day')
+          ) at time zone 'Asia/Jakarta'`
+        )
+      )
+      .groupBy(salesDate)
+      .orderBy(asc(salesDate)),
+  ])
+  const today = todayResult.rows[0]?.today
+
+  if (!today) {
+    throw new Error("Could not determine the dashboard sales date.")
+  }
+
+  return fillDailySalesDays({
+    endDate: today,
+    days: safeDays,
+    series: rows.map((row) => ({
+      date: row.date,
+      amount: Number(row.amount),
+      orderCount: Number(row.orderCount),
+    })),
+  })
 }
 
 function transactionFromRows({
