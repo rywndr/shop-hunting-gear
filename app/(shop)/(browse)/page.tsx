@@ -3,16 +3,19 @@ import type { Metadata } from "next"
 import { permanentRedirect, redirect } from "next/navigation"
 
 import { HeroCarousel } from "@/components/layout/hero-carousel"
-import { CategoryFilterList } from "@/components/products/category-filter-list"
+import {
+  BrowseControls,
+  type CategoryCount,
+} from "@/components/products/browse-controls"
 import {
   ProductGrid,
   ProductGridSkeleton,
 } from "@/components/products/product-grid"
 import { ProductPagination } from "@/components/products/product-pagination"
-import { ProductSection } from "@/components/products/product-section"
 import {
   productsInCategories,
   productsMatching,
+  sortProducts,
   type Product,
 } from "@/lib/products/config"
 import {
@@ -26,10 +29,10 @@ import {
   type BrowseQuery,
   type BrowseSelection,
 } from "@/lib/site/browse"
-import { SITE, findCategories, type CategorySlug } from "@/lib/site/config"
+import { CATEGORIES, SITE, findCategories } from "@/lib/site/config"
 import { pageMetadata } from "@/lib/site/metadata"
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 12
 
 type SelectedCategory = ReturnType<typeof findCategories>[number]
 
@@ -61,26 +64,6 @@ function browseFilter(selection: BrowseSelection): BrowseFilter {
   return { kind: "all" }
 }
 
-function filterCategories(filter: BrowseFilter): readonly SelectedCategory[] {
-  switch (filter.kind) {
-    case "search":
-    case "category":
-      return filter.categories
-    case "all":
-      return []
-    default: {
-      const _exhaustive: never = filter
-      return _exhaustive
-    }
-  }
-}
-
-function categorySlugs(
-  categories: readonly SelectedCategory[]
-): readonly CategorySlug[] {
-  return categories.map((category) => category.slug)
-}
-
 function categoryLabels(categories: readonly SelectedCategory[]) {
   return categories.map((category) => category.label).join(" & ")
 }
@@ -90,10 +73,22 @@ function filteredProducts(
   selection: BrowseSelection
 ): readonly Product[] {
   const inCategories = productsInCategories(products, selection.categories)
-
-  return selection.search
+  const matching = selection.search
     ? productsMatching(inCategories, selection.search)
     : inCategories
+
+  return sortProducts(matching, selection.sort)
+}
+
+function categoryCounts(
+  products: readonly Product[]
+): readonly CategoryCount[] {
+  return CATEGORIES.map((category) => ({
+    slug: category.slug,
+    label: category.label,
+    count: products.filter((product) => product.category === category.slug)
+      .length,
+  }))
 }
 
 function sectionCopy(filter: BrowseFilter): {
@@ -114,7 +109,7 @@ function sectionCopy(filter: BrowseFilter): {
     case "all":
       return {
         title: "Semua Produk",
-        description: "Seluruh katalog dari empat kategori dalam satu daftar.",
+        description: "Perlengkapan Hunting, Fishing, Spareparts, dan Hobbies.",
       }
     default: {
       const _exhaustive: never = filter
@@ -124,16 +119,14 @@ function sectionCopy(filter: BrowseFilter): {
 }
 
 async function resolveBrowsePage(query: BrowseQuery) {
-  const products = filteredProducts(
-    await browseProducts(),
-    normalizeBrowseQuery(query)
-  )
+  const allProducts = await browseProducts()
+  const products = filteredProducts(allProducts, normalizeBrowseQuery(query))
   const resolution = resolveBrowseRequest({
     query,
     pageCount: browsePageCount(products.length, PAGE_SIZE),
   })
 
-  return { ...resolution, products }
+  return { ...resolution, allProducts, products }
 }
 
 export async function generateMetadata({
@@ -197,62 +190,85 @@ async function BrowseCatalog({
     }
   }
 
-  const { selection, products: matchingProducts } = resolution
+  const { selection, products: matchingProducts, allProducts } = resolution
   const page = selection.page
   const visibleProductData = matchingProducts.slice(
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE
   )
   const products = await storefrontProductCards(visibleProductData)
-  const filter = browseFilter(selection)
-  const copy = sectionCopy(filter)
-  const selectedCategories = filterCategories(filter)
+  const copy = sectionCopy(browseFilter(selection))
 
   return (
-    <ProductSection
-      id="products"
-      title={copy.title}
-      description={copy.description}
-      action={
-        selectedCategories.length > 0 ? (
-          <CategoryFilterList
-            key={categorySlugs(selectedCategories).join(",")}
-            categories={selectedCategories}
-            search={filter.kind === "search" ? filter.search : ""}
-          />
-        ) : undefined
-      }
-      className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
+    <div
+      id="catalog"
+      className="mx-auto grid w-full max-w-7xl scroll-mt-20 gap-8 px-4 py-8 md:scroll-mt-[calc(3.75rem+var(--spacing-category-bar)+1rem)] md:grid-cols-[16rem_minmax(0,1fr)] md:py-12"
     >
-      <div className="flex flex-col gap-6">
-        <ProductGrid
-          products={products}
-          emptyMessage="Tidak ada produk yang cocok dengan filter ini."
-        />
-        {matchingProducts.length > PAGE_SIZE && (
-          <ProductPagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={matchingProducts.length}
+      <BrowseControls
+        categories={categoryCounts(allProducts)}
+        selection={selection}
+        total={matchingProducts.length}
+      />
+
+      <section
+        id="products"
+        aria-labelledby="products-heading"
+        className="min-w-0 scroll-mt-20 md:scroll-mt-[calc(3.75rem+var(--spacing-category-bar)+1rem)]"
+      >
+        <div className="mb-6 border-b border-border pb-5">
+          <h1
+            id="products-heading"
+            className="font-heading text-2xl font-semibold tracking-tight md:text-3xl"
+          >
+            {copy.title}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {copy.description}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <ProductGrid
+            products={products}
+            emptyMessage="Tidak ada produk yang cocok dengan filter ini."
+            className="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
           />
-        )}
-      </div>
-    </ProductSection>
+          {matchingProducts.length > PAGE_SIZE && (
+            <ProductPagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={matchingProducts.length}
+            />
+          )}
+        </div>
+      </section>
+    </div>
   )
 }
 
 function BrowseCatalogSkeleton() {
   return (
-    <ProductSection
-      id="products"
-      title="Memuat produk"
-      description="Katalog sedang dimuat."
-      className="mx-auto w-full max-w-7xl px-4 py-8 md:py-12"
-    >
-      <div className="flex flex-col gap-6">
-        <ProductGridSkeleton />
+    <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 md:grid-cols-[16rem_minmax(0,1fr)] md:py-12">
+      <div aria-hidden className="hidden space-y-6 md:block">
+        <div className="h-11 animate-pulse bg-muted" />
+        <div className="h-12 animate-pulse border-b border-border bg-muted" />
+        <div className="h-48 animate-pulse bg-muted" />
       </div>
-    </ProductSection>
+      <section aria-labelledby="loading-products-heading" className="min-w-0">
+        <div className="mb-6 border-b border-border pb-5">
+          <h1
+            id="loading-products-heading"
+            className="font-heading text-2xl font-semibold"
+          >
+            Memuat produk
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Katalog sedang dimuat.
+          </p>
+        </div>
+        <ProductGridSkeleton className="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3" />
+      </section>
+    </div>
   )
 }
 
@@ -260,7 +276,6 @@ export default function Page({ searchParams }: PageProps<"/">) {
   return (
     <>
       <HeroCarousel />
-
       <Suspense fallback={<BrowseCatalogSkeleton />}>
         <BrowseCatalog searchParams={searchParams} />
       </Suspense>

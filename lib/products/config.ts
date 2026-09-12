@@ -1,4 +1,4 @@
-import type { CategorySlug } from "@/lib/site/config"
+import type { BrowseSort, CategorySlug } from "@/lib/site/config"
 
 export const MAX_RATING = 5
 
@@ -208,6 +208,24 @@ export function productsMatching(products: readonly Product[], search: string) {
       value.toLocaleLowerCase("id-ID").includes(term)
     )
   )
+}
+
+export function sortProducts(
+  products: readonly Product[],
+  sort: BrowseSort
+): readonly Product[] {
+  switch (sort) {
+    case "price-asc":
+      return [...products].sort((left, right) => left.price - right.price)
+    case "price-desc":
+      return [...products].sort((left, right) => right.price - left.price)
+    case "best-selling":
+      return [...products].sort((left, right) => right.sold - left.sold)
+    default: {
+      const _exhaustive: never = sort
+      return _exhaustive
+    }
+  }
 }
 
 export function relatedProducts(

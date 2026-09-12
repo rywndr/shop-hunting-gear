@@ -18,7 +18,12 @@ function resolve(query: BrowseQuery, pageCount = PAGE_COUNT) {
 test("the bare catalog is indexable and canonical at the root", () => {
   const { selection, canonical, redirectTo, index } = resolve({})
 
-  assert.deepEqual(selection, { categories: [], search: "", page: 1 })
+  assert.deepEqual(selection, {
+    categories: [],
+    search: "",
+    sort: "best-selling",
+    page: 1,
+  })
   assert.equal(canonical, "/")
   assert.equal(redirectTo, null)
   assert.equal(index, true)
@@ -193,6 +198,22 @@ test("params are reordered into the canonical sequence", () => {
   assert.equal(redirectTo, "/?category=fishing&page=3")
 })
 
+test("non-default sorting is canonical and not indexable", () => {
+  const { selection, canonical, redirectTo, index } = resolve({
+    sort: "price-asc",
+  })
+
+  assert.equal(selection.sort, "price-asc")
+  assert.equal(canonical, "/?sort=price-asc")
+  assert.equal(redirectTo, null)
+  assert.equal(index, false)
+})
+
+test("default and unknown sorting normalize away", () => {
+  assert.equal(resolve({ sort: "best-selling" }).redirectTo, "/")
+  assert.equal(resolve({ sort: "newest" }).redirectTo, "/")
+})
+
 test("search is never indexable", () => {
   const { selection, canonical, redirectTo, index } = resolve({
     search: "joran",
@@ -228,10 +249,7 @@ test("search keeps its page and stays unindexed", () => {
 })
 
 test("a padded or empty search normalizes away", () => {
-  assert.equal(
-    resolve({ search: "  joran  " }).redirectTo,
-    "/?search=joran"
-  )
+  assert.equal(resolve({ search: "  joran  " }).redirectTo, "/?search=joran")
   assert.equal(resolve({ search: "   " }).redirectTo, "/")
   assert.equal(resolve({ search: "" }).canonical, "/")
 })
@@ -253,30 +271,47 @@ test("normalization does not depend on the page count", () => {
   assert.deepEqual(normalizeBrowseQuery(query), {
     categories: ["hunting", "hobbies"],
     search: "reel",
+    sort: "best-selling",
     page: 1,
   })
 })
 
 test("indexability follows the normalized selection", () => {
   assert.equal(
-    browseIndexable({ categories: [], search: "", page: 4 }),
+    browseIndexable({
+      categories: [],
+      search: "",
+      sort: "best-selling",
+      page: 4,
+    }),
     true,
     "deep pages of the unfiltered catalog stay indexable"
   )
   assert.equal(
-    browseIndexable({ categories: ["hunting"], search: "", page: 1 }),
+    browseIndexable({
+      categories: ["hunting"],
+      search: "",
+      sort: "best-selling",
+      page: 1,
+    }),
     true
   )
   assert.equal(
     browseIndexable({
       categories: ["hunting", "fishing"],
       search: "",
+      sort: "best-selling",
       page: 1,
     }),
     false
   )
   assert.equal(
-    browseIndexable({ categories: [], search: "reel", page: 1 }),
+    browseIndexable({
+      categories: [],
+      search: "reel",
+      sort: "best-selling",
+      page: 1,
+    }),
     false
   )
 })

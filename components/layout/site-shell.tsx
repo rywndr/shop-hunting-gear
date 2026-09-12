@@ -49,7 +49,7 @@ function SiteShell({ children, variant }: SiteShellProps) {
 
       {chrome.categories && (
         <Suspense>
-          <CategoryBar className="absolute inset-x-0 top-15 z-10" />
+          <CategoryBar className="absolute inset-x-0 top-navbar z-10" />
         </Suspense>
       )}
 

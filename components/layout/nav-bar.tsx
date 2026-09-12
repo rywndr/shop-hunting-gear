@@ -44,9 +44,11 @@ function NavBar({
 }) {
   return (
     <div className={className}>
-      <div className="relative flex items-center gap-2 px-4 py-3 md:gap-4 md:px-8">
+      <div className="relative flex h-navbar items-center gap-2 px-4 py-3 md:gap-4 md:px-8">
         {personalized ? (
-          <Suspense fallback={<div aria-hidden className="size-10 md:hidden" />}>
+          <Suspense
+            fallback={<div aria-hidden className="size-10 md:hidden" />}
+          >
             <PersonalizedMobileNav />
           </Suspense>
         ) : (

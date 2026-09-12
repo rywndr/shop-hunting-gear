@@ -1,10 +1,14 @@
 import {
+  BROWSE_SORT_OPTIONS,
   CATEGORIES,
   CATEGORY_QUERY,
   PAGE_QUERY,
   SEARCH_QUERY,
+  SORT_QUERY,
   findCategories,
+  isBrowseSort,
   shopHref,
+  type BrowseSort,
   type CategorySlug,
 } from "./config"
 
@@ -15,6 +19,7 @@ export type BrowseQuery = Readonly<
 export type BrowseSelection = {
   readonly categories: readonly CategorySlug[]
   readonly search: string
+  readonly sort: BrowseSort
   readonly page: number
 }
 
@@ -35,7 +40,12 @@ export type BrowseResolution = BrowseResolutionBase &
 
 const MAX_INDEXABLE_CATEGORIES = 1
 
-const BROWSE_QUERIES = [CATEGORY_QUERY, SEARCH_QUERY, PAGE_QUERY] as const
+const BROWSE_QUERIES = [
+  CATEGORY_QUERY,
+  SEARCH_QUERY,
+  SORT_QUERY,
+  PAGE_QUERY,
+] as const
 
 type BrowseQueryKey = (typeof BROWSE_QUERIES)[number]
 
@@ -73,9 +83,14 @@ function selectedCategories(
 }
 
 export function normalizeBrowseQuery(query: BrowseQuery): BrowseSelection {
+  const requestedSort = firstValue(query[SORT_QUERY])
+
   return {
     categories: selectedCategories(query[CATEGORY_QUERY]),
     search: firstValue(query[SEARCH_QUERY])?.trim() ?? "",
+    sort: isBrowseSort(requestedSort)
+      ? requestedSort
+      : BROWSE_SORT_OPTIONS[0].value,
     page: pageNumber(firstValue(query[PAGE_QUERY])),
   }
 }
@@ -84,6 +99,7 @@ export function browseHref(selection: BrowseSelection) {
   return shopHref({
     categories: selection.categories,
     search: selection.search,
+    sort: selection.sort,
     page: selection.page,
   })
 }
@@ -108,6 +124,7 @@ export function requestedBrowseHref(query: BrowseQuery) {
 export function browseIndexable(selection: BrowseSelection) {
   return (
     selection.search === "" &&
+    selection.sort === BROWSE_SORT_OPTIONS[0].value &&
     selection.categories.length <= MAX_INDEXABLE_CATEGORIES
   )
 }

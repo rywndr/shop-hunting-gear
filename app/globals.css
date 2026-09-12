@@ -78,6 +78,7 @@
 }
 
 @theme inline {
+  --spacing-navbar: 3.75rem;
   --spacing-category-bar: 2.875rem;
   --spacing-admin-header: 3.5rem;
   --font-sans: var(--font-sans);

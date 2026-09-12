@@ -18,15 +18,30 @@ export type Category = NavLink & {
 
 export const CATEGORY_QUERY = "category"
 export const SEARCH_QUERY = "search"
+export const SORT_QUERY = "sort"
 export const PAGE_QUERY = "page"
+
+export const BROWSE_SORT_OPTIONS = [
+  { value: "best-selling", label: "Penjualan terbanyak" },
+  { value: "price-asc", label: "Harga terendah" },
+  { value: "price-desc", label: "Harga tertinggi" },
+] as const satisfies readonly { value: string; label: string }[]
+
+export type BrowseSort = (typeof BROWSE_SORT_OPTIONS)[number]["value"]
+
+export function isBrowseSort(value: unknown): value is BrowseSort {
+  return BROWSE_SORT_OPTIONS.some((option) => option.value === value)
+}
 
 export function shopHref({
   categories = [],
   search,
+  sort,
   page,
 }: {
   categories?: readonly string[]
   search?: string
+  sort?: BrowseSort
   page?: number
 } = {}) {
   const query = new URLSearchParams()
@@ -37,6 +52,10 @@ export function shopHref({
 
   if (search) {
     query.set(SEARCH_QUERY, search)
+  }
+
+  if (sort && sort !== BROWSE_SORT_OPTIONS[0].value) {
+    query.set(SORT_QUERY, sort)
   }
 
   if (page !== undefined && page > 1) {
