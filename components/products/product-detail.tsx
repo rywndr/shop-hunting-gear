@@ -30,13 +30,13 @@ function Breadcrumb({ product }: { product: Product }) {
   const category = categoryBySlug(product.category)
 
   return (
-    <nav aria-label="Breadcrumb">
-      <ol className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+    <nav aria-label="Breadcrumb" className="overflow-hidden">
+      <ol className="flex min-w-0 flex-nowrap items-center gap-1 text-xs text-muted-foreground">
         {[
           { label: "Beranda", href: "/" },
           { label: category.label, href: category.href },
         ].map((crumb) => (
-          <li key={crumb.href} className="flex items-center gap-1">
+          <li key={crumb.href} className="flex shrink-0 items-center gap-1">
             <Link
               href={crumb.href}
               className="hover:text-foreground hover:underline hover:underline-offset-4"
@@ -46,7 +46,10 @@ function Breadcrumb({ product }: { product: Product }) {
             <CaretRightIcon className="size-3" aria-hidden />
           </li>
         ))}
-        <li aria-current="page" className="truncate text-foreground">
+        <li
+          aria-current="page"
+          className="min-w-0 truncate text-foreground"
+        >
           {product.name}
         </li>
       </ol>
