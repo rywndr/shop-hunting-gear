@@ -4,10 +4,15 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import test, { after, before } from "node:test"
 
+import { Pool } from "@neondatabase/serverless"
 import { eq, sql } from "drizzle-orm"
 
 import { db } from "../lib/db/client"
-import { customerOrder, customerOrderItem } from "../lib/db/schema/order"
+import {
+  customerOrder,
+  customerOrderItem,
+  orderCancellation,
+} from "../lib/db/schema/order"
 import { product, productListing } from "../lib/db/schema/product"
 import { user } from "../lib/db/schema/auth"
 import {
@@ -23,9 +28,11 @@ import {
   orderTrackingRecordForUser,
 } from "../lib/orders/tracking"
 import type { ManualOrderInput } from "../lib/admin/manual-order"
+import { requestOrderCancellation } from "../lib/orders/cancellation-service"
 
 const suffix = randomUUID().slice(0, 8)
 const CUSTOMER_ID = `test-customer-${suffix}`
+const OTHER_CUSTOMER_ID = `test-other-customer-${suffix}`
 const CUSTOM_TRACKING = `JP${suffix.toUpperCase()}123`
 const PRODUCT_ID = `test-product-${suffix}`
 const PRODUCT_SLUG = `test-senapan-${suffix}`
@@ -83,6 +90,7 @@ async function orderRow(orderId: string) {
       paidAt: customerOrder.paidAt,
       snapToken: customerOrder.snapToken,
       idempotencyKey: customerOrder.midtransCreateIdempotencyKey,
+      cancellationRequestedAt: customerOrder.cancellationRequestedAt,
     })
     .from(customerOrder)
     .where(eq(customerOrder.id, orderId))
@@ -130,6 +138,12 @@ before(async () => {
     email: `pelanggan-${suffix}@example.test`,
     role: "user",
   })
+  await db.insert(user).values({
+    id: OTHER_CUSTOMER_ID,
+    name: `Pelanggan Lain ${suffix}`,
+    email: `pelanggan-lain-${suffix}@example.test`,
+    role: "user",
+  })
   await db.insert(product).values({
     id: PRODUCT_ID,
     slug: PRODUCT_SLUG,
@@ -174,6 +188,7 @@ after(async () => {
     .delete(productListing)
     .where(eq(productListing.productId, PRODUCT_ID))
   await db.delete(product).where(eq(product.id, PRODUCT_ID))
+  await db.delete(user).where(eq(user.id, OTHER_CUSTOMER_ID))
   await db.delete(user).where(eq(user.id, CUSTOMER_ID))
 })
 
@@ -374,6 +389,194 @@ test("saving a resi moves a paid order from processing to shipped", async () => 
   const order = await orderRow(orderId)
   assert.equal(order.fulfillmentStatus, "shipped")
   assert.equal(order.tracking, TRACKING)
+})
+
+test("cancellation creation is idempotent for an order", async () => {
+  const orderId = await createCourierOrder()
+  const input = {
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Pesanan dibuat dua kali.",
+  } as const
+
+  const created = await requestOrderCancellation(input)
+  const duplicate = await requestOrderCancellation({
+    ...input,
+    reason: "Alasan kedua tidak mengganti permintaan awal.",
+  })
+
+  assert.equal(created.kind, "created")
+  assert.equal(duplicate.kind, "existing")
+  if (created.kind !== "created" || duplicate.kind !== "existing") {
+    throw new Error("unreachable")
+  }
+  assert.equal(duplicate.cancellation.id, created.cancellation.id)
+  assert.equal(duplicate.cancellation.reason, input.reason)
+  assert.equal(created.cancellation.financialAction, "undetermined")
+  assert.equal(created.cancellation.refundAmount, null)
+  assert.equal(created.cancellation.providerIdempotencyKey, null)
+  assert.equal(created.cancellation.providerTransactionReference, null)
+  assert.equal(created.cancellation.reconciliationStatus, "pending")
+  assert.ok((await orderRow(orderId)).cancellationRequestedAt)
+
+  const rows = await db
+    .select()
+    .from(orderCancellation)
+    .where(eq(orderCancellation.orderId, orderId))
+  assert.equal(rows.length, 1)
+})
+
+test("concurrent duplicate cancellation requests create one record", async () => {
+  const orderId = await createCourierOrder()
+  const input = {
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Tidak jadi membeli.",
+  } as const
+
+  const results = await Promise.all([
+    requestOrderCancellation(input),
+    requestOrderCancellation(input),
+  ])
+
+  assert.deepEqual(results.map(({ kind }) => kind).sort(), [
+    "created",
+    "existing",
+  ])
+  const records = results.flatMap((result) =>
+    result.kind === "created" || result.kind === "existing"
+      ? [result.cancellation]
+      : []
+  )
+  assert.equal(records.length, 2)
+  assert.equal(records[0]?.id, records[1]?.id)
+  assert.equal(records[0]?.providerIdempotencyKey, null)
+  assert.equal(records[1]?.providerIdempotencyKey, null)
+})
+
+test("customer authorization hides orders before and after cancellation", async () => {
+  const orderId = await createCourierOrder()
+  const unauthorizedInput = {
+    orderId,
+    actorId: OTHER_CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Mencoba mengakses pesanan pelanggan lain.",
+  } as const
+
+  assert.deepEqual(await requestOrderCancellation(unauthorizedInput), {
+    kind: "not-found",
+  })
+
+  const ownerResult = await requestOrderCancellation({
+    ...unauthorizedInput,
+    actorId: CUSTOMER_ID,
+  })
+  assert.equal(ownerResult.kind, "created")
+
+  assert.deepEqual(await requestOrderCancellation(unauthorizedInput), {
+    kind: "not-found",
+  })
+})
+
+test("an active cancellation blocks the shipping mutation", async () => {
+  const orderId = await createCourierOrder()
+  assert.equal((await settleManualOrderPayment(orderId)).kind, "settled")
+
+  const cancellation = await requestOrderCancellation({
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Mohon batalkan dan kembalikan pembayaran.",
+  })
+  assert.equal(cancellation.kind, "created")
+
+  const shipment = await recordOrderShipment({ orderId, tracking: TRACKING })
+  assert.equal(shipment.kind, "not-eligible")
+  assert.equal((await orderRow(orderId)).fulfillmentStatus, "processing")
+  assert.equal((await orderRow(orderId)).tracking, null)
+})
+
+test("shipping observes a cancellation hold committed while waiting", async () => {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("No DATABASE_URL.")
+
+  const orderId = await createCourierOrder()
+  assert.equal((await settleManualOrderPayment(orderId)).kind, "settled")
+
+  const pool = new Pool({ connectionString: databaseUrl })
+  const client = await pool.connect()
+  let transactionOpen = false
+
+  try {
+    await client.query("BEGIN")
+    transactionOpen = true
+    await client.query(
+      "SELECT id FROM customer_order WHERE id = $1 FOR UPDATE",
+      [orderId]
+    )
+    await client.query(
+      `INSERT INTO order_cancellation (
+        id, order_id, actor_id, actor_type, reason, status,
+        financial_action, reconciliation_status
+      ) VALUES ($1, $2, $3, 'customer', $4, 'requested', 'undetermined', 'pending')`,
+      [randomUUID(), orderId, CUSTOMER_ID, "Uji balapan pembatalan."]
+    )
+    await client.query(
+      `UPDATE customer_order
+       SET cancellation_requested_at = now(), updated_at = now()
+       WHERE id = $1`,
+      [orderId]
+    )
+
+    let shippingSettled = false
+    const shipping = recordOrderShipment({
+      orderId,
+      tracking: TRACKING,
+    }).finally(() => {
+      shippingSettled = true
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    assert.equal(shippingSettled, false)
+
+    await client.query("COMMIT")
+    transactionOpen = false
+
+    assert.deepEqual(await shipping, { kind: "not-eligible" })
+    const order = await orderRow(orderId)
+    assert.equal(order.fulfillmentStatus, "processing")
+    assert.equal(order.tracking, null)
+    assert.ok(order.cancellationRequestedAt)
+  } finally {
+    if (transactionOpen) await client.query("ROLLBACK")
+    client.release()
+    await pool.end()
+  }
+})
+
+test("shipped and completed orders cannot enter cancellation", async () => {
+  for (const fulfillmentStatus of ["shipped", "completed"] as const) {
+    const orderId = await createCourierOrder()
+    assert.equal((await settleManualOrderPayment(orderId)).kind, "settled")
+    assert.equal(
+      (await recordOrderShipment({ orderId, tracking: TRACKING })).kind,
+      "shipped"
+    )
+    if (fulfillmentStatus === "completed") {
+      assert.equal((await completeOrderFulfillment(orderId)).kind, "completed")
+    }
+
+    const result = await requestOrderCancellation({
+      orderId,
+      actorId: CUSTOMER_ID,
+      actorType: "customer",
+      reason: "Permintaan terlambat.",
+    })
+
+    assert.equal(result.kind, "not-eligible")
+  }
 })
 
 test("an owner can confirm a paid shipped order as received", async () => {

@@ -70,6 +70,7 @@ import { snapSessionExpiresAt } from "@/lib/payments/midtrans/config"
 import { storefrontProductDataBySlug } from "@/lib/products/service"
 import { invalidateStorefrontProducts } from "@/lib/products/cache"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
+import { ACTIVE_CANCELLATION_STATUSES } from "@/lib/orders/cancellation"
 
 import {
   type FulfillmentStatus,
@@ -180,6 +181,13 @@ function revenuePaymentStatusValues() {
 function shipmentPaymentStatusValues() {
   return sql.join(
     SHIPMENT_PAYMENT_STATUSES.map((status) => sql`${status}`),
+    sql`, `
+  )
+}
+
+function activeCancellationStatusValues() {
+  return sql.join(
+    ACTIVE_CANCELLATION_STATUSES.map((status) => sql`${status}`),
     sql`, `
   )
 }
@@ -1921,7 +1929,14 @@ export async function salesOrderPage({
     .orderBy(desc(customerOrder.placedAt), asc(customerOrder.id))
 
   const returns = await adminReturnRequests(ids)
-  return { orders: groupOrders(rows).map((entry) => ({ ...entry, returnRequest: returns.get(entry.order.id) })), counts, total }
+  return {
+    orders: groupOrders(rows).map((entry) => ({
+      ...entry,
+      returnRequest: returns.get(entry.order.id),
+    })),
+    counts,
+    total,
+  }
 }
 
 const CUSTOMER_ROLE = "user"
@@ -2269,6 +2284,7 @@ export async function recordOrderShipment({
         payment_status,
         fulfillment_status,
         tracking,
+        cancellation_requested_at,
         shipping_courier,
         shipping_service
       FROM customer_order
@@ -2286,6 +2302,13 @@ export async function recordOrderShipment({
         AND locked_order.payment_status IN (${shipmentPaymentStatusValues()})
         AND locked_order.fulfillment_status = 'processing'
         AND locked_order.tracking IS NULL
+        AND locked_order.cancellation_requested_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1
+          FROM order_cancellation AS cancellation
+          WHERE cancellation.order_id = locked_order.id
+            AND cancellation.status IN (${activeCancellationStatusValues()})
+        )
         AND NOT (
           locked_order.shipping_courier = 'manual'
           AND locked_order.shipping_service = 'Pickup'
@@ -2553,7 +2576,11 @@ export async function paidTransactionPage({
   }
 
   const rows = await db
-    .select({ order: customerOrder, item: customerOrderItem, confirmedRefund: confirmedOrderRefundSql() })
+    .select({
+      order: customerOrder,
+      item: customerOrderItem,
+      confirmedRefund: confirmedOrderRefundSql(),
+    })
     .from(customerOrder)
     .innerJoin(
       customerOrderItem,
@@ -2566,14 +2593,21 @@ export async function paidTransactionPage({
       )
     )
     .orderBy(desc(customerOrder.paidAt), desc(customerOrder.placedAt))
-  const grouped = new Map<string, { order: OrderRow; items: OrderItemRow[]; confirmedRefund: number }>()
+  const grouped = new Map<
+    string,
+    { order: OrderRow; items: OrderItemRow[]; confirmedRefund: number }
+  >()
 
   for (const row of rows) {
     const current = grouped.get(row.order.id)
     if (current) {
       current.items.push(row.item)
     } else {
-      grouped.set(row.order.id, { order: row.order, items: [row.item], confirmedRefund: Number(row.confirmedRefund) })
+      grouped.set(row.order.id, {
+        order: row.order,
+        items: [row.item],
+        confirmedRefund: Number(row.confirmedRefund),
+      })
     }
   }
 

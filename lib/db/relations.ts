@@ -6,6 +6,7 @@ import { cartItem } from "./schema/cart"
 import {
   customerOrder,
   customerOrderItem,
+  orderCancellation,
   orderInventoryReservation,
 } from "./schema/order"
 import { product, productListing } from "./schema/product"
@@ -18,6 +19,7 @@ export const applicationRelations = defineRelations(
     cartItem,
     customerOrder,
     customerOrderItem,
+    orderCancellation,
     orderInventoryReservation,
     product,
     productListing,
@@ -68,6 +70,10 @@ export const applicationRelations = defineRelations(
         from: relations.customerOrder.id,
         to: relations.orderInventoryReservation.orderId,
       }),
+      cancellation: relations.one.orderCancellation({
+        from: relations.customerOrder.id,
+        to: relations.orderCancellation.orderId,
+      }),
     },
     customerOrderItem: {
       order: relations.one.customerOrder({
@@ -83,6 +89,16 @@ export const applicationRelations = defineRelations(
       order: relations.one.customerOrder({
         from: relations.orderInventoryReservation.orderId,
         to: relations.customerOrder.id,
+      }),
+    },
+    orderCancellation: {
+      order: relations.one.customerOrder({
+        from: relations.orderCancellation.orderId,
+        to: relations.customerOrder.id,
+      }),
+      actor: relations.one.user({
+        from: relations.orderCancellation.actorId,
+        to: relations.user.id,
       }),
     },
     product: {

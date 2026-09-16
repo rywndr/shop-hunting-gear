@@ -16,6 +16,12 @@ import type {
   OrderSourceKind,
   PaymentStatus,
 } from "@/lib/orders/config"
+import type {
+  OrderCancellationActorType,
+  OrderCancellationFinancialAction,
+  OrderCancellationReconciliationStatus,
+  OrderCancellationStatus,
+} from "@/lib/orders/cancellation"
 import type { ShippingCourierCode } from "@/lib/shipping/config"
 
 import { user } from "./auth"
@@ -93,6 +99,9 @@ export const customerOrder = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancellationRequestedAt: timestamp("cancellation_requested_at", {
+      withTimezone: true,
+    }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -171,6 +180,83 @@ export const customerOrderItem = pgTable(
     index("customerOrderItem_cartItemId_idx").on(table.cartItemId),
     check("customerOrderItem_quantity_positive", sql`${table.quantity} > 0`),
     check("customerOrderItem_price_positive", sql`${table.price} > 0`),
+  ]
+)
+
+export const orderCancellation = pgTable(
+  "order_cancellation",
+  {
+    id: text("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => customerOrder.id, { onDelete: "cascade" }),
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => user.id),
+    actorType: text("actor_type").$type<OrderCancellationActorType>().notNull(),
+    reason: text("reason").notNull(),
+    status: text("status")
+      .$type<OrderCancellationStatus>()
+      .default("requested")
+      .notNull(),
+    financialAction: text("financial_action")
+      .$type<OrderCancellationFinancialAction>()
+      .default("undetermined")
+      .notNull(),
+    refundAmount: integer("refund_amount"),
+    providerIdempotencyKey: text("provider_idempotency_key"),
+    providerTransactionReference: text("provider_transaction_reference"),
+    reconciliationStatus: text("reconciliation_status")
+      .$type<OrderCancellationReconciliationStatus>()
+      .default("not_required")
+      .notNull(),
+    lastError: text("last_error"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("orderCancellation_orderId_uidx").on(table.orderId),
+    uniqueIndex("orderCancellation_providerIdempotencyKey_uidx").on(
+      table.providerIdempotencyKey
+    ),
+    index("orderCancellation_status_requestedAt_idx").on(
+      table.status,
+      table.requestedAt
+    ),
+    check(
+      "orderCancellation_actor_type_valid",
+      sql`${table.actorType} in ('customer', 'admin')`
+    ),
+    check(
+      "orderCancellation_status_valid",
+      sql`${table.status} in ('requested', 'provider_operation_pending', 'refund_pending', 'manual_refund_required', 'completed', 'failed')`
+    ),
+    check(
+      "orderCancellation_financial_action_valid",
+      sql`${table.financialAction} in ('undetermined', 'none', 'cancel_payment', 'refund', 'manual_refund')`
+    ),
+    check(
+      "orderCancellation_refund_amount_valid",
+      sql`(${table.financialAction} in ('refund', 'manual_refund') and ${table.refundAmount} > 0) or (${table.financialAction} in ('undetermined', 'none', 'cancel_payment') and ${table.refundAmount} is null)`
+    ),
+    check(
+      "orderCancellation_provider_key_valid",
+      sql`(${table.financialAction} in ('cancel_payment', 'refund') and ${table.providerIdempotencyKey} is not null) or (${table.financialAction} in ('undetermined', 'none', 'manual_refund') and ${table.providerIdempotencyKey} is null)`
+    ),
+    check(
+      "orderCancellation_reconciliation_status_valid",
+      sql`${table.reconciliationStatus} in ('not_required', 'pending', 'reconciled', 'failed')`
+    ),
+    check(
+      "orderCancellation_completion_valid",
+      sql`(${table.status} = 'completed') = (${table.completedAt} is not null)`
+    ),
   ]
 )
 
