@@ -9,6 +9,7 @@ import { TABLE_EDGE } from "@/components/admin/admin-card"
 import { CopyIdButton } from "@/components/admin/copy-id-button"
 import { MarkOrderCompletedDialog } from "@/components/admin/orders/mark-order-completed-dialog"
 import { MarkOrderPaidDialog } from "@/components/admin/orders/mark-order-paid-dialog"
+import { CancelUnpaidOrderDialog } from "@/components/admin/orders/cancel-unpaid-order-dialog"
 import { OrderQueueBadge } from "@/components/admin/orders/order-queue-badge"
 import { ShipOrderDialog } from "@/components/admin/orders/ship-order-dialog"
 import { ProductThumbnail } from "@/components/products/product-thumbnail"
@@ -18,6 +19,7 @@ import { TableCell, TableRow } from "@/components/ui/table"
 import {
   canMarkOrderCompleted,
   canMarkOrderPaid,
+  canCancelUnpaidOrder,
   canPrintShippingLabel,
   canShipOrder,
   canTrackOrder,
@@ -167,6 +169,9 @@ function SalesOrderRow({
           )}
           {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
+          )}
+          {canCancelUnpaidOrder(order) && (
+            <CancelUnpaidOrderDialog orderId={order.id} />
           )}
           {canShipOrder({
             paymentStatus: order.paymentStatus,

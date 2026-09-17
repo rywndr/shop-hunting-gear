@@ -98,6 +98,18 @@ export function canMarkOrderPaid({
   )
 }
 
+export function canCancelUnpaidOrder({
+  paymentStatus,
+  fulfillmentStatus,
+  tracking,
+}: OrderState & Pick<Order, "tracking">) {
+  return (
+    !isRevenuePaymentStatus(paymentStatus) &&
+    fulfillmentStatus === "awaiting_payment" &&
+    tracking === null
+  )
+}
+
 export function canMarkOrderCompleted({
   paymentStatus,
   fulfillmentStatus,

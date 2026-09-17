@@ -1,4 +1,14 @@
 import type { FulfillmentStatus } from "./config"
+import { z } from "zod"
+
+export const adminOrderCancellationSchema = z.object({
+  orderId: z.string().trim().min(1).max(200),
+  reason: z.string().trim().min(1).max(1000),
+})
+
+export type AdminOrderCancellationInput = z.infer<
+  typeof adminOrderCancellationSchema
+>
 
 export const CANCELLATION_STATUSES = [
   "requested",

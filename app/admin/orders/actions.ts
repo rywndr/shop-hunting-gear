@@ -18,6 +18,12 @@ import { revalidateReturnViews } from "@/lib/returns/revalidation"
 import { canAccessAdmin, getCurrentSession } from "@/lib/auth/session"
 import type { ManualOrderInput } from "@/lib/admin/manual-order"
 import {
+  adminOrderCancellationSchema,
+  type AdminOrderCancellationInput,
+} from "@/lib/orders/cancellation"
+import { requestOrderCancellation } from "@/lib/orders/cancellation-service"
+import { executeAdminUnpaidCancellation } from "@/lib/payments/midtrans/service"
+import {
   createManualOrder,
   markOrderCompleted,
   markOrderPaidManually,
@@ -235,6 +241,93 @@ export async function markOrderPaidAction(
       error,
     })
     return { kind: "error", message: "Pembayaran belum tersimpan. Coba lagi." }
+  }
+}
+
+export async function cancelUnpaidOrderAction(
+  input: AdminOrderCancellationInput
+): Promise<OrderMutationResult> {
+  const session = await getCurrentSession()
+  if (!canAccessAdmin(session) || !session) {
+    return { kind: "error", message: "Anda tidak dapat membatalkan pesanan." }
+  }
+
+  const parsed = adminOrderCancellationSchema.safeParse(input)
+  if (!parsed.success) {
+    return {
+      kind: "error",
+      message: "Masukkan alasan pembatalan yang valid.",
+    }
+  }
+
+  try {
+    const requested = await requestOrderCancellation({
+      orderId: parsed.data.orderId,
+      actorId: session.user.id,
+      actorType: "admin",
+      reason: parsed.data.reason,
+    })
+
+    switch (requested.kind) {
+      case "not-found":
+        return { kind: "error", message: "Pesanan tidak ditemukan." }
+      case "not-eligible":
+        return {
+          kind: "error",
+          message: "Pesanan ini tidak dapat dibatalkan.",
+        }
+      case "created":
+      case "existing":
+        break
+      default: {
+        const _exhaustive: never = requested
+        return _exhaustive
+      }
+    }
+
+    const result = await executeAdminUnpaidCancellation({
+      orderId: parsed.data.orderId,
+      actorId: session.user.id,
+    })
+
+    switch (result.kind) {
+      case "completed":
+        revalidatePath("/")
+        return orderRefreshed()
+      case "pending":
+        return {
+          kind: "error",
+          message:
+            "Status pembatalan masih diperiksa. Pesanan tetap ditahan dan belum boleh dikirim.",
+        }
+      case "paid":
+        return {
+          kind: "error",
+          message: "Pesanan sudah dibayar dan tidak dapat dibatalkan di sini.",
+        }
+      case "not-eligible":
+        return {
+          kind: "error",
+          message: "Status pesanan sudah berubah dan tidak dapat dibatalkan.",
+        }
+      case "not-found":
+        return { kind: "error", message: "Pesanan tidak ditemukan." }
+      default: {
+        const _exhaustive: never = result
+        return _exhaustive
+      }
+    }
+  } catch (error) {
+    logOrderMutationFailure({
+      event: "admin.unpaid_order_cancellation_failed",
+      orderId: parsed.data.orderId,
+      error,
+    })
+    return {
+      kind: "error",
+      message:
+        "Pembatalan belum dapat dipastikan. Pesanan tetap ditahan dan belum boleh dikirim.",
+    }
   }
 }
 
