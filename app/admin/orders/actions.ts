@@ -33,7 +33,7 @@ import {
 } from "@/lib/orders/service"
 
 export type OrderMutationResult =
-  | { readonly kind: "success" }
+  | { readonly kind: "success"; readonly message?: string }
   | { readonly kind: "error"; readonly message: string }
 
 export async function reviewReturnAction(
@@ -244,7 +244,7 @@ export async function markOrderPaidAction(
   }
 }
 
-export async function cancelUnpaidOrderAction(
+export async function cancelAdminOrderAction(
   input: AdminOrderCancellationInput
 ): Promise<OrderMutationResult> {
   const session = await getCurrentSession()
@@ -300,6 +300,22 @@ export async function cancelUnpaidOrderAction(
           message:
             "Status pembatalan masih diperiksa. Pesanan tetap ditahan dan belum boleh dikirim.",
         }
+      case "refund_pending":
+        revalidatePath("/")
+        orderRefreshed()
+        return {
+          kind: "success",
+          message:
+            "Pesanan dibatalkan. Pengembalian dana sedang diproses dan pesanan tetap diblokir dari pengiriman.",
+        }
+      case "manual_refund_required":
+        revalidatePath("/")
+        orderRefreshed()
+        return {
+          kind: "success",
+          message:
+            "Pesanan dibatalkan. Pengembalian dana manual perlu diselesaikan oleh admin.",
+        }
       case "paid":
         return {
           kind: "error",
@@ -319,7 +335,7 @@ export async function cancelUnpaidOrderAction(
     }
   } catch (error) {
     logOrderMutationFailure({
-      event: "admin.unpaid_order_cancellation_failed",
+      event: "admin.order_cancellation_failed",
       orderId: parsed.data.orderId,
       error,
     })
@@ -330,6 +346,8 @@ export async function cancelUnpaidOrderAction(
     }
   }
 }
+
+export const cancelUnpaidOrderAction = cancelAdminOrderAction
 
 export async function markOrderCompletedAction(
   orderId: string

@@ -28,6 +28,7 @@ import {
 import {
   cancelMidtransOrderForUser,
   executeAdminUnpaidCancellation,
+  reconcileMidtransPayment,
   reconcileExpiredSnapSessionReservations,
 } from "../lib/payments/midtrans/service"
 
@@ -105,6 +106,23 @@ async function cancelAsAdmin(orderId: string) {
   return executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID })
 }
 
+async function createPaidOrder({ providerBacked = false } = {}) {
+  const orderId = await createOrder()
+  assert.equal((await settleManualOrderPayment(orderId)).kind, "settled")
+  if (providerBacked) {
+    await db
+      .update(customerOrder)
+      .set({
+        sourceKind: "product",
+        midtransTransactionId: `tx-${orderId}`,
+        midtransCreateIdempotencyKey: `create-${orderId}`,
+        paymentInitStatus: "ready",
+      })
+      .where(eq(customerOrder.id, orderId))
+  }
+  return orderId
+}
+
 async function orderState(orderId: string) {
   const [row] = await db
     .select({
@@ -133,18 +151,19 @@ async function inventoryState(orderId: string) {
     .from(orderInventoryReservation)
     .where(eq(orderInventoryReservation.orderId, orderId))
   const [item] = await db
-    .select({ stock: product.stock })
+    .select({ stock: product.stock, sold: product.sold })
     .from(product)
     .where(eq(product.id, PRODUCT_ID))
   assert.ok(reservation)
   assert.ok(item)
-  return { reservation, stock: item.stock }
+  return { reservation, stock: item.stock, sold: item.sold }
 }
 
 function midtransStatus(
   orderId: string,
   transactionStatus: string,
-  transactionId = `tx-${orderId}`
+  transactionId = `tx-${orderId}`,
+  paymentType?: string
 ) {
   return {
     order_id: orderId,
@@ -152,6 +171,7 @@ function midtransStatus(
     gross_amount: String(PRICE * QUANTITY),
     transaction_status: transactionStatus,
     transaction_id: transactionId,
+    ...(paymentType ? { payment_type: paymentType } : {}),
   }
 }
 
@@ -326,6 +346,233 @@ test("an unpaid Snap session uses session cancellation and reconciles", async (t
   assert.ok(cancellation.providerIdempotencyKey)
 })
 
+test("Snap cancellation racing credit-card settlement enters the full refund path", async (t) => {
+  const orderId = await createOrder({
+    providerBacked: true,
+    snapToken: `snap-race-online-${suffix}-${randomUUID()}`,
+    paymentInitStatus: "ready",
+  })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let snapCancelPosts = 0
+  let refundPosts = 0
+  let refundKey = ""
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST" && url.endsWith("/refund")) {
+        refundPosts++
+        const body: unknown = JSON.parse(String(init.body))
+        if (
+          typeof body !== "object" ||
+          body === null ||
+          !("refund_key" in body)
+        ) {
+          throw new Error("Invalid refund body.")
+        }
+        refundKey = String(body.refund_key)
+        return Response.json({
+          ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+          refund_key: refundKey,
+          refund_chargeback_id: "snap-race-online",
+        })
+      }
+      if (init?.method === "POST") {
+        snapCancelPosts++
+        return Response.json({ canceled_at: new Date().toISOString() })
+      }
+      statusReads++
+      if (statusReads === 1) return midtransNotFound()
+      if (!refundKey) {
+        return Response.json(
+          midtransStatus(orderId, "settlement", undefined, "credit_card")
+        )
+      }
+      return Response.json({
+        ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+        refund_amount: String(PRICE * QUANTITY),
+        refunds: [
+          {
+            refund_chargeback_id: "snap-race-online",
+            refund_amount: String(PRICE * QUANTITY),
+            refund_key: refundKey,
+            bank_confirmed_at: "2026-09-18 12:00:00",
+          },
+        ],
+      })
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  const cancellation = await cancellationState(orderId)
+  const inventory = await inventoryState(orderId)
+  assert.equal(snapCancelPosts, 1)
+  assert.equal(refundPosts, 1)
+  assert.equal(cancellation.financialAction, "refund")
+  assert.equal(cancellation.providerSelectedStatus, "snap_session")
+  assert.equal(cancellation.providerTransactionReference, `tx-${orderId}`)
+  assert.equal(cancellation.providerIdempotencyKey, refundKey)
+  assert.equal(inventory.reservation.status, "cancelled")
+  assert.equal(inventory.stock, before.stock + QUANTITY)
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  assert.equal((await inventoryState(orderId)).stock, inventory.stock)
+  assert.equal(refundPosts, 1)
+})
+
+test("Snap cancellation racing bank-transfer settlement requires manual refund", async (t) => {
+  const orderId = await createOrder({
+    providerBacked: true,
+    snapToken: `snap-race-offline-${suffix}-${randomUUID()}`,
+    paymentInitStatus: "ready",
+  })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let snapCancelPosts = 0
+  let refundPosts = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST" && url.endsWith("/refund")) {
+        refundPosts++
+        throw new Error("Offline settlement must not use Refund.")
+      }
+      if (init?.method === "POST") {
+        snapCancelPosts++
+        return Response.json({ canceled_at: new Date().toISOString() })
+      }
+      statusReads++
+      if (statusReads === 1) return midtransNotFound()
+      return Response.json(
+        midtransStatus(orderId, "settlement", undefined, "bank_transfer")
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "manual_refund_required" }
+  )
+  const cancellation = await cancellationState(orderId)
+  const inventory = await inventoryState(orderId)
+  assert.equal(snapCancelPosts, 1)
+  assert.equal(refundPosts, 0)
+  assert.equal(cancellation.financialAction, "manual_refund")
+  assert.equal(cancellation.providerSelectedStatus, "snap_session")
+  assert.equal(cancellation.providerTransactionReference, `tx-${orderId}`)
+  assert.equal(cancellation.providerIdempotencyKey, null)
+  assert.equal(inventory.reservation.status, "cancelled")
+  assert.equal(inventory.stock, before.stock + QUANTITY)
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "manual_refund_required" }
+  )
+  assert.equal((await inventoryState(orderId)).stock, inventory.stock)
+  assert.equal(refundPosts, 0)
+})
+
+test("Snap cancellation promotes a newly bound transaction before Cancel", async (t) => {
+  for (const transactionStatus of [
+    "pending",
+    "authorize",
+    "capture",
+  ] as const) {
+    const orderId = await createOrder({
+      providerBacked: true,
+      snapToken: `snap-cancellable-${transactionStatus}-${suffix}-${randomUUID()}`,
+      paymentInitStatus: "ready",
+    })
+    const before = await inventoryState(orderId)
+    await requestAsAdmin(orderId)
+
+    let statusReads = 0
+    const postIdempotencyKeys: (string | null)[] = []
+    const originalFetch = globalThis.fetch
+    const cancellableStatus = {
+      ...midtransStatus(orderId, transactionStatus),
+      ...(transactionStatus === "capture" ? { fraud_status: "accept" } : {}),
+    }
+
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input)
+        if (!url.includes("midtrans.com")) return originalFetch(input, init)
+
+        if (init?.method === "POST") {
+          postIdempotencyKeys.push(
+            new Headers(init.headers).get("Idempotency-Key")
+          )
+          return postIdempotencyKeys.length === 1
+            ? Response.json({ canceled_at: new Date().toISOString() })
+            : Response.json(midtransStatus(orderId, "cancel"))
+        }
+
+        statusReads++
+        if (statusReads === 1) return midtransNotFound()
+        if (postIdempotencyKeys.length === 1) {
+          return Response.json(cancellableStatus)
+        }
+        return Response.json(midtransStatus(orderId, "cancel"))
+      }
+    )
+
+    try {
+      assert.deepEqual(
+        await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+        { kind: "completed" }
+      )
+      const cancellation = await cancellationState(orderId)
+      const inventory = await inventoryState(orderId)
+      assert.equal(statusReads, transactionStatus === "capture" ? 4 : 3)
+      assert.equal(postIdempotencyKeys.length, 2)
+      assert.equal(postIdempotencyKeys[0], null)
+      assert.equal(postIdempotencyKeys[1], cancellation.providerIdempotencyKey)
+      assert.equal(cancellation.status, "completed")
+      assert.equal(cancellation.financialAction, "cancel_payment")
+      assert.equal(cancellation.providerSelectedStatus, transactionStatus)
+      assert.equal(cancellation.providerTransactionReference, `tx-${orderId}`)
+      assert.equal((await orderState(orderId)).paymentStatus, "cancelled")
+      assert.equal((await orderState(orderId)).fulfillmentStatus, "cancelled")
+      assert.equal(inventory.stock, before.stock + QUANTITY)
+      assert.equal(
+        inventory.reservation.status,
+        transactionStatus === "capture" ? "cancelled" : "released"
+      )
+
+      assert.deepEqual(
+        await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+        { kind: "completed" }
+      )
+      assert.equal((await inventoryState(orderId)).stock, inventory.stock)
+      assert.equal(postIdempotencyKeys.length, 2)
+      assert.equal(statusReads, transactionStatus === "capture" ? 4 : 3)
+    } finally {
+      t.mock.restoreAll()
+    }
+  }
+})
+
 test("an active pending transaction uses Cancel then a fresh GET", async (t) => {
   const orderId = await createOrder({ providerBacked: true })
   const originalFetch = globalThis.fetch
@@ -392,7 +639,7 @@ test("fresh provider pending overrides a local terminal unpaid state", async (t)
   )
 })
 
-test("provider cancel after local payment keeps the cancellation active", async (t) => {
+test("an unrelated provider cancel cannot regress a paid order", async (t) => {
   const orderId = await createOrder({ providerBacked: true })
   const cancellation = await requestAsAdmin(orderId)
   const selected = await selectCancellationProviderAction({
@@ -424,7 +671,7 @@ test("provider cancel after local payment keeps the cancellation active", async 
 
   assert.deepEqual(
     await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
-    { kind: "paid" }
+    { kind: "pending" }
   )
   assert.equal(posts, 0)
   const afterCancellation = await cancellationState(orderId)
@@ -604,7 +851,7 @@ test("unresolved provider state keeps the hold and stable key across retries", a
   assert.equal((await inventoryState(orderId)).reservation.status, "reserved")
 })
 
-test("paid, shipped, and completed orders are rejected", async () => {
+test("manual paid order requires a manual refund while shipped and completed reject", async () => {
   const paidOrderId = await createOrder()
   assert.equal((await settleManualOrderPayment(paidOrderId)).kind, "settled")
   await requestAsAdmin(paidOrderId)
@@ -613,10 +860,13 @@ test("paid, shipped, and completed orders are rejected", async () => {
       orderId: paidOrderId,
       actorId: ADMIN_ID,
     }),
-    { kind: "paid" }
+    { kind: "manual_refund_required" }
   )
-  assert.equal((await cancellationState(paidOrderId)).status, "failed")
-  assert.equal((await orderState(paidOrderId)).cancellationRequestedAt, null)
+  assert.equal(
+    (await cancellationState(paidOrderId)).status,
+    "manual_refund_required"
+  )
+  assert.ok((await orderState(paidOrderId)).cancellationRequestedAt)
 
   for (const fulfillmentStatus of ["shipped", "completed"] as const) {
     const orderId = await createOrder()
@@ -639,7 +889,555 @@ test("paid, shipped, and completed orders are rejected", async () => {
   }
 })
 
-test("admin row eligibility exposes only unpaid awaiting-payment orders", () => {
+test("paid capture is intentionally voided and inventory is restored once", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let cancelled = false
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") cancelled = true
+      return Response.json(
+        midtransStatus(
+          orderId,
+          cancelled ? "cancel" : "capture",
+          undefined,
+          "credit_card"
+        )
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  const first = await inventoryState(orderId)
+  assert.equal(first.reservation.status, "cancelled")
+  assert.equal(first.stock, before.stock + QUANTITY)
+  assert.equal(first.sold, before.sold - QUANTITY)
+  assert.equal((await orderState(orderId)).paymentStatus, "cancelled")
+  assert.equal(
+    (await cancellationState(orderId)).providerSelectedStatus,
+    "capture"
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  assert.equal((await inventoryState(orderId)).stock, first.stock)
+})
+
+test("unpaid cancellation continues through a capture race without clearing its hold", async (t) => {
+  const orderId = await createOrder({ providerBacked: true })
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let cancelPosts = 0
+  let cancelled = false
+  let shipmentDuringRace: Awaited<
+    ReturnType<typeof recordOrderShipment>
+  > | null = null
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") {
+        cancelPosts++
+        cancelled = true
+        return Response.json(
+          midtransStatus(orderId, "cancel", undefined, "credit_card")
+        )
+      }
+      statusReads++
+      if (cancelled) {
+        return Response.json(
+          midtransStatus(orderId, "cancel", undefined, "credit_card")
+        )
+      }
+      if (statusReads === 1) {
+        const response = Response.json(
+          midtransStatus(orderId, "capture", undefined, "credit_card")
+        )
+        shipmentDuringRace = await recordOrderShipment({
+          orderId,
+          tracking: "JP1234567890",
+        })
+        return response
+      }
+      return Response.json(
+        midtransStatus(orderId, "capture", undefined, "credit_card")
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  assert.deepEqual(shipmentDuringRace, { kind: "not-eligible" })
+  assert.equal(cancelPosts, 1)
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+  assert.notEqual((await cancellationState(orderId)).status, "failed")
+})
+
+test("capture Cancel racing settlement replaces the Cancel key with one stable refund key", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const cancellation = await requestAsAdmin(orderId)
+  const refundKeys: string[] = []
+  let statusReads = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST" && url.endsWith("/cancel")) {
+        return Response.json(
+          midtransStatus(orderId, "capture", undefined, "credit_card")
+        )
+      }
+      if (init?.method === "POST" && url.endsWith("/refund")) {
+        const body: unknown = JSON.parse(String(init.body))
+        if (
+          typeof body !== "object" ||
+          body === null ||
+          !("refund_key" in body)
+        ) {
+          throw new Error("Invalid refund body.")
+        }
+        refundKeys.push(String(body.refund_key))
+        return Response.json({
+          ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+          refund_key: String(body.refund_key),
+          refund_chargeback_id: "refund-race",
+        })
+      }
+      statusReads++
+      if (statusReads === 1) {
+        return Response.json(
+          midtransStatus(orderId, "capture", undefined, "credit_card")
+        )
+      }
+      if (statusReads === 2) {
+        return Response.json(
+          midtransStatus(orderId, "settlement", undefined, "credit_card")
+        )
+      }
+      return Response.json({
+        ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+        refund_amount: String(PRICE * QUANTITY),
+        refunds: [
+          {
+            refund_chargeback_id: "refund-race",
+            refund_amount: String(PRICE * QUANTITY),
+            refund_key: refundKeys[0],
+            bank_confirmed_at: "2026-09-18 12:00:00",
+          },
+        ],
+      })
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  const after = await cancellationState(orderId)
+  assert.deepEqual(refundKeys, [`cancellation_${cancellation.id}`])
+  assert.equal(after.providerIdempotencyKey, refundKeys[0])
+  assert.equal(after.providerSelectedStatus, "capture")
+  assert.equal(after.financialAction, "refund")
+})
+
+test("capture Cancel racing an offline settlement becomes manual_refund_required", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let cancelPosts = 0
+  let refundPosts = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST" && url.endsWith("/cancel")) {
+        cancelPosts++
+        return Response.json(
+          midtransStatus(orderId, "capture", undefined, "credit_card")
+        )
+      }
+      if (init?.method === "POST") {
+        refundPosts++
+        throw new Error("Offline settlement must not use Refund.")
+      }
+      statusReads++
+      return Response.json(
+        midtransStatus(
+          orderId,
+          statusReads === 1 ? "capture" : "settlement",
+          undefined,
+          statusReads === 1 ? "credit_card" : "bank_transfer"
+        )
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "manual_refund_required" }
+  )
+  const cancellation = await cancellationState(orderId)
+  const firstInventory = await inventoryState(orderId)
+  assert.equal(cancelPosts, 1)
+  assert.equal(refundPosts, 0)
+  assert.equal(cancellation.financialAction, "manual_refund")
+  assert.equal(cancellation.providerIdempotencyKey, null)
+  assert.equal(cancellation.providerSelectedStatus, "capture")
+  assert.equal(cancellation.status, "manual_refund_required")
+  assert.equal(firstInventory.reservation.status, "cancelled")
+  assert.equal(firstInventory.stock, before.stock + QUANTITY)
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "manual_refund_required" }
+  )
+  assert.equal((await inventoryState(orderId)).stock, firstInventory.stock)
+  assert.equal(refundPosts, 0)
+})
+
+test("unpaid cancellation continues through settlement into refund_pending", async (t) => {
+  const orderId = await createOrder({ providerBacked: true })
+  await requestAsAdmin(orderId)
+  const refundKeys: string[] = []
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") {
+        const body: unknown = JSON.parse(String(init.body))
+        if (
+          typeof body !== "object" ||
+          body === null ||
+          !("refund_key" in body)
+        ) {
+          throw new Error("Invalid refund body.")
+        }
+        refundKeys.push(String(body.refund_key))
+        throw new TypeError("timeout")
+      }
+      return Response.json(
+        midtransStatus(orderId, "settlement", undefined, "credit_card")
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "pending" }
+  )
+  const cancellation = await cancellationState(orderId)
+  assert.equal(cancellation.status, "refund_pending")
+  assert.deepEqual(refundKeys, [cancellation.providerIdempotencyKey])
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+  assert.deepEqual(
+    await recordOrderShipment({ orderId, tracking: "JP1234567890" }),
+    { kind: "not-eligible" }
+  )
+})
+
+test("settlement starts one full correlated refund and restores inventory", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let refundKey = ""
+  let posted = false
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") {
+        const body: unknown = JSON.parse(String(init.body))
+        if (typeof body !== "object" || body === null) {
+          throw new Error("Invalid refund body.")
+        }
+        if (!("refund_key" in body) || !("amount" in body)) {
+          throw new Error("Invalid refund body.")
+        }
+        refundKey = String(body.refund_key)
+        assert.equal(body.amount, PRICE * QUANTITY)
+        posted = true
+        return Response.json({
+          ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+          refund_key: refundKey,
+          refund_chargeback_id: "refund-accepted",
+        })
+      }
+      if (!posted) {
+        return Response.json(
+          midtransStatus(orderId, "settlement", undefined, "credit_card")
+        )
+      }
+      return Response.json({
+        ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+        refund_amount: String(PRICE * QUANTITY),
+        refunds: [
+          {
+            refund_chargeback_id: "refund-accepted",
+            refund_amount: String(PRICE * QUANTITY),
+            refund_key: refundKey,
+            bank_confirmed_at: "2026-09-18 12:00:00",
+          },
+        ],
+      })
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  const cancellation = await cancellationState(orderId)
+  assert.equal(cancellation.financialAction, "refund")
+  assert.equal(cancellation.refundAmount, PRICE * QUANTITY)
+  assert.equal(cancellation.providerIdempotencyKey, refundKey)
+  const inventory = await inventoryState(orderId)
+  assert.equal(inventory.reservation.status, "cancelled")
+  assert.equal(inventory.stock, before.stock + QUANTITY)
+  assert.equal(inventory.sold, before.sold - QUANTITY)
+})
+
+test("a fully refunded provider transaction completes without another refund", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let refundPosts = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST") {
+        if (url.endsWith("/refund")) refundPosts++
+        throw new Error(
+          "A fully refunded transaction must not be posted again."
+        )
+      }
+      statusReads++
+      return Response.json({
+        ...midtransStatus(orderId, "refund", undefined, "credit_card"),
+        refund_amount: String(PRICE * QUANTITY),
+        refunds: [
+          {
+            refund_chargeback_id: "unrelated-refund",
+            refund_amount: String(PRICE * QUANTITY),
+            refund_key: "unrelated-refund",
+            bank_confirmed_at: "2026-09-18 12:00:00",
+          },
+        ],
+      })
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  const cancellation = await cancellationState(orderId)
+  const inventory = await inventoryState(orderId)
+  assert.equal(statusReads, 1)
+  assert.equal(refundPosts, 0)
+  assert.equal(cancellation.status, "completed")
+  assert.equal(cancellation.financialAction, "none")
+  assert.equal(cancellation.refundAmount, null)
+  assert.equal(cancellation.providerIdempotencyKey, null)
+  assert.equal(cancellation.providerTransactionReference, `tx-${orderId}`)
+  assert.equal((await orderState(orderId)).paymentStatus, "refunded")
+  assert.equal((await orderState(orderId)).fulfillmentStatus, "cancelled")
+  assert.equal(inventory.reservation.status, "cancelled")
+  assert.equal(inventory.stock, before.stock + QUANTITY)
+  assert.equal(inventory.sold, before.sold - QUANTITY)
+
+  const reconciliation = await reconcileMidtransPayment(orderId)
+  assert.equal(reconciliation.applied.kind, "ignored")
+  assert.equal(reconciliation.applied.paymentStatus, "refunded")
+  assert.equal((await orderState(orderId)).paymentStatus, "refunded")
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "completed" }
+  )
+  assert.equal(statusReads, 2)
+  assert.equal(refundPosts, 0)
+  assert.equal((await inventoryState(orderId)).stock, inventory.stock)
+})
+
+test("an unrelated partial provider refund stays unresolved", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsAdmin(orderId)
+  let statusReads = 0
+  let refundPosts = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (!url.includes("midtrans.com")) return originalFetch(input, init)
+      if (init?.method === "POST") {
+        if (url.endsWith("/refund")) refundPosts++
+        throw new Error("An unrelated partial refund must not be posted again.")
+      }
+      statusReads++
+      return Response.json({
+        ...midtransStatus(orderId, "partial_refund", undefined, "credit_card"),
+        refund_amount: String(PRICE),
+        refunds: [
+          {
+            refund_chargeback_id: "unrelated-partial-refund",
+            refund_amount: String(PRICE),
+            refund_key: "unrelated-partial-refund",
+            bank_confirmed_at: null,
+          },
+        ],
+      })
+    }
+  )
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "pending" }
+  )
+  const firstCancellation = await cancellationState(orderId)
+  const firstInventory = await inventoryState(orderId)
+  assert.equal(statusReads, 1)
+  assert.equal(refundPosts, 0)
+  assert.equal(firstCancellation.status, "requested")
+  assert.equal(firstCancellation.reconciliationStatus, "failed")
+  assert.equal(firstCancellation.financialAction, "undetermined")
+  assert.equal(firstCancellation.providerIdempotencyKey, null)
+  assert.equal(firstInventory.reservation.status, "consumed")
+  assert.equal(firstInventory.stock, before.stock)
+  assert.equal(firstInventory.sold, before.sold)
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "pending" }
+  )
+  assert.equal(statusReads, 2)
+  assert.equal(refundPosts, 0)
+  assert.equal((await inventoryState(orderId)).stock, firstInventory.stock)
+})
+
+test("a prior terminal unpaid failure is reactivated on the same paid cancellation", async () => {
+  const orderId = await createPaidOrder()
+  const cancellation = await requestAsAdmin(orderId)
+  await db
+    .update(orderCancellation)
+    .set({
+      status: "failed",
+      reconciliationStatus: "reconciled",
+      lastError: "Order became paid in the old unpaid workflow.",
+    })
+    .where(eq(orderCancellation.id, cancellation.id))
+  await db
+    .update(customerOrder)
+    .set({ cancellationRequestedAt: null })
+    .where(eq(customerOrder.id, orderId))
+
+  assert.deepEqual(
+    await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+    { kind: "manual_refund_required" }
+  )
+  const after = await cancellationState(orderId)
+  assert.equal(after.id, cancellation.id)
+  assert.equal(after.status, "manual_refund_required")
+  assert.equal(after.lastError, null)
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+})
+
+test("shipping and paid cancellation cannot both commit", async () => {
+  const orderId = await createPaidOrder()
+  const [requested, shipped] = await Promise.all([
+    requestOrderCancellation({
+      orderId,
+      actorId: ADMIN_ID,
+      actorType: "admin",
+      reason: "Uji serialisasi pembatalan dan pengiriman.",
+    }),
+    recordOrderShipment({ orderId, tracking: "JP1234567890" }),
+  ])
+  const cancelled =
+    requested.kind === "created" || requested.kind === "existing"
+      ? await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID })
+      : null
+  assert.equal(
+    shipped.kind === "shipped" &&
+      cancelled !== null &&
+      ["completed", "refund_pending", "manual_refund_required"].includes(
+        cancelled.kind
+      ),
+    false
+  )
+})
+
+test("offline and unknown settlement methods take different safe paths", async (t) => {
+  for (const [paymentType, expected] of [
+    ["bank_transfer", "manual_refund_required"],
+    ["future_wallet", "pending"],
+  ] as const) {
+    const orderId = await createPaidOrder({ providerBacked: true })
+    await requestAsAdmin(orderId)
+    const originalFetch = globalThis.fetch
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        if (!String(input).includes("midtrans.com"))
+          return originalFetch(input, init)
+        assert.notEqual(init?.method, "POST")
+        return Response.json(
+          midtransStatus(orderId, "settlement", undefined, paymentType)
+        )
+      }
+    )
+    assert.deepEqual(
+      await executeAdminUnpaidCancellation({ orderId, actorId: ADMIN_ID }),
+      { kind: expected }
+    )
+    const inventory = await inventoryState(orderId)
+    assert.equal(
+      inventory.reservation.status,
+      expected === "manual_refund_required" ? "cancelled" : "consumed"
+    )
+    t.mock.restoreAll()
+  }
+})
+
+test("admin row eligibility includes paid unshipped processing orders", () => {
   assert.equal(
     canCancelUnpaidOrder({
       paymentStatus: "pending",
@@ -648,8 +1446,15 @@ test("admin row eligibility exposes only unpaid awaiting-payment orders", () => 
     }),
     true
   )
+  assert.equal(
+    canCancelUnpaidOrder({
+      paymentStatus: "paid",
+      fulfillmentStatus: "processing",
+      tracking: null,
+    }),
+    true
+  )
   for (const candidate of [
-    { paymentStatus: "paid", fulfillmentStatus: "processing", tracking: null },
     {
       paymentStatus: "pending",
       fulfillmentStatus: "shipped",

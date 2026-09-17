@@ -6,11 +6,14 @@ import { sql } from "drizzle-orm"
 
 import { db } from "@/lib/db/client"
 import { invalidateStorefrontProducts } from "@/lib/products/cache"
+import type { MidtransStatusResponse } from "@/lib/payments/midtrans/schema"
+import { matchingProviderRefund } from "@/lib/returns/refund-policy"
 
 import {
   ACTIVE_CANCELLATION_STATUSES,
   type OrderCancellationActorType,
   type OrderCancellationFinancialAction,
+  type OrderCancellationProviderSelectedStatus,
   type OrderCancellationReconciliationStatus,
   type OrderCancellationStatus,
 } from "./cancellation"
@@ -38,6 +41,7 @@ export type OrderCancellationRecord = {
   readonly refundAmount: number | null
   readonly providerIdempotencyKey: string | null
   readonly providerTransactionReference: string | null
+  readonly providerSelectedStatus: OrderCancellationProviderSelectedStatus | null
   readonly reconciliationStatus: OrderCancellationReconciliationStatus
   readonly lastError: string | null
   readonly requestedAt: Date
@@ -64,6 +68,7 @@ type CancellationSqlRow = {
   readonly refund_amount: number | null
   readonly provider_idempotency_key: string | null
   readonly provider_transaction_reference: string | null
+  readonly provider_selected_status: OrderCancellationProviderSelectedStatus | null
   readonly reconciliation_status: OrderCancellationReconciliationStatus
   readonly last_error: string | null
   readonly requested_at: Date
@@ -82,6 +87,7 @@ function cancellationFromSqlRow(row: CancellationSqlRow) {
     refundAmount: row.refund_amount,
     providerIdempotencyKey: row.provider_idempotency_key,
     providerTransactionReference: row.provider_transaction_reference,
+    providerSelectedStatus: row.provider_selected_status,
     reconciliationStatus: row.reconciliation_status,
     lastError: row.last_error,
     requestedAt: row.requested_at,
@@ -150,6 +156,7 @@ export async function requestOrderCancellation({
       SELECT
         current_order.id,
         current_order.fulfillment_status,
+        current_order.payment_status,
         current_order.tracking,
         actor.id AS actor_id
       FROM customer_order AS current_order
@@ -189,6 +196,7 @@ export async function requestOrderCancellation({
           authorized_order.fulfillment_status = 'awaiting_payment'
           OR (
             authorized_order.fulfillment_status = 'processing'
+            AND authorized_order.payment_status = 'paid'
             AND authorized_order.tracking IS NULL
           )
         )
@@ -244,10 +252,11 @@ export async function requestOrderCancellation({
 
   const eligibility = await db.execute<{ readonly eligible: boolean }>(sql`
     SELECT
-      current_order.fulfillment_status IN ('awaiting_payment', 'processing')
-        AND (
-          current_order.fulfillment_status <> 'processing'
-          OR current_order.tracking IS NULL
+      current_order.fulfillment_status = 'awaiting_payment'
+        OR (
+          current_order.fulfillment_status = 'processing'
+          AND current_order.payment_status = 'paid'
+          AND current_order.tracking IS NULL
         ) AS eligible
     FROM customer_order AS current_order
     INNER JOIN "user" AS actor ON true
@@ -270,6 +279,7 @@ export type AdminCancellationContext = {
     readonly snapToken: string | null
     readonly paymentSessionExpiresAt: Date | null
     readonly midtransTransactionId: string | null
+    readonly grossAmount: number
   }
 }
 
@@ -282,6 +292,7 @@ type AdminCancellationContextRow = CancellationSqlRow & {
   readonly snap_token: string | null
   readonly payment_session_expires_at: Date | null
   readonly midtrans_transaction_id: string | null
+  readonly gross_amount: number
 }
 
 export async function adminCancellationContext({
@@ -296,7 +307,7 @@ export async function adminCancellationContext({
       current_order.payment_status, current_order.payment_init_status,
       current_order.fulfillment_status, current_order.tracking,
       current_order.snap_token, current_order.payment_session_expires_at,
-      current_order.midtrans_transaction_id
+      current_order.midtrans_transaction_id, current_order.gross_amount
     FROM order_cancellation AS cancellation
     INNER JOIN customer_order AS current_order
       ON current_order.id = cancellation.order_id
@@ -320,6 +331,7 @@ export async function adminCancellationContext({
       snapToken: row.snap_token,
       paymentSessionExpiresAt: row.payment_session_expires_at,
       midtransTransactionId: row.midtrans_transaction_id,
+      grossAmount: row.gross_amount,
     },
   }
 }
@@ -329,12 +341,19 @@ export async function selectCancellationProviderAction({
   actorId,
   providerIdempotencyKey,
   providerTransactionReference,
+  providerSelectedStatus,
 }: {
   readonly cancellationId: string
   readonly actorId: string
   readonly providerIdempotencyKey: string
   readonly providerTransactionReference: string | null
+  readonly providerSelectedStatus?: OrderCancellationProviderSelectedStatus
 }): Promise<OrderCancellationRecord | null> {
+  const shouldPromoteSnapSession =
+    providerTransactionReference !== null &&
+    (providerSelectedStatus === "pending" ||
+      providerSelectedStatus === "authorize" ||
+      providerSelectedStatus === "capture")
   const result = await db.execute<CancellationSqlRow>(sql`
     WITH authorized AS MATERIALIZED (
       SELECT cancellation.id
@@ -354,6 +373,16 @@ export async function selectCancellationProviderAction({
           cancellation.provider_transaction_reference,
           ${providerTransactionReference}
         ),
+        provider_selected_status = CASE
+          WHEN cancellation.provider_selected_status = 'snap_session'
+            AND cancellation.provider_transaction_reference IS NULL
+            AND ${shouldPromoteSnapSession}
+            THEN ${providerSelectedStatus ?? null}
+          ELSE coalesce(
+            cancellation.provider_selected_status,
+            ${providerSelectedStatus ?? null}
+          )
+        END,
         status = 'provider_operation_pending',
         reconciliation_status = 'pending',
         last_error = null,
@@ -362,6 +391,53 @@ export async function selectCancellationProviderAction({
       WHERE cancellation.id = authorized.id
         AND cancellation.status IN (${activeCancellationStatusValues()})
         AND cancellation.financial_action IN ('undetermined', 'cancel_payment')
+      RETURNING cancellation.*
+    )
+    SELECT 'existing'::text AS result_kind, updated.* FROM updated
+  `)
+  const [row] = result.rows
+  return row ? cancellationFromSqlRow(row) : null
+}
+
+export async function selectAlreadyReversedCancellationAction({
+  cancellationId,
+  actorId,
+  providerTransactionReference,
+}: {
+  readonly cancellationId: string
+  readonly actorId: string
+  readonly providerTransactionReference: string
+}): Promise<OrderCancellationRecord | null> {
+  const result = await db.execute<CancellationSqlRow>(sql`
+    WITH authorized AS MATERIALIZED (
+      SELECT cancellation.id
+      FROM order_cancellation AS cancellation
+      INNER JOIN "user" AS actor
+        ON actor.id = ${actorId} AND actor.role = 'admin'
+      WHERE cancellation.id = ${cancellationId}
+      FOR UPDATE OF cancellation
+    ), updated AS (
+      UPDATE order_cancellation AS cancellation
+      SET financial_action = 'none', refund_amount = NULL,
+        provider_idempotency_key = NULL,
+        provider_transaction_reference = coalesce(
+          cancellation.provider_transaction_reference,
+          ${providerTransactionReference}
+        ),
+        status = 'provider_operation_pending',
+        reconciliation_status = 'pending', last_error = NULL,
+        completed_at = NULL, updated_at = now()
+      FROM authorized
+      WHERE cancellation.id = authorized.id
+        AND cancellation.status IN (${activeCancellationStatusValues()})
+        AND cancellation.financial_action IN ('undetermined', 'none')
+        AND cancellation.refund_amount IS NULL
+        AND cancellation.provider_idempotency_key IS NULL
+        AND (
+          cancellation.provider_transaction_reference IS NULL
+          OR cancellation.provider_transaction_reference =
+            ${providerTransactionReference}
+        )
       RETURNING cancellation.*
     )
     SELECT 'existing'::text AS result_kind, updated.* FROM updated
@@ -515,6 +591,326 @@ export async function completeUnpaidOrderCancellation({
     return { kind: "paid" }
   }
   return { kind: "not-eligible" }
+}
+
+export async function reactivateFailedPaidCancellation({
+  orderId,
+  actorId,
+}: {
+  readonly orderId: string
+  readonly actorId: string
+}): Promise<OrderCancellationRecord | null> {
+  const result = await db.execute<CancellationSqlRow>(sql`
+    WITH locked AS MATERIALIZED (
+      SELECT cancellation.id
+      FROM order_cancellation AS cancellation
+      INNER JOIN customer_order AS current_order
+        ON current_order.id = cancellation.order_id
+      INNER JOIN "user" AS actor
+        ON actor.id = ${actorId} AND actor.role = 'admin'
+      WHERE cancellation.order_id = ${orderId}
+        AND cancellation.status = 'failed'
+        AND cancellation.completed_at IS NULL
+        AND cancellation.financial_action IN ('undetermined', 'none')
+        AND cancellation.refund_amount IS NULL
+        AND current_order.payment_status IN ('paid', 'partial_refund')
+        AND current_order.fulfillment_status = 'processing'
+        AND current_order.tracking IS NULL
+      FOR UPDATE OF cancellation, current_order
+    ), reactivated AS (
+      UPDATE order_cancellation AS cancellation
+      SET status = 'requested', financial_action = 'undetermined',
+        provider_idempotency_key = NULL,
+        provider_transaction_reference = NULL,
+        provider_selected_status = NULL,
+        reconciliation_status = 'pending', last_error = NULL,
+        completed_at = NULL, updated_at = now()
+      FROM locked
+      WHERE cancellation.id = locked.id
+      RETURNING cancellation.*
+    ), hold_set AS (
+      UPDATE customer_order AS current_order
+      SET cancellation_requested_at = coalesce(cancellation_requested_at, now()),
+        updated_at = now()
+      FROM reactivated
+      WHERE current_order.id = reactivated.order_id
+    )
+    SELECT 'existing'::text AS result_kind, reactivated.* FROM reactivated
+  `)
+  const [row] = result.rows
+  return row ? cancellationFromSqlRow(row) : null
+}
+
+type CancellationRefundSelection =
+  | {
+      readonly kind: "online-refund"
+      readonly refundKey: string
+      readonly providerTransactionReference: string
+    }
+  | {
+      readonly kind: "verified-offline-settlement"
+      readonly providerTransactionReference: string
+      readonly providerStatus: "settlement"
+    }
+  | {
+      readonly kind: "manual-order-refund"
+    }
+
+export async function selectCancellationRefundAction({
+  cancellationId,
+  actorId,
+  refundAmount,
+  selection,
+}: {
+  readonly cancellationId: string
+  readonly actorId: string
+  readonly refundAmount: number
+  readonly selection: CancellationRefundSelection
+}): Promise<OrderCancellationRecord | null> {
+  const financialAction =
+    selection.kind === "online-refund" ? "refund" : "manual_refund"
+  const refundKey =
+    selection.kind === "online-refund" ? selection.refundKey : null
+  const providerTransactionReference =
+    selection.kind === "manual-order-refund"
+      ? null
+      : selection.providerTransactionReference
+  const verifiedOfflineSettlement =
+    selection.kind === "verified-offline-settlement" &&
+    selection.providerStatus === "settlement"
+  const status =
+    financialAction === "refund" ? "refund_pending" : "manual_refund_required"
+  const result = await db.execute<CancellationSqlRow>(sql`
+    WITH authorized AS MATERIALIZED (
+      SELECT cancellation.id
+      FROM order_cancellation AS cancellation
+      INNER JOIN "user" AS actor
+        ON actor.id = ${actorId} AND actor.role = 'admin'
+      WHERE cancellation.id = ${cancellationId}
+      FOR UPDATE OF cancellation
+    ), updated AS (
+      UPDATE order_cancellation AS cancellation
+      SET financial_action = ${financialAction}, refund_amount = ${refundAmount},
+        provider_idempotency_key = ${refundKey},
+        provider_transaction_reference = coalesce(
+          cancellation.provider_transaction_reference,
+          ${providerTransactionReference}
+        ),
+        provider_selected_status = CASE
+          WHEN cancellation.financial_action = 'cancel_payment'
+            THEN cancellation.provider_selected_status
+          WHEN ${financialAction} = 'refund' THEN 'settlement'
+          ELSE cancellation.provider_selected_status
+        END,
+        status = ${status}, reconciliation_status = 'pending',
+        last_error = NULL, completed_at = NULL, updated_at = now()
+      FROM authorized
+      WHERE cancellation.id = authorized.id
+        AND cancellation.status IN (${activeCancellationStatusValues()})
+        AND (cancellation.refund_amount IS NULL
+          OR cancellation.refund_amount = ${refundAmount})
+        AND (
+          (${financialAction} = 'refund' AND (
+            (cancellation.financial_action = 'undetermined'
+              AND cancellation.provider_idempotency_key IS NULL)
+            OR (cancellation.financial_action = 'refund'
+              AND cancellation.provider_idempotency_key = ${refundKey})
+            OR (cancellation.financial_action = 'cancel_payment'
+              AND cancellation.provider_selected_status IN (
+                'pending', 'authorize', 'capture', 'snap_session'
+              )
+              AND (
+                cancellation.provider_transaction_reference =
+                  ${providerTransactionReference}
+                OR (cancellation.provider_selected_status = 'snap_session'
+                  AND cancellation.provider_transaction_reference IS NULL)
+              )
+              AND ${refundKey}::text IS NOT NULL)
+          ))
+          OR (${financialAction} = 'manual_refund'
+            AND (
+              (cancellation.financial_action IN (
+                'undetermined', 'manual_refund'
+              ) AND cancellation.provider_idempotency_key IS NULL)
+              OR (${verifiedOfflineSettlement}
+                AND cancellation.financial_action = 'cancel_payment'
+                AND cancellation.provider_selected_status IN (
+                  'pending', 'authorize', 'capture', 'snap_session'
+                )
+                AND (
+                  cancellation.provider_transaction_reference =
+                    ${providerTransactionReference}
+                  OR (cancellation.provider_selected_status = 'snap_session'
+                    AND cancellation.provider_transaction_reference IS NULL)
+                ))
+            ))
+        )
+      RETURNING cancellation.*
+    )
+    SELECT 'existing'::text AS result_kind, updated.* FROM updated
+  `)
+  const [row] = result.rows
+  return row ? cancellationFromSqlRow(row) : null
+}
+
+type CommitPaidCancellationResult =
+  | { readonly kind: "committed" | "already-committed" }
+  | { readonly kind: "not-eligible" | "not-found" }
+
+export async function commitPaidCancellationOperation({
+  cancellationId,
+  actorId,
+  completion,
+}: {
+  readonly cancellationId: string
+  readonly actorId: string
+  readonly completion:
+    | "cancel_confirmed"
+    | "already_reversed"
+    | "refund_pending"
+    | "manual_refund_required"
+}): Promise<CommitPaidCancellationResult> {
+  const result = await db.execute<{
+    transitioned: number
+    status: OrderCancellationStatus | null
+    fulfillment_status: FulfillmentStatus | null
+  }>(sql`
+    WITH locked AS MATERIALIZED (
+      SELECT cancellation.*, current_order.fulfillment_status,
+        current_order.tracking, current_order.payment_status
+      FROM order_cancellation AS cancellation
+      INNER JOIN customer_order AS current_order
+        ON current_order.id = cancellation.order_id
+      INNER JOIN "user" AS actor
+        ON actor.id = ${actorId} AND actor.role = 'admin'
+      WHERE cancellation.id = ${cancellationId}
+      FOR UPDATE OF cancellation, current_order
+    ), eligible AS (
+      SELECT * FROM locked
+      WHERE tracking IS NULL
+        AND fulfillment_status IN ('processing', 'cancelled')
+        AND payment_status IN ('paid', 'partial_refund', 'refunded')
+        AND (
+          (${completion} = 'cancel_confirmed'
+            AND financial_action = 'cancel_payment'
+            AND provider_selected_status IN ('pending', 'authorize', 'capture')
+            AND provider_transaction_reference IS NOT NULL)
+          OR (${completion} = 'refund_pending'
+            AND financial_action = 'refund' AND refund_amount > 0
+            AND provider_idempotency_key IS NOT NULL)
+          OR (${completion} = 'manual_refund_required'
+            AND financial_action = 'manual_refund' AND refund_amount > 0)
+          OR (${completion} = 'already_reversed'
+            AND financial_action = 'none' AND refund_amount IS NULL
+            AND provider_idempotency_key IS NULL
+            AND provider_transaction_reference IS NOT NULL)
+        )
+    ), transitioned AS (
+      UPDATE customer_order AS current_order
+      SET fulfillment_status = 'cancelled',
+        payment_status = CASE WHEN ${completion} = 'cancel_confirmed'
+          THEN 'cancelled' ELSE current_order.payment_status END,
+        cancelled_at = coalesce(current_order.cancelled_at, now()),
+        checkout_key = NULL, updated_at = now()
+      FROM eligible
+      WHERE current_order.id = eligible.order_id
+      RETURNING current_order.id
+    ), cancelled_reservations AS (
+      UPDATE order_inventory_reservation AS reservation
+      SET status = 'cancelled', released_at = coalesce(released_at, now())
+      FROM transitioned
+      WHERE reservation.order_id = transitioned.id
+        AND reservation.status = 'consumed'
+      RETURNING reservation.product_slug, reservation.quantity
+    ), restored_inventory AS (
+      UPDATE product AS current_product
+      SET stock = current_product.stock + restored.quantity,
+        sold = greatest(0, current_product.sold - restored.quantity),
+        updated_at = now()
+      FROM (
+        SELECT product_slug, sum(quantity)::integer AS quantity
+        FROM cancelled_reservations GROUP BY product_slug
+      ) AS restored
+      WHERE current_product.slug = restored.product_slug
+    ), cancellation_updated AS (
+      UPDATE order_cancellation AS cancellation
+      SET status = CASE
+          WHEN ${completion} IN ('cancel_confirmed', 'already_reversed')
+            THEN 'completed'
+          WHEN ${completion} = 'refund_pending' THEN 'refund_pending'
+          ELSE 'manual_refund_required'
+        END,
+        reconciliation_status = CASE WHEN ${completion} IN (
+            'cancel_confirmed', 'already_reversed'
+          )
+          THEN 'reconciled' ELSE 'pending' END,
+        completed_at = CASE WHEN ${completion} IN (
+            'cancel_confirmed', 'already_reversed'
+          )
+          THEN coalesce(cancellation.completed_at, now()) ELSE NULL END,
+        last_error = NULL, updated_at = now()
+      FROM eligible
+      WHERE cancellation.id = eligible.id
+        AND EXISTS (SELECT 1 FROM transitioned)
+      RETURNING cancellation.id
+    )
+    SELECT (SELECT count(*)::integer FROM cancellation_updated) AS transitioned,
+      (SELECT status FROM locked) AS status,
+      (SELECT fulfillment_status FROM locked) AS fulfillment_status
+  `)
+  const [row] = result.rows
+  if (!row || row.status === null) return { kind: "not-found" }
+  if (row.transitioned > 0) {
+    invalidateStorefrontProducts()
+    return { kind: "committed" }
+  }
+  if (row.fulfillment_status === "cancelled")
+    return { kind: "already-committed" }
+  return { kind: "not-eligible" }
+}
+
+export async function reconcileCancellationRefund(
+  payment: MidtransStatusResponse
+): Promise<boolean> {
+  const result = await db.execute<CancellationSqlRow>(sql`
+    SELECT 'existing'::text AS result_kind, cancellation.*
+    FROM order_cancellation AS cancellation
+    WHERE cancellation.order_id = ${payment.order_id}
+      AND cancellation.financial_action = 'refund'
+      AND cancellation.status IN ('refund_pending', 'completed')
+    LIMIT 1
+  `)
+  const [row] = result.rows
+  if (!row) return false
+  const cancellation = cancellationFromSqlRow(row)
+  if (
+    !cancellation.providerIdempotencyKey ||
+    cancellation.refundAmount === null ||
+    (cancellation.providerTransactionReference &&
+      payment.transaction_id !== cancellation.providerTransactionReference)
+  )
+    return false
+  const match = matchingProviderRefund({
+    payment,
+    refundKey: cancellation.providerIdempotencyKey,
+    amount: cancellation.refundAmount,
+  })
+  if (!match) return false
+  await db.execute(sql`
+    UPDATE order_cancellation
+    SET status = CASE WHEN ${match.bankConfirmedAt !== null}
+        THEN 'completed' ELSE 'refund_pending' END,
+      reconciliation_status = 'reconciled',
+      completed_at = CASE WHEN ${match.bankConfirmedAt !== null}
+        THEN coalesce(completed_at, now()) ELSE NULL END,
+      last_error = NULL,
+      updated_at = now()
+    WHERE id = ${cancellation.id} AND status = 'refund_pending'
+      AND financial_action = 'refund'
+      AND provider_idempotency_key = ${cancellation.providerIdempotencyKey}
+      AND refund_amount = ${cancellation.refundAmount}
+  `)
+  return true
 }
 
 export async function abandonOrderCancellation({

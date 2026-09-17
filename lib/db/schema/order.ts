@@ -19,6 +19,7 @@ import type {
 import type {
   OrderCancellationActorType,
   OrderCancellationFinancialAction,
+  OrderCancellationProviderSelectedStatus,
   OrderCancellationReconciliationStatus,
   OrderCancellationStatus,
 } from "@/lib/orders/cancellation"
@@ -206,6 +207,9 @@ export const orderCancellation = pgTable(
     refundAmount: integer("refund_amount"),
     providerIdempotencyKey: text("provider_idempotency_key"),
     providerTransactionReference: text("provider_transaction_reference"),
+    providerSelectedStatus: text(
+      "provider_selected_status"
+    ).$type<OrderCancellationProviderSelectedStatus>(),
     reconciliationStatus: text("reconciliation_status")
       .$type<OrderCancellationReconciliationStatus>()
       .default("not_required")
@@ -250,6 +254,10 @@ export const orderCancellation = pgTable(
       sql`(${table.financialAction} in ('cancel_payment', 'refund') and ${table.providerIdempotencyKey} is not null) or (${table.financialAction} in ('undetermined', 'none', 'manual_refund') and ${table.providerIdempotencyKey} is null)`
     ),
     check(
+      "orderCancellation_provider_selected_status_valid",
+      sql`${table.providerSelectedStatus} is null or ${table.providerSelectedStatus} in ('pending', 'authorize', 'capture', 'settlement', 'snap_session')`
+    ),
+    check(
       "orderCancellation_reconciliation_status_valid",
       sql`${table.reconciliationStatus} in ('not_required', 'pending', 'reconciled', 'failed')`
     ),
@@ -260,7 +268,8 @@ export const orderCancellation = pgTable(
   ]
 )
 
-export type InventoryReservationStatus = "reserved" | "consumed" | "released"
+export type InventoryReservationStatus =
+  "reserved" | "consumed" | "released" | "cancelled"
 
 export const orderInventoryReservation = pgTable(
   "order_inventory_reservation",
@@ -298,7 +307,7 @@ export const orderInventoryReservation = pgTable(
     ),
     check(
       "orderInventoryReservation_status_valid",
-      sql`${table.status} in ('reserved', 'consumed', 'released')`
+      sql`${table.status} in ('reserved', 'consumed', 'released', 'cancelled')`
     ),
   ]
 )

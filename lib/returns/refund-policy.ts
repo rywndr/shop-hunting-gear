@@ -99,3 +99,22 @@ export function matchingProviderRefund({
     bankConfirmedAt: providerRefundDate(refund.bank_confirmed_at),
   }
 }
+
+export function hasFullProviderRefund({
+  payment,
+  amount,
+}: {
+  readonly payment: MidtransStatusResponse
+  readonly amount: number
+}) {
+  const transactionStatus = payment.transaction_status.trim().toLowerCase()
+  if (
+    transactionStatus !== "refund" &&
+    transactionStatus !== "partial_refund"
+  ) {
+    return false
+  }
+
+  const refundedAmount = refundAmountInteger(payment.refund_amount)
+  return refundedAmount !== null && refundedAmount >= amount
+}

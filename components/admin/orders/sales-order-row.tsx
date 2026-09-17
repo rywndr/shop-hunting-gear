@@ -19,7 +19,7 @@ import { TableCell, TableRow } from "@/components/ui/table"
 import {
   canMarkOrderCompleted,
   canMarkOrderPaid,
-  canCancelUnpaidOrder,
+  canCancelAdminOrder,
   canPrintShippingLabel,
   canShipOrder,
   canTrackOrder,
@@ -170,8 +170,12 @@ function SalesOrderRow({
           {canMarkOrderPaid(order) && (
             <MarkOrderPaidDialog orderId={order.id} />
           )}
-          {canCancelUnpaidOrder(order) && (
-            <CancelUnpaidOrderDialog orderId={order.id} />
+          {canCancelAdminOrder(order) && (
+            <CancelUnpaidOrderDialog
+              orderId={order.id}
+              paid={order.paymentStatus === "paid"}
+              amount={formatRupiah(orderTotal(order))}
+            />
           )}
           {canShipOrder({
             paymentStatus: order.paymentStatus,

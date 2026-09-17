@@ -37,6 +37,9 @@ export type OrderCancellationActorType = "customer" | "admin"
 export type OrderCancellationFinancialAction =
   "undetermined" | "none" | "cancel_payment" | "refund" | "manual_refund"
 
+export type OrderCancellationProviderSelectedStatus =
+  "pending" | "authorize" | "capture" | "settlement" | "snap_session"
+
 export type OrderCancellationReconciliationStatus =
   "not_required" | "pending" | "reconciled" | "failed"
 

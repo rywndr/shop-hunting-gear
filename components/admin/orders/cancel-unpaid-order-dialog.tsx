@@ -18,7 +18,15 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
-function CancelUnpaidOrderDialog({ orderId }: { readonly orderId: string }) {
+function CancelUnpaidOrderDialog({
+  orderId,
+  paid,
+  amount,
+}: {
+  readonly orderId: string
+  readonly paid: boolean
+  readonly amount: string
+}) {
   const reasonId = useId()
   const router = useRouter()
   const { showNotification } = useNotification()
@@ -44,9 +52,9 @@ function CancelUnpaidOrderDialog({ orderId }: { readonly orderId: string }) {
 
     setError(null)
     startTransition(async () => {
-      const { cancelUnpaidOrderAction } =
+      const { cancelAdminOrderAction } =
         await import("@/app/admin/orders/actions")
-      const result = await cancelUnpaidOrderAction({ orderId, reason })
+      const result = await cancelAdminOrderAction({ orderId, reason })
 
       if (result.kind === "error") {
         setError(result.message)
@@ -55,7 +63,7 @@ function CancelUnpaidOrderDialog({ orderId }: { readonly orderId: string }) {
 
       showNotification({
         variant: "success",
-        message: "Pesanan berhasil dibatalkan.",
+        message: result.message ?? "Pesanan berhasil dibatalkan.",
       })
       setOpen(false)
       router.refresh()
@@ -70,10 +78,11 @@ function CancelUnpaidOrderDialog({ orderId }: { readonly orderId: string }) {
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Batalkan pesanan belum dibayar?</DialogTitle>
+          <DialogTitle>Batalkan pesanan?</DialogTitle>
           <DialogDescription>
-            Stok yang masih dipesan akan tersedia kembali setelah status
-            pembayaran dipastikan.
+            {paid
+              ? `Pesanan akan berhenti diproses. Pembalikan pembayaran atau pengembalian dana penuh sebesar ${amount} akan ditangani setelah konfirmasi.`
+              : "Stok yang masih dipesan akan tersedia kembali setelah status pembayaran dipastikan."}
           </DialogDescription>
         </DialogHeader>
 
@@ -81,6 +90,9 @@ function CancelUnpaidOrderDialog({ orderId }: { readonly orderId: string }) {
           <div className="border-y py-3">
             <span className="block text-xs text-muted-foreground">Pesanan</span>
             <span className="block truncate font-mono text-sm">{orderId}</span>
+            {paid && (
+              <span className="mt-1 block text-sm">Dana penuh: {amount}</span>
+            )}
           </div>
 
           <div className="grid gap-2">
