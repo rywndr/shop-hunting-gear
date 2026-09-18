@@ -28,6 +28,7 @@ import {
 import {
   cancelMidtransOrderForUser,
   executeAdminUnpaidCancellation,
+  executeOrderCancellation,
   reconcileMidtransPayment,
   reconcileExpiredSnapSessionReservations,
 } from "../lib/payments/midtrans/service"
@@ -35,6 +36,7 @@ import {
 const suffix = randomUUID().slice(0, 8)
 const ADMIN_ID = `cancel-admin-${suffix}`
 const CUSTOMER_ID = `cancel-customer-${suffix}`
+const OTHER_CUSTOMER_ID = `cancel-other-customer-${suffix}`
 const PRODUCT_ID = `cancel-product-${suffix}`
 const PRODUCT_SLUG = `cancel-product-${suffix}`
 const PRICE = 375_000
@@ -97,6 +99,20 @@ async function requestAsAdmin(orderId: string) {
   assert.ok(result.kind === "created" || result.kind === "existing")
   if (result.kind !== "created" && result.kind !== "existing") {
     throw new Error("Cancellation fixture failed.")
+  }
+  return result.cancellation
+}
+
+async function requestAsCustomer(orderId: string) {
+  const result = await requestOrderCancellation({
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Dibatalkan oleh pelanggan.",
+  })
+  assert.ok(result.kind === "created" || result.kind === "existing")
+  if (result.kind !== "created" && result.kind !== "existing") {
+    throw new Error("Customer cancellation fixture failed.")
   }
   return result.cancellation
 }
@@ -193,6 +209,12 @@ before(async () => {
       email: `cancel-customer-${suffix}@example.test`,
       role: "user",
     },
+    {
+      id: OTHER_CUSTOMER_ID,
+      name: `Pelanggan Lain ${suffix}`,
+      email: `cancel-other-${suffix}@example.test`,
+      role: "user",
+    },
   ])
   await db.insert(product).values({
     id: PRODUCT_ID,
@@ -239,6 +261,7 @@ after(async () => {
     .where(eq(productListing.productId, PRODUCT_ID))
   await db.delete(product).where(eq(product.id, PRODUCT_ID))
   await db.delete(user).where(eq(user.id, CUSTOMER_ID))
+  await db.delete(user).where(eq(user.id, OTHER_CUSTOMER_ID))
   await db.delete(user).where(eq(user.id, ADMIN_ID))
 })
 
@@ -253,6 +276,165 @@ test("admin cancellation authorization rejects a customer actor", async () => {
     }),
     { kind: "not-found" }
   )
+})
+
+test("owning customer can request and execute persisted cancellation", async () => {
+  const orderId = await createOrder()
+  const requested = await requestOrderCancellation({
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Pesanan dibuat dua kali.",
+  })
+  assert.equal(requested.kind, "created")
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: CUSTOMER_ID,
+      actorType: "customer",
+    }),
+    { kind: "completed" }
+  )
+  const cancellation = await cancellationState(orderId)
+  assert.equal(cancellation.actorId, CUSTOMER_ID)
+  assert.equal(cancellation.actorType, "customer")
+  assert.equal(cancellation.reason, "Pesanan dibuat dua kali.")
+})
+
+test("another customer cannot request or execute an existing cancellation", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  await requestAsAdmin(orderId)
+  const cancellation = await cancellationState(orderId)
+  const inventory = await inventoryState(orderId)
+  let providerPosts = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("midtrans.com") && init?.method === "POST")
+        providerPosts++
+      return originalFetch(input, init)
+    }
+  )
+
+  assert.deepEqual(
+    await requestOrderCancellation({
+      orderId,
+      actorId: OTHER_CUSTOMER_ID,
+      actorType: "customer",
+      reason: "Bukan pesanan saya.",
+    }),
+    { kind: "not-found" }
+  )
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: OTHER_CUSTOMER_ID,
+      actorType: "customer",
+    }),
+    { kind: "not-found" }
+  )
+  const after = await cancellationState(orderId)
+  const afterInventory = await inventoryState(orderId)
+  assert.equal(providerPosts, 0)
+  assert.equal(after.status, cancellation.status)
+  assert.equal(after.updatedAt.getTime(), cancellation.updatedAt.getTime())
+  assert.equal(afterInventory.reservation.status, inventory.reservation.status)
+  assert.equal(afterInventory.stock, inventory.stock)
+})
+
+test("admin can resume a customer request without rewriting requester audit fields", async () => {
+  const orderId = await createOrder()
+  const requested = await requestOrderCancellation({
+    orderId,
+    actorId: CUSTOMER_ID,
+    actorType: "customer",
+    reason: "Alamat pengiriman salah.",
+  })
+  assert.equal(requested.kind, "created")
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: ADMIN_ID,
+      actorType: "admin",
+    }),
+    { kind: "completed" }
+  )
+  const cancellation = await cancellationState(orderId)
+  assert.equal(cancellation.actorId, CUSTOMER_ID)
+  assert.equal(cancellation.actorType, "customer")
+  assert.equal(cancellation.reason, "Alamat pengiriman salah.")
+})
+
+test("customer paid capture uses intentional Cancel and restores inventory once", async (t) => {
+  const orderId = await createPaidOrder({ providerBacked: true })
+  const before = await inventoryState(orderId)
+  await requestAsCustomer(orderId)
+  let cancelled = false
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") cancelled = true
+      return Response.json(
+        midtransStatus(
+          orderId,
+          cancelled ? "cancel" : "capture",
+          undefined,
+          "credit_card"
+        )
+      )
+    }
+  )
+
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: CUSTOMER_ID,
+      actorType: "customer",
+    }),
+    { kind: "completed" }
+  )
+  const order = await orderState(orderId)
+  const inventory = await inventoryState(orderId)
+  assert.equal(order.paymentStatus, "cancelled")
+  assert.equal(order.fulfillmentStatus, "cancelled")
+  assert.equal(inventory.reservation.status, "cancelled")
+  assert.equal(inventory.stock, before.stock + QUANTITY)
+})
+
+test("customer manual paid cancellation requires manual refund without Midtrans", async (t) => {
+  const orderId = await createPaidOrder()
+  await requestAsCustomer(orderId)
+  let providerRequests = 0
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("midtrans.com")) providerRequests++
+      return originalFetch(input, init)
+    }
+  )
+
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: CUSTOMER_ID,
+      actorType: "customer",
+    }),
+    { kind: "manual_refund_required" }
+  )
+  assert.equal(providerRequests, 0)
+  assert.equal(
+    (await cancellationState(orderId)).status,
+    "manual_refund_required"
+  )
+  assert.equal((await orderState(orderId)).fulfillmentStatus, "cancelled")
 })
 
 test("manual unpaid cancellation completes and releases inventory once", async (t) => {
@@ -645,6 +827,7 @@ test("an unrelated provider cancel cannot regress a paid order", async (t) => {
   const selected = await selectCancellationProviderAction({
     cancellationId: cancellation.id,
     actorId: ADMIN_ID,
+    actorType: "admin",
     providerIdempotencyKey: `cancel-${orderId}`,
     providerTransactionReference: `tx-${orderId}`,
   })

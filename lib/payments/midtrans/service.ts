@@ -18,7 +18,7 @@ import {
 } from "@/lib/payments/midtrans/reconciliation"
 import {
   abandonOrderCancellation,
-  adminCancellationContext,
+  cancellationContextForActor,
   commitPaidCancellationOperation,
   completeUnpaidOrderCancellation,
   reactivateFailedPaidCancellation,
@@ -28,7 +28,10 @@ import {
   selectCancellationProviderAction,
   selectCancellationRefundAction,
 } from "@/lib/orders/cancellation-service"
-import type { OrderCancellationProviderSelectedStatus } from "@/lib/orders/cancellation"
+import type {
+  CancellationActor,
+  OrderCancellationProviderSelectedStatus,
+} from "@/lib/orders/cancellation"
 import {
   applyMidtransPaymentUpdate,
   cancelUnpaidOrderLocally,
@@ -174,7 +177,7 @@ async function currentStatus(
   }
 }
 
-export type AdminUnpaidCancellationResult =
+export type OrderCancellationExecutionResult =
   | { readonly kind: "completed" }
   | { readonly kind: "pending" }
   | { readonly kind: "refund_pending" }
@@ -204,13 +207,14 @@ function normalizeCancellableStatus(
 async function unresolvedAdminCancellation({
   cancellationId,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   await recordCancellationReconciliationProblem({
     cancellationId,
     actorId,
+    actorType,
     error: CANCELLATION_RECONCILIATION_ERROR,
   })
   return { kind: "pending" }
@@ -219,17 +223,18 @@ async function unresolvedAdminCancellation({
 async function completeAdminCancellation({
   cancellationId,
   actorId,
+  actorType,
   financialAction,
   providerTransactionReference,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly financialAction: "none" | "cancel_payment"
   readonly providerTransactionReference?: string | null
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const result = await completeUnpaidOrderCancellation({
     cancellationId,
     actorId,
+    actorType,
     financialAction,
     providerTransactionReference,
   })
@@ -255,13 +260,13 @@ async function finishFromAdminStatus({
   status,
   cancellationId,
   actorId,
+  actorType,
   financialAction,
-}: {
+}: CancellationActor & {
   readonly status: CurrentStatus
   readonly cancellationId: string
-  readonly actorId: string
   readonly financialAction: "none" | "cancel_payment"
-}): Promise<AdminUnpaidCancellationResult | null> {
+}): Promise<OrderCancellationExecutionResult | null> {
   if (status.kind === "not-found") return null
 
   switch (status.providerOutcome.kind) {
@@ -269,6 +274,7 @@ async function finishFromAdminStatus({
       return completeAdminCancellation({
         cancellationId,
         actorId,
+        actorType,
         financialAction,
         providerTransactionReference: status.payment.transaction_id ?? null,
       })
@@ -276,7 +282,7 @@ async function finishFromAdminStatus({
     case "reversed":
       return null
     case "unknown":
-      return unresolvedAdminCancellation({ cancellationId, actorId })
+      return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
     case "pending":
       return null
     default: {
@@ -289,13 +295,13 @@ async function finishFromAdminStatus({
 async function selectAdminProviderCancellation({
   cancellationId,
   actorId,
+  actorType,
   orderId,
   existingIdempotencyKey,
   providerTransactionReference,
   providerSelectedStatus,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly orderId: string
   readonly existingIdempotencyKey: string | null
   readonly providerTransactionReference: string | null
@@ -304,6 +310,7 @@ async function selectAdminProviderCancellation({
   return selectCancellationProviderAction({
     cancellationId,
     actorId,
+    actorType,
     providerIdempotencyKey:
       existingIdempotencyKey ?? midtransIdempotencyKey(orderId, "cancel"),
     providerTransactionReference,
@@ -314,19 +321,20 @@ async function selectAdminProviderCancellation({
 async function cancelAdminPendingTransaction({
   cancellationId,
   actorId,
+  actorType,
   orderId,
   status,
   existingIdempotencyKey = null,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly orderId: string
   readonly status: Extract<CurrentStatus, { readonly kind: "found" }>
   readonly existingIdempotencyKey?: string | null
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const cancellation = await selectAdminProviderCancellation({
     cancellationId,
     actorId,
+    actorType,
     orderId,
     existingIdempotencyKey,
     providerTransactionReference: status.payment.transaction_id ?? null,
@@ -349,13 +357,14 @@ async function cancelAdminPendingTransaction({
   try {
     after = await currentStatus(orderId, status.payment.transaction_id ?? null)
   } catch {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
 
   const continuedAsPaid = await continueAsPaidAfterFreshStatus({
     status: after,
     orderId,
     actorId,
+    actorType,
   })
   if (continuedAsPaid) return continuedAsPaid
 
@@ -363,29 +372,34 @@ async function cancelAdminPendingTransaction({
     status: after,
     cancellationId,
     actorId,
+    actorType,
     financialAction: "cancel_payment",
   })
-  return finished ?? unresolvedAdminCancellation({ cancellationId, actorId })
+  return (
+    finished ??
+    unresolvedAdminCancellation({ cancellationId, actorId, actorType })
+  )
 }
 
 async function cancelAdminSnapSession({
   cancellationId,
   actorId,
+  actorType,
   orderId,
   token,
   paymentSessionExpiresAt,
   existingIdempotencyKey,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly orderId: string
   readonly token: string
   readonly paymentSessionExpiresAt: Date | null
   readonly existingIdempotencyKey: string | null
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const cancellation = await selectAdminProviderCancellation({
     cancellationId,
     actorId,
+    actorType,
     orderId,
     existingIdempotencyKey,
     providerTransactionReference: null,
@@ -405,13 +419,14 @@ async function cancelAdminSnapSession({
   try {
     reconciled = await currentStatus(orderId)
   } catch {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
 
   const continuedAsPaid = await continueAsPaidAfterFreshStatus({
     status: reconciled,
     orderId,
     actorId,
+    actorType,
   })
   if (continuedAsPaid) return continuedAsPaid
 
@@ -419,6 +434,7 @@ async function cancelAdminSnapSession({
     status: reconciled,
     cancellationId,
     actorId,
+    actorType,
     financialAction: "cancel_payment",
   })
   if (finished) return finished
@@ -427,6 +443,7 @@ async function cancelAdminSnapSession({
     return cancelAdminPendingTransaction({
       cancellationId,
       actorId,
+      actorType,
       orderId,
       status: reconciled,
       existingIdempotencyKey: cancellation.providerIdempotencyKey,
@@ -440,6 +457,7 @@ async function cancelAdminSnapSession({
     return completeAdminCancellation({
       cancellationId,
       actorId,
+      actorType,
       financialAction: "cancel_payment",
     })
   }
@@ -452,29 +470,31 @@ async function cancelAdminSnapSession({
     return completeAdminCancellation({
       cancellationId,
       actorId,
+      actorType,
       financialAction: "cancel_payment",
     })
   }
 
-  return unresolvedAdminCancellation({ cancellationId, actorId })
+  return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
 }
 
 async function commitPaidCancellation({
   cancellationId,
   actorId,
+  actorType,
   completion,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly completion:
     | "cancel_confirmed"
     | "already_reversed"
     | "refund_pending"
     | "manual_refund_required"
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const result = await commitPaidCancellationOperation({
     cancellationId,
     actorId,
+    actorType,
     completion,
   })
   if (result.kind === "not-found") return { kind: "not-found" }
@@ -489,11 +509,11 @@ async function commitPaidCancellation({
 async function prepareManualPaidCancellation({
   cancellationId,
   actorId,
+  actorType,
   grossAmount,
   source,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly grossAmount: number
   readonly source:
     | { readonly kind: "manual-order" }
@@ -505,6 +525,7 @@ async function prepareManualPaidCancellation({
   const selected = await selectCancellationRefundAction({
     cancellationId,
     actorId,
+    actorType,
     refundAmount: grossAmount,
     selection:
       source.kind === "manual-order"
@@ -519,6 +540,7 @@ async function prepareManualPaidCancellation({
   return commitPaidCancellation({
     cancellationId,
     actorId,
+    actorType,
     completion: "manual_refund_required",
   })
 }
@@ -526,36 +548,37 @@ async function prepareManualPaidCancellation({
 async function executeCancellationRefund({
   cancellationId,
   actorId,
+  actorType,
   orderId,
   grossAmount,
   payment,
   existingRefundKey,
-}: {
+}: CancellationActor & {
   readonly cancellationId: string
-  readonly actorId: string
   readonly orderId: string
   readonly grossAmount: number
   readonly payment: MidtransStatusResponse
   readonly existingRefundKey: string | null
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const method = returnRefundMethod({
     paymentType: payment.payment_type,
     amount: grossAmount,
     grossAmount,
   })
   if (method === "unknown") {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
   if (method === "offline") {
     if (
       payment.transaction_status.trim().toLowerCase() !== "settlement" ||
       !payment.transaction_id
     ) {
-      return unresolvedAdminCancellation({ cancellationId, actorId })
+      return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
     }
     return prepareManualPaidCancellation({
       cancellationId,
       actorId,
+      actorType,
       grossAmount,
       source: {
         kind: "verified-offline-settlement",
@@ -564,13 +587,14 @@ async function executeCancellationRefund({
     })
   }
   if (!payment.transaction_id) {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
 
   const refundKey = existingRefundKey ?? `cancellation_${cancellationId}`
   const selected = await selectCancellationRefundAction({
     cancellationId,
     actorId,
+    actorType,
     refundAmount: grossAmount,
     selection: {
       kind: "online-refund",
@@ -583,6 +607,7 @@ async function executeCancellationRefund({
   const committed = await commitPaidCancellation({
     cancellationId,
     actorId,
+    actorType,
     completion: "refund_pending",
   })
   if (committed.kind !== "refund_pending") return committed
@@ -599,7 +624,7 @@ async function executeCancellationRefund({
       : { kind: "refund_pending" }
   }
   if (payment.transaction_status.trim().toLowerCase() !== "settlement") {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
 
   try {
@@ -617,7 +642,7 @@ async function executeCancellationRefund({
   try {
     after = await currentStatus(orderId, payment.transaction_id)
   } catch {
-    return unresolvedAdminCancellation({ cancellationId, actorId })
+    return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
   }
   if (after.kind === "found") {
     const matched = matchingProviderRefund({
@@ -632,23 +657,24 @@ async function executeCancellationRefund({
         : { kind: "refund_pending" }
     }
   }
-  return unresolvedAdminCancellation({ cancellationId, actorId })
+  return unresolvedAdminCancellation({ cancellationId, actorId, actorType })
 }
 
 async function executePaidAdminCancellation({
   context,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly context: NonNullable<
-    Awaited<ReturnType<typeof adminCancellationContext>>
+    Awaited<ReturnType<typeof cancellationContextForActor>>
   >
-  readonly actorId: string
-}): Promise<AdminUnpaidCancellationResult> {
+}): Promise<OrderCancellationExecutionResult> {
   const { cancellation, order } = context
   if (order.sourceKind === "manual") {
     return prepareManualPaidCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       grossAmount: order.grossAmount,
       source: { kind: "manual-order" },
     })
@@ -661,12 +687,14 @@ async function executePaidAdminCancellation({
     return unresolvedAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
     })
   }
   if (status.kind === "not-found") {
     return unresolvedAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
     })
   }
 
@@ -681,6 +709,7 @@ async function executePaidAdminCancellation({
     return commitPaidCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       completion: "cancel_confirmed",
     })
   }
@@ -689,6 +718,7 @@ async function executePaidAdminCancellation({
     const selected = await selectAdminProviderCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       orderId: order.id,
       existingIdempotencyKey: cancellation.providerIdempotencyKey,
       providerTransactionReference: status.payment.transaction_id ?? null,
@@ -713,6 +743,7 @@ async function executePaidAdminCancellation({
       return unresolvedAdminCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
       })
     }
     if (
@@ -723,6 +754,7 @@ async function executePaidAdminCancellation({
       return commitPaidCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
         completion: "cancel_confirmed",
       })
     }
@@ -733,6 +765,7 @@ async function executePaidAdminCancellation({
       return executeCancellationRefund({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
         orderId: order.id,
         grossAmount: order.grossAmount,
         payment: after.payment,
@@ -745,6 +778,7 @@ async function executePaidAdminCancellation({
     return unresolvedAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
     })
   }
 
@@ -753,6 +787,7 @@ async function executePaidAdminCancellation({
       return executeCancellationRefund({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
         orderId: order.id,
         grossAmount: order.grossAmount,
         payment: status.payment,
@@ -775,12 +810,14 @@ async function executePaidAdminCancellation({
         const selected = await selectAlreadyReversedCancellationAction({
           cancellationId: cancellation.id,
           actorId,
+          actorType,
           providerTransactionReference: status.payment.transaction_id,
         })
         if (!selected) return { kind: "not-eligible" }
         return commitPaidCancellation({
           cancellationId: cancellation.id,
           actorId,
+          actorType,
           completion: "already_reversed",
         })
       }
@@ -807,6 +844,7 @@ async function executePaidAdminCancellation({
       return unresolvedAdminCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
       })
     }
     case "cancel":
@@ -817,6 +855,7 @@ async function executePaidAdminCancellation({
       return unresolvedAdminCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
       })
   }
 }
@@ -825,11 +864,11 @@ async function continueAsPaidAfterFreshStatus({
   status,
   orderId,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly status: CurrentStatus
   readonly orderId: string
-  readonly actorId: string
-}): Promise<AdminUnpaidCancellationResult | null> {
+}): Promise<OrderCancellationExecutionResult | null> {
   if (
     status.kind !== "found" ||
     (status.providerOutcome.kind !== "paid" &&
@@ -838,7 +877,11 @@ async function continueAsPaidAfterFreshStatus({
     return null
   }
 
-  const context = await adminCancellationContext({ orderId, actorId })
+  const context = await cancellationContextForActor({
+    orderId,
+    actorId,
+    actorType,
+  })
   if (!context) return { kind: "not-found" }
   if (
     !isRevenuePaymentStatus(context.order.paymentStatus) ||
@@ -849,20 +892,25 @@ async function continueAsPaidAfterFreshStatus({
     return unresolvedAdminCancellation({
       cancellationId: context.cancellation.id,
       actorId,
+      actorType,
     })
   }
 
-  return executePaidAdminCancellation({ context, actorId })
+  return executePaidAdminCancellation({ context, actorId, actorType })
 }
 
-export async function executeAdminUnpaidCancellation({
+export async function executeOrderCancellation({
   orderId,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly orderId: string
-  readonly actorId: string
-}): Promise<AdminUnpaidCancellationResult> {
-  let context = await adminCancellationContext({ orderId, actorId })
+}): Promise<OrderCancellationExecutionResult> {
+  let context = await cancellationContextForActor({
+    orderId,
+    actorId,
+    actorType,
+  })
   if (!context) return { kind: "not-found" }
   if (context.cancellation.status === "completed") return { kind: "completed" }
 
@@ -870,9 +918,14 @@ export async function executeAdminUnpaidCancellation({
     const reactivated = await reactivateFailedPaidCancellation({
       orderId,
       actorId,
+      actorType,
     })
     if (!reactivated) return { kind: "not-eligible" }
-    const refreshed = await adminCancellationContext({ orderId, actorId })
+    const refreshed = await cancellationContextForActor({
+      orderId,
+      actorId,
+      actorType,
+    })
     if (!refreshed) return { kind: "not-found" }
     context = refreshed
   }
@@ -885,7 +938,7 @@ export async function executeAdminUnpaidCancellation({
       order.fulfillmentStatus === "cancelled") &&
     order.tracking === null
   ) {
-    return executePaidAdminCancellation({ context, actorId })
+    return executePaidAdminCancellation({ context, actorId, actorType })
   }
 
   if (
@@ -899,6 +952,7 @@ export async function executeAdminUnpaidCancellation({
       return unresolvedAdminCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
       })
     }
 
@@ -906,6 +960,7 @@ export async function executeAdminUnpaidCancellation({
       status: selectedStatus,
       orderId,
       actorId,
+      actorType,
     })
     if (continuedAsPaid) return continuedAsPaid
 
@@ -913,6 +968,7 @@ export async function executeAdminUnpaidCancellation({
       status: selectedStatus,
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       financialAction: "cancel_payment",
     })
     if (selectedFinished) return selectedFinished
@@ -921,6 +977,7 @@ export async function executeAdminUnpaidCancellation({
       return cancelAdminPendingTransaction({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
         orderId,
         status: selectedStatus,
         existingIdempotencyKey: cancellation.providerIdempotencyKey,
@@ -931,12 +988,14 @@ export async function executeAdminUnpaidCancellation({
       return unresolvedAdminCancellation({
         cancellationId: cancellation.id,
         actorId,
+        actorType,
       })
     }
 
     return cancelAdminSnapSession({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       orderId,
       token: order.snapToken,
       paymentSessionExpiresAt: order.paymentSessionExpiresAt,
@@ -948,6 +1007,7 @@ export async function executeAdminUnpaidCancellation({
     return unresolvedAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
     })
   }
   if (order.fulfillmentStatus === "cancelled") {
@@ -958,6 +1018,7 @@ export async function executeAdminUnpaidCancellation({
     return completeAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       financialAction: action,
       providerTransactionReference: order.midtransTransactionId,
     })
@@ -969,6 +1030,7 @@ export async function executeAdminUnpaidCancellation({
     await abandonOrderCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       error: "Order fulfillment is not eligible for unpaid cancellation.",
     })
     return { kind: "not-eligible" }
@@ -978,6 +1040,7 @@ export async function executeAdminUnpaidCancellation({
     return completeAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       financialAction: "none",
     })
   }
@@ -989,6 +1052,7 @@ export async function executeAdminUnpaidCancellation({
     return unresolvedAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
     })
   }
 
@@ -996,6 +1060,7 @@ export async function executeAdminUnpaidCancellation({
     status: initial,
     orderId,
     actorId,
+    actorType,
   })
   if (continuedAsPaid) return continuedAsPaid
 
@@ -1003,6 +1068,7 @@ export async function executeAdminUnpaidCancellation({
     status: initial,
     cancellationId: cancellation.id,
     actorId,
+    actorType,
     financialAction:
       cancellation.financialAction === "cancel_payment"
         ? "cancel_payment"
@@ -1014,6 +1080,7 @@ export async function executeAdminUnpaidCancellation({
     return cancelAdminPendingTransaction({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       orderId,
       status: initial,
       existingIdempotencyKey: cancellation.providerIdempotencyKey,
@@ -1024,6 +1091,7 @@ export async function executeAdminUnpaidCancellation({
     return cancelAdminSnapSession({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       orderId,
       token: order.snapToken,
       paymentSessionExpiresAt: order.paymentSessionExpiresAt,
@@ -1038,6 +1106,7 @@ export async function executeAdminUnpaidCancellation({
     return completeAdminCancellation({
       cancellationId: cancellation.id,
       actorId,
+      actorType,
       financialAction: "none",
     })
   }
@@ -1045,7 +1114,20 @@ export async function executeAdminUnpaidCancellation({
   return unresolvedAdminCancellation({
     cancellationId: cancellation.id,
     actorId,
+    actorType,
   })
+}
+
+export type AdminUnpaidCancellationResult = OrderCancellationExecutionResult
+
+export function executeAdminUnpaidCancellation({
+  orderId,
+  actorId,
+}: {
+  readonly orderId: string
+  readonly actorId: string
+}) {
+  return executeOrderCancellation({ orderId, actorId, actorType: "admin" })
 }
 
 function terminalCancellationResult(

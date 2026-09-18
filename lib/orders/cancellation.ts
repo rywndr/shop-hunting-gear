@@ -1,4 +1,4 @@
-import type { FulfillmentStatus } from "./config"
+import type { FulfillmentStatus, Order } from "./config"
 import { z } from "zod"
 
 export const adminOrderCancellationSchema = z.object({
@@ -34,6 +34,20 @@ export const ACTIVE_CANCELLATION_STATUSES = [
 
 export type OrderCancellationActorType = "customer" | "admin"
 
+export type CancellationActor = {
+  readonly actorId: string
+  readonly actorType: OrderCancellationActorType
+}
+
+export const customerOrderCancellationSchema = z.object({
+  orderId: z.string().trim().min(1).max(200),
+  reason: z.string().trim().min(1).max(1000),
+})
+
+export type CustomerOrderCancellationInput = z.infer<
+  typeof customerOrderCancellationSchema
+>
+
 export type OrderCancellationFinancialAction =
   "undetermined" | "none" | "cancel_payment" | "refund" | "manual_refund"
 
@@ -66,6 +80,21 @@ export function canCancelOrder({
       return _exhaustive
     }
   }
+}
+
+export function canCustomerCancelOrder({
+  status,
+  paymentStatus,
+  fulfillmentStatus,
+  tracking,
+}: Pick<Order, "status" | "paymentStatus" | "fulfillmentStatus" | "tracking">) {
+  if (status === "unpaid") return fulfillmentStatus === "awaiting_payment"
+  return (
+    status === "processing" &&
+    paymentStatus === "paid" &&
+    fulfillmentStatus === "processing" &&
+    tracking === null
+  )
 }
 
 export function isActiveCancellationStatus(status: OrderCancellationStatus) {

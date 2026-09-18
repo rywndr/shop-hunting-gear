@@ -14,6 +14,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import type { CustomerReturnState } from "@/lib/returns/config"
+import type { CustomerCancellationState } from "@/lib/orders/cancellation-service"
 import type { Order } from "@/lib/orders/config"
 import type { MidtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
@@ -26,7 +27,9 @@ function OrderList({
   pageSize,
   total,
   returnStates,
+  cancellationStates,
 }: {
+  readonly cancellationStates: ReadonlyMap<string, CustomerCancellationState>
   readonly returnStates: ReadonlyMap<string, CustomerReturnState>
   readonly orders: readonly Order[]
   readonly emptyMessage: string
@@ -68,6 +71,9 @@ function OrderList({
               midtrans={midtrans}
               returnState={
                 returnStates.get(order.id) ?? { kind: "unavailable" }
+              }
+              cancellationState={
+                cancellationStates.get(order.id) ?? { kind: "none" }
               }
             />
           </li>

@@ -12,12 +12,17 @@ import { revalidateReturnViews } from "@/lib/returns/revalidation"
 import { z } from "zod"
 
 import { getCurrentSession } from "@/lib/auth/session"
+import { customerOrderCancellationSchema } from "@/lib/orders/cancellation"
+import { requestOrderCancellation } from "@/lib/orders/cancellation-service"
 import { confirmOrderReceivedForUser } from "@/lib/orders/service"
-import { cancelMidtransOrderForUser } from "@/lib/payments/midtrans/service"
+import { executeOrderCancellation } from "@/lib/payments/midtrans/service"
 
 export type CancelOrderResult =
-  | { readonly kind: "success" }
-  | { readonly kind: "paid"; readonly message: string }
+  | {
+      readonly kind: "success"
+      readonly state: "completed" | "refund_pending" | "manual_refund_required"
+      readonly message: string
+    }
   | { readonly kind: "pending"; readonly message: string }
   | { readonly kind: "error"; readonly message: string }
 
@@ -153,13 +158,14 @@ export async function confirmOrderReceivedAction(
   }
 }
 
-export async function cancelOrderAction(
-  orderId: string
-): Promise<CancelOrderResult> {
-  const parsedOrderId = orderIdSchema.safeParse(orderId)
+export async function cancelOrderAction(input: {
+  readonly orderId: string
+  readonly reason: string
+}): Promise<CancelOrderResult> {
+  const parsed = customerOrderCancellationSchema.safeParse(input)
 
-  if (!parsedOrderId.success) {
-    return { kind: "error", message: "Data pesanan tidak valid." }
+  if (!parsed.success) {
+    return { kind: "error", message: "Masukkan alasan pembatalan." }
   }
 
   const session = await getCurrentSession()
@@ -168,18 +174,81 @@ export async function cancelOrderAction(
     return { kind: "error", message: "Silakan masuk untuk melanjutkan." }
   }
 
-  let result: Awaited<ReturnType<typeof cancelMidtransOrderForUser>>
-
   try {
-    result = await cancelMidtransOrderForUser({
-      userId: session.user.id,
-      orderId: parsedOrderId.data,
+    const actor = { actorId: session.user.id, actorType: "customer" } as const
+    const requested = await requestOrderCancellation({
+      orderId: parsed.data.orderId,
+      reason: parsed.data.reason,
+      ...actor,
     })
+
+    if (requested.kind === "not-found")
+      return { kind: "error", message: "Pesanan tidak ditemukan." }
+    if (requested.kind === "not-eligible")
+      return {
+        kind: "error",
+        message: "Status pesanan sudah berubah dan tidak dapat dibatalkan.",
+      }
+
+    const result = await executeOrderCancellation({
+      orderId: parsed.data.orderId,
+      ...actor,
+    })
+    const revalidateCancellationViews = () => {
+      revalidatePath("/orders")
+      revalidatePath("/admin/orders")
+      revalidatePath("/admin/finance")
+    }
+
+    switch (result.kind) {
+      case "completed":
+        revalidateCancellationViews()
+        return {
+          kind: "success",
+          state: "completed",
+          message: "Pesanan berhasil dibatalkan.",
+        }
+      case "refund_pending":
+        revalidateCancellationViews()
+        return {
+          kind: "success",
+          state: "refund_pending",
+          message:
+            "Pesanan berhasil dibatalkan. Pengembalian dana sedang diproses.",
+        }
+      case "manual_refund_required":
+        revalidateCancellationViews()
+        return {
+          kind: "success",
+          state: "manual_refund_required",
+          message:
+            "Pesanan berhasil dibatalkan. Pengembalian dana akan diproses secara manual.",
+        }
+      case "pending":
+        revalidateCancellationViews()
+        return {
+          kind: "pending",
+          message:
+            "Pembatalan sedang diproses. Pesanan tetap ditahan dan tidak akan dikirim selama statusnya diperiksa.",
+        }
+      case "paid":
+      case "not-eligible":
+        return {
+          kind: "error",
+          message: "Status pesanan sudah berubah dan tidak dapat dibatalkan.",
+        }
+      case "not-found":
+        return { kind: "error", message: "Pesanan tidak ditemukan." }
+      default: {
+        const _exhaustive: never = result
+        return _exhaustive
+      }
+    }
   } catch (error) {
     console.error(
       JSON.stringify({
-        event: "checkout.order_cancellation_failed",
-        orderId: parsedOrderId.data,
+        event: "orders.customer_cancellation_failed",
+        orderId: parsed.data.orderId,
         userId: session.user.id,
         error: error instanceof Error ? error.message : String(error),
       })
@@ -187,37 +256,6 @@ export async function cancelOrderAction(
     return {
       kind: "error",
       message: "Pesanan belum dapat dibatalkan. Coba lagi.",
-    }
-  }
-
-  switch (result.kind) {
-    case "cancelled":
-      revalidatePath("/orders")
-      revalidatePath("/admin/orders")
-      return { kind: "success" }
-    case "paid":
-      revalidatePath("/orders")
-      revalidatePath("/admin/orders")
-      return {
-        kind: "paid",
-        message: "Pesanan sudah dibayar dan tidak dapat dibatalkan.",
-      }
-    case "pending":
-      return {
-        kind: "pending",
-        message: "Status pembatalan masih diproses. Coba lagi sebentar.",
-      }
-    case "not-found":
-      return { kind: "error", message: "Pesanan tidak ditemukan." }
-    case "error":
-      return {
-        kind: "error",
-        message:
-          "Pesanan belum dapat dibatalkan karena status pembayaran belum dapat dikonfirmasi. Coba lagi.",
-      }
-    default: {
-      const _exhaustive: never = result
-      return _exhaustive
     }
   }
 }

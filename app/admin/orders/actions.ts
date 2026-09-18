@@ -22,7 +22,7 @@ import {
   type AdminOrderCancellationInput,
 } from "@/lib/orders/cancellation"
 import { requestOrderCancellation } from "@/lib/orders/cancellation-service"
-import { executeAdminUnpaidCancellation } from "@/lib/payments/midtrans/service"
+import { executeOrderCancellation } from "@/lib/payments/midtrans/service"
 import {
   createManualOrder,
   markOrderCompleted,
@@ -285,9 +285,10 @@ export async function cancelAdminOrderAction(
       }
     }
 
-    const result = await executeAdminUnpaidCancellation({
+    const result = await executeOrderCancellation({
       orderId: parsed.data.orderId,
       actorId: session.user.id,
+      actorType: "admin",
     })
 
     switch (result.kind) {

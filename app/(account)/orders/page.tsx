@@ -16,6 +16,10 @@ import {
 import { customerReturnStates } from "@/lib/returns/service"
 import type { CustomerReturnState } from "@/lib/returns/config"
 import { ordersForUserPage } from "@/lib/orders/service"
+import {
+  customerCancellationStates,
+  type CustomerCancellationState,
+} from "@/lib/orders/cancellation-service"
 import { midtransBrowserConfig } from "@/lib/payments/midtrans/config"
 import { cn } from "@/lib/utils"
 
@@ -51,7 +55,9 @@ function buildTabs({
   page,
   total,
   returnStates,
+  cancellationStates,
 }: {
+  readonly cancellationStates: ReadonlyMap<string, CustomerCancellationState>
   readonly returnStates: ReadonlyMap<string, CustomerReturnState>
   readonly activeTab: HistoryTab
   readonly counts: Readonly<Record<OrderStatus, number>>
@@ -65,6 +71,7 @@ function buildTabs({
       <OrderList
         orders={orders}
         returnStates={returnStates}
+        cancellationStates={cancellationStates}
         emptyMessage={emptyMessage}
         midtrans={midtrans}
         page={page}
@@ -176,10 +183,11 @@ async function HistoryTabs({
     pageSize: PAGE_SIZE,
   })
 
-  const returnStates = await customerReturnStates({
-    userId: session.user.id,
-    orderIds: orderPage.orders.map(({ id }) => id),
-  })
+  const orderIds = orderPage.orders.map(({ id }) => id)
+  const [returnStates, cancellationStates] = await Promise.all([
+    customerReturnStates({ userId: session.user.id, orderIds }),
+    customerCancellationStates({ userId: session.user.id, orderIds }),
+  ])
 
   return (
     <SectionTabs
@@ -188,6 +196,7 @@ async function HistoryTabs({
       queryParam="status"
       tabs={buildTabs({
         returnStates,
+        cancellationStates,
         activeTab,
         counts: orderPage.counts,
         midtrans: midtransBrowserConfig(),

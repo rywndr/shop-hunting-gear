@@ -18,6 +18,8 @@ import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { formatRupiah, formatShortDate } from "@/utils/format/intl"
+import { canCustomerCancelOrder } from "@/lib/orders/cancellation"
+import type { CustomerCancellationState } from "@/lib/orders/cancellation-service"
 import {
   ORDER_STATUSES,
   orderItemCount,
@@ -83,8 +85,10 @@ function OrderCard({
   order,
   midtrans,
   returnState,
+  cancellationState,
 }: {
   returnState: CustomerReturnState
+  cancellationState: CustomerCancellationState
   order: Order
   midtrans: MidtransBrowserConfig
 }) {
@@ -97,6 +101,31 @@ function OrderCard({
     tracking: order.tracking,
     shippingCourier: order.shippingCourier,
   })
+  const cancellationAvailable =
+    cancellationState.kind === "none" && canCustomerCancelOrder(order)
+
+  const cancellationMessage = (() => {
+    switch (cancellationState.kind) {
+      case "none":
+        return null
+      case "processing":
+        return "Pembatalan sedang diproses."
+      case "refund_pending":
+        return "Pesanan dibatalkan. Pengembalian dana sedang diproses."
+      case "manual_refund_required":
+        return "Pesanan dibatalkan. Pengembalian dana akan diproses secara manual."
+      case "completed":
+        return cancellationState.financialOutcome === "refund_confirmed"
+          ? "Pembatalan selesai. Pengembalian dana telah dikonfirmasi oleh penyedia pembayaran."
+          : "Pembatalan selesai."
+      case "failed":
+        return "Pembatalan belum dapat diselesaikan."
+      default: {
+        const _exhaustive: never = cancellationState
+        return _exhaustive
+      }
+    }
+  })()
 
   return (
     <Card size="sm" className={cn(FLAT_CARD, "gap-0 py-0")}>
@@ -135,6 +164,16 @@ function OrderCard({
                 {returnState.note}
               </p>
             )}
+          </section>
+        )}
+
+        {cancellationMessage && (
+          <section
+            className="mt-4 border-t pt-3 text-sm"
+            aria-label="Status pembatalan"
+          >
+            <p className="font-medium">Status pembatalan</p>
+            <p className="text-muted-foreground">{cancellationMessage}</p>
           </section>
         )}
 
@@ -179,8 +218,12 @@ function OrderCard({
               admin menandai pesanan ini sudah dibayar.
             </p>
           )}
-          {order.status === "unpaid" ? (
-            <CancelOrderButton orderId={order.id} />
+          {cancellationAvailable ? (
+            <CancelOrderButton
+              orderId={order.id}
+              paid={order.paymentStatus === "paid"}
+              amount={formatRupiah(orderTotal(order))}
+            />
           ) : order.status === "shipped" ? (
             secondaryAction && (
               <ConfirmOrderReceivedDialog
@@ -197,6 +240,7 @@ function OrderCard({
               />
             )
           ) : (
+            order.status !== "unpaid" &&
             secondaryAction && (
               <Button type="button" variant="outline" className="h-10">
                 {secondaryAction}

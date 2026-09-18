@@ -11,6 +11,7 @@ import { matchingProviderRefund } from "@/lib/returns/refund-policy"
 
 import {
   ACTIVE_CANCELLATION_STATUSES,
+  type CancellationActor,
   type OrderCancellationActorType,
   type OrderCancellationFinancialAction,
   type OrderCancellationProviderSelectedStatus,
@@ -56,6 +57,21 @@ export type RequestOrderCancellationResult =
   | { readonly kind: "not-eligible" }
   | { readonly kind: "not-found" }
 
+export type CustomerCancellationState =
+  | { readonly kind: "none" }
+  | { readonly kind: "processing" }
+  | { readonly kind: "refund_pending" }
+  | { readonly kind: "manual_refund_required" }
+  | {
+      readonly kind: "completed"
+      readonly financialOutcome:
+        | "cancelled_before_settlement"
+        | "refund_confirmed"
+        | "already_reversed"
+        | "no_refund_required"
+    }
+  | { readonly kind: "failed" }
+
 type CancellationSqlRow = {
   readonly result_kind: "created" | "existing"
   readonly id: string
@@ -95,6 +111,21 @@ function cancellationFromSqlRow(row: CancellationSqlRow) {
   } satisfies OrderCancellationRecord
 }
 
+function actorAuthorizationSql({
+  actorId,
+  actorType,
+  orderUserId,
+}: CancellationActor & { readonly orderUserId: ReturnType<typeof sql> }) {
+  return sql`
+    actor.id = ${actorId}
+    AND (
+      (${actorType} = 'customer' AND actor.role = 'user'
+        AND actor.id = ${orderUserId})
+      OR (${actorType} = 'admin' AND actor.role = 'admin')
+    )
+  `
+}
+
 function authorizationSql({
   orderId,
   actorId,
@@ -102,12 +133,26 @@ function authorizationSql({
 }: Pick<RequestOrderCancellationInput, "orderId" | "actorId" | "actorType">) {
   return sql`
     current_order.id = ${orderId}
-    AND actor.id = ${actorId}
-    AND (
-      (${actorType} = 'customer' AND actor.role = 'user'
-        AND actor.id = current_order.user_id)
-      OR (${actorType} = 'admin' AND actor.role = 'admin')
-    )
+    AND ${actorAuthorizationSql({
+      actorId,
+      actorType,
+      orderUserId: sql`current_order.user_id`,
+    })}
+  `
+}
+
+function cancellationAuthorizationSql({
+  cancellationId,
+  actorId,
+  actorType,
+}: CancellationActor & { readonly cancellationId: string }) {
+  return sql`
+    cancellation.id = ${cancellationId}
+    AND ${actorAuthorizationSql({
+      actorId,
+      actorType,
+      orderUserId: sql`current_order.user_id`,
+    })}
   `
 }
 
@@ -115,6 +160,75 @@ function activeCancellationStatusValues() {
   return sql.join(
     ACTIVE_CANCELLATION_STATUSES.map((status) => sql`${status}`),
     sql`, `
+  )
+}
+
+export async function customerCancellationStates({
+  userId,
+  orderIds,
+}: {
+  readonly userId: string
+  readonly orderIds: readonly string[]
+}): Promise<ReadonlyMap<string, CustomerCancellationState>> {
+  if (orderIds.length === 0) return new Map()
+  const ids = sql.join(
+    orderIds.map((orderId) => sql`${orderId}`),
+    sql`, `
+  )
+  const result = await db.execute<{
+    readonly order_id: string
+    readonly status: OrderCancellationStatus
+    readonly financial_action: OrderCancellationFinancialAction
+    readonly payment_status: PaymentStatus
+  }>(sql`
+    SELECT cancellation.order_id, cancellation.status,
+      cancellation.financial_action, current_order.payment_status
+    FROM order_cancellation AS cancellation
+    INNER JOIN customer_order AS current_order
+      ON current_order.id = cancellation.order_id
+    INNER JOIN "user" AS actor ON actor.id = ${userId}
+    WHERE current_order.id IN (${ids})
+      AND actor.role = 'user'
+      AND actor.id = current_order.user_id
+  `)
+
+  return new Map(
+    result.rows.map((row) => {
+      let state: CustomerCancellationState
+      switch (row.status) {
+        case "requested":
+        case "provider_operation_pending":
+          state = { kind: "processing" }
+          break
+        case "refund_pending":
+          state = { kind: "refund_pending" }
+          break
+        case "manual_refund_required":
+          state = { kind: "manual_refund_required" }
+          break
+        case "failed":
+          state = { kind: "failed" }
+          break
+        case "completed":
+          state = {
+            kind: "completed",
+            financialOutcome:
+              row.financial_action === "refund"
+                ? "refund_confirmed"
+                : row.payment_status === "refunded"
+                  ? "already_reversed"
+                  : row.financial_action === "cancel_payment"
+                    ? "cancelled_before_settlement"
+                    : "no_refund_required",
+          }
+          break
+        default: {
+          const _exhaustive: never = row.status
+          return _exhaustive
+        }
+      }
+      return [row.order_id, state] as const
+    })
   )
 }
 
@@ -267,7 +381,7 @@ export async function requestOrderCancellation({
   return order ? { kind: "not-eligible" } : { kind: "not-found" }
 }
 
-export type AdminCancellationContext = {
+export type CancellationContext = {
   readonly cancellation: OrderCancellationRecord
   readonly order: {
     readonly id: string
@@ -283,7 +397,7 @@ export type AdminCancellationContext = {
   }
 }
 
-type AdminCancellationContextRow = CancellationSqlRow & {
+type CancellationContextRow = CancellationSqlRow & {
   readonly source_kind: OrderSourceKind
   readonly payment_status: PaymentStatus
   readonly payment_init_status: "pending" | "creating" | "ready" | "failed"
@@ -295,14 +409,14 @@ type AdminCancellationContextRow = CancellationSqlRow & {
   readonly gross_amount: number
 }
 
-export async function adminCancellationContext({
+export async function cancellationContextForActor({
   orderId,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly orderId: string
-  readonly actorId: string
-}): Promise<AdminCancellationContext | null> {
-  const result = await db.execute<AdminCancellationContextRow>(sql`
+}): Promise<CancellationContext | null> {
+  const result = await db.execute<CancellationContextRow>(sql`
     SELECT cancellation.*, current_order.source_kind,
       current_order.payment_status, current_order.payment_init_status,
       current_order.fulfillment_status, current_order.tracking,
@@ -311,9 +425,8 @@ export async function adminCancellationContext({
     FROM order_cancellation AS cancellation
     INNER JOIN customer_order AS current_order
       ON current_order.id = cancellation.order_id
-    INNER JOIN "user" AS actor
-      ON actor.id = ${actorId} AND actor.role = 'admin'
-    WHERE cancellation.order_id = ${orderId}
+    INNER JOIN "user" AS actor ON true
+    WHERE ${authorizationSql({ orderId, actorId, actorType })}
     LIMIT 1
   `)
   const [row] = result.rows
@@ -339,12 +452,14 @@ export async function adminCancellationContext({
 export async function selectCancellationProviderAction({
   cancellationId,
   actorId,
+  actorType,
   providerIdempotencyKey,
   providerTransactionReference,
   providerSelectedStatus,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly providerIdempotencyKey: string
   readonly providerTransactionReference: string | null
   readonly providerSelectedStatus?: OrderCancellationProviderSelectedStatus
@@ -358,9 +473,10 @@ export async function selectCancellationProviderAction({
     WITH authorized AS MATERIALIZED (
       SELECT cancellation.id
       FROM order_cancellation AS cancellation
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.id = ${cancellationId}
+      INNER JOIN customer_order AS current_order
+        ON current_order.id = cancellation.order_id
+      INNER JOIN "user" AS actor ON true
+      WHERE ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       FOR UPDATE OF cancellation
     ), updated AS (
       UPDATE order_cancellation AS cancellation
@@ -402,19 +518,22 @@ export async function selectCancellationProviderAction({
 export async function selectAlreadyReversedCancellationAction({
   cancellationId,
   actorId,
+  actorType,
   providerTransactionReference,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly providerTransactionReference: string
 }): Promise<OrderCancellationRecord | null> {
   const result = await db.execute<CancellationSqlRow>(sql`
     WITH authorized AS MATERIALIZED (
       SELECT cancellation.id
       FROM order_cancellation AS cancellation
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.id = ${cancellationId}
+      INNER JOIN customer_order AS current_order
+        ON current_order.id = cancellation.order_id
+      INNER JOIN "user" AS actor ON true
+      WHERE ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       FOR UPDATE OF cancellation
     ), updated AS (
       UPDATE order_cancellation AS cancellation
@@ -449,10 +568,12 @@ export async function selectAlreadyReversedCancellationAction({
 export async function recordCancellationReconciliationProblem({
   cancellationId,
   actorId,
+  actorType,
   error,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly error: string
 }): Promise<void> {
   await db.execute(sql`
@@ -465,10 +586,9 @@ export async function recordCancellationReconciliationProblem({
         reconciliation_status = 'failed',
         last_error = ${error.slice(0, 1000)},
         updated_at = now()
-    FROM "user" AS actor
-    WHERE cancellation.id = ${cancellationId}
-      AND actor.id = ${actorId}
-      AND actor.role = 'admin'
+    FROM customer_order AS current_order, "user" AS actor
+    WHERE current_order.id = cancellation.order_id
+      AND ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       AND cancellation.status IN (${activeCancellationStatusValues()})
   `)
 }
@@ -487,11 +607,13 @@ type CompletionSqlRow = {
 export async function completeUnpaidOrderCancellation({
   cancellationId,
   actorId,
+  actorType,
   financialAction,
   providerTransactionReference = null,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly financialAction: "none" | "cancel_payment"
   readonly providerTransactionReference?: string | null
 }): Promise<CompleteUnpaidCancellationResult> {
@@ -504,9 +626,8 @@ export async function completeUnpaidOrderCancellation({
       FROM order_cancellation AS cancellation
       INNER JOIN customer_order AS current_order
         ON current_order.id = cancellation.order_id
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.id = ${cancellationId}
+      INNER JOIN "user" AS actor ON true
+      WHERE ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       FOR UPDATE OF cancellation, current_order
     ), transitioned AS (
       UPDATE customer_order AS current_order
@@ -596,9 +717,9 @@ export async function completeUnpaidOrderCancellation({
 export async function reactivateFailedPaidCancellation({
   orderId,
   actorId,
-}: {
+  actorType,
+}: CancellationActor & {
   readonly orderId: string
-  readonly actorId: string
 }): Promise<OrderCancellationRecord | null> {
   const result = await db.execute<CancellationSqlRow>(sql`
     WITH locked AS MATERIALIZED (
@@ -606,9 +727,8 @@ export async function reactivateFailedPaidCancellation({
       FROM order_cancellation AS cancellation
       INNER JOIN customer_order AS current_order
         ON current_order.id = cancellation.order_id
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.order_id = ${orderId}
+      INNER JOIN "user" AS actor ON true
+      WHERE ${authorizationSql({ orderId, actorId, actorType })}
         AND cancellation.status = 'failed'
         AND cancellation.completed_at IS NULL
         AND cancellation.financial_action IN ('undetermined', 'none')
@@ -659,11 +779,13 @@ type CancellationRefundSelection =
 export async function selectCancellationRefundAction({
   cancellationId,
   actorId,
+  actorType,
   refundAmount,
   selection,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly refundAmount: number
   readonly selection: CancellationRefundSelection
 }): Promise<OrderCancellationRecord | null> {
@@ -684,9 +806,10 @@ export async function selectCancellationRefundAction({
     WITH authorized AS MATERIALIZED (
       SELECT cancellation.id
       FROM order_cancellation AS cancellation
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.id = ${cancellationId}
+      INNER JOIN customer_order AS current_order
+        ON current_order.id = cancellation.order_id
+      INNER JOIN "user" AS actor ON true
+      WHERE ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       FOR UPDATE OF cancellation
     ), updated AS (
       UPDATE order_cancellation AS cancellation
@@ -760,10 +883,12 @@ type CommitPaidCancellationResult =
 export async function commitPaidCancellationOperation({
   cancellationId,
   actorId,
+  actorType,
   completion,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly completion:
     | "cancel_confirmed"
     | "already_reversed"
@@ -781,9 +906,8 @@ export async function commitPaidCancellationOperation({
       FROM order_cancellation AS cancellation
       INNER JOIN customer_order AS current_order
         ON current_order.id = cancellation.order_id
-      INNER JOIN "user" AS actor
-        ON actor.id = ${actorId} AND actor.role = 'admin'
-      WHERE cancellation.id = ${cancellationId}
+      INNER JOIN "user" AS actor ON true
+      WHERE ${cancellationAuthorizationSql({ cancellationId, actorId, actorType })}
       FOR UPDATE OF cancellation, current_order
     ), eligible AS (
       SELECT * FROM locked
@@ -916,10 +1040,12 @@ export async function reconcileCancellationRefund(
 export async function abandonOrderCancellation({
   cancellationId,
   actorId,
+  actorType,
   error,
 }: {
   readonly cancellationId: string
   readonly actorId: string
+  readonly actorType: OrderCancellationActorType
   readonly error: string
 }): Promise<void> {
   await db.execute(sql`
@@ -928,10 +1054,14 @@ export async function abandonOrderCancellation({
       SET status = 'failed', reconciliation_status = 'reconciled',
         last_error = ${error.slice(0, 1000)}, completed_at = null,
         updated_at = now()
-      FROM "user" AS actor
-      WHERE cancellation.id = ${cancellationId}
-        AND actor.id = ${actorId}
-        AND actor.role = 'admin'
+       FROM customer_order AS authorized_order, "user" AS actor
+       WHERE authorized_order.id = cancellation.order_id
+         AND cancellation.id = ${cancellationId}
+         AND ${actorAuthorizationSql({
+           actorId,
+           actorType,
+           orderUserId: sql`authorized_order.user_id`,
+         })}
         AND cancellation.status IN (${activeCancellationStatusValues()})
       RETURNING cancellation.order_id
     )
