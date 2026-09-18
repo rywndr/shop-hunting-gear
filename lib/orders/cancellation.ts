@@ -97,6 +97,31 @@ export function canCustomerCancelOrder({
   )
 }
 
+export function customerOrderActionVisibility({
+  order,
+  hasCancellation,
+}: {
+  readonly order: Pick<
+    Order,
+    | "status"
+    | "paymentStatus"
+    | "fulfillmentStatus"
+    | "tracking"
+    | "paymentToken"
+  >
+  readonly hasCancellation: boolean
+}) {
+  return {
+    showCancellation: !hasCancellation && canCustomerCancelOrder(order),
+    showPayment:
+      !hasCancellation &&
+      order.status === "unpaid" &&
+      order.paymentToken !== null,
+    showPrimaryAction: !(hasCancellation && order.status === "unpaid"),
+    showCancellationStatus: hasCancellation,
+  }
+}
+
 export function isActiveCancellationStatus(status: OrderCancellationStatus) {
   return ACTIVE_CANCELLATION_STATUSES.some(
     (activeStatus) => activeStatus === status

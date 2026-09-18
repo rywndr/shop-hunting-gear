@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { canCustomerCancelOrder } from "../lib/orders/cancellation"
+import {
+  canCustomerCancelOrder,
+  customerOrderActionVisibility,
+} from "../lib/orders/cancellation"
 import type { Order } from "../lib/orders/config"
 
 function eligible(
@@ -77,4 +80,25 @@ test("customer cancellation eligibility rejects terminal, tracked, and reversed 
   >) {
     assert.equal(eligible(candidate), false)
   }
+})
+
+test("an active unpaid cancellation hides cancellation and payment actions", () => {
+  assert.deepEqual(
+    customerOrderActionVisibility({
+      order: {
+        status: "unpaid",
+        paymentStatus: "pending",
+        fulfillmentStatus: "awaiting_payment",
+        tracking: null,
+        paymentToken: "snap-token",
+      },
+      hasCancellation: true,
+    }),
+    {
+      showCancellation: false,
+      showPayment: false,
+      showPrimaryAction: false,
+      showCancellationStatus: true,
+    }
+  )
 })

@@ -1034,6 +1034,38 @@ test("unresolved provider state keeps the hold and stable key across retries", a
   assert.equal((await inventoryState(orderId)).reservation.status, "reserved")
 })
 
+test("customer ambiguous unpaid Cancel remains active and shipping-blocked", async (t) => {
+  const orderId = await createOrder({ providerBacked: true })
+  const originalFetch = globalThis.fetch
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (!String(input).includes("midtrans.com"))
+        return originalFetch(input, init)
+      if (init?.method === "POST") throw new TypeError("timeout")
+      return Response.json(midtransStatus(orderId, "pending"))
+    }
+  )
+
+  await requestAsCustomer(orderId)
+  assert.deepEqual(
+    await executeOrderCancellation({
+      orderId,
+      actorId: CUSTOMER_ID,
+      actorType: "customer",
+    }),
+    { kind: "pending" }
+  )
+  const cancellation = await cancellationState(orderId)
+  assert.equal(cancellation.status, "provider_operation_pending")
+  assert.ok((await orderState(orderId)).cancellationRequestedAt)
+  assert.deepEqual(
+    await recordOrderShipment({ orderId, tracking: "JP1234567890" }),
+    { kind: "not-eligible" }
+  )
+})
+
 test("manual paid order requires a manual refund while shipped and completed reject", async () => {
   const paidOrderId = await createOrder()
   assert.equal((await settleManualOrderPayment(paidOrderId)).kind, "settled")

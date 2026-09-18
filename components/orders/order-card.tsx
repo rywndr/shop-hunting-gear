@@ -18,7 +18,7 @@ import { ProductThumbnail } from "@/components/products/product-thumbnail"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { formatRupiah, formatShortDate } from "@/utils/format/intl"
-import { canCustomerCancelOrder } from "@/lib/orders/cancellation"
+import { customerOrderActionVisibility } from "@/lib/orders/cancellation"
 import type { CustomerCancellationState } from "@/lib/orders/cancellation-service"
 import {
   ORDER_STATUSES,
@@ -101,8 +101,10 @@ function OrderCard({
     tracking: order.tracking,
     shippingCourier: order.shippingCourier,
   })
-  const cancellationAvailable =
-    cancellationState.kind === "none" && canCustomerCancelOrder(order)
+  const actionVisibility = customerOrderActionVisibility({
+    order,
+    hasCancellation: cancellationState.kind !== "none",
+  })
 
   const cancellationMessage = (() => {
     switch (cancellationState.kind) {
@@ -167,7 +169,7 @@ function OrderCard({
           </section>
         )}
 
-        {cancellationMessage && (
+        {actionVisibility.showCancellationStatus && cancellationMessage && (
           <section
             className="mt-4 border-t pt-3 text-sm"
             aria-label="Status pembatalan"
@@ -218,7 +220,7 @@ function OrderCard({
               admin menandai pesanan ini sudah dibayar.
             </p>
           )}
-          {cancellationAvailable ? (
+          {actionVisibility.showCancellation ? (
             <CancelOrderButton
               orderId={order.id}
               paid={order.paymentStatus === "paid"}
@@ -250,7 +252,7 @@ function OrderCard({
           {returnAction && returnState.kind === "eligible" && (
             <ReturnOrderDialog order={order} triggerLabel={returnAction} />
           )}
-          {order.status === "unpaid" && order.paymentToken ? (
+          {actionVisibility.showPayment && order.paymentToken ? (
             <OrderPaymentButton
               browserConfig={midtrans}
               orderId={order.id}
@@ -265,11 +267,13 @@ function OrderCard({
                     audience="customer"
                   />
                 )}
-                {primaryAction && order.status !== "shipped" && (
-                  <Button type="button" className="h-10">
-                    {primaryAction}
-                  </Button>
-                )}
+                {actionVisibility.showPrimaryAction &&
+                  primaryAction &&
+                  order.status !== "shipped" && (
+                    <Button type="button" className="h-10">
+                      {primaryAction}
+                    </Button>
+                  )}
               </>
             )
           )}
